@@ -11,5 +11,6 @@ Easily buildable version of GnollHack's .NET MAUI version
     - win\win32\xpl\GnollHackM\Platforms\Android\banks
     - win\win32\xpl\GnollHackM\Platforms\iOS\banks
 4. Open the solution file at win\win32\xpl\GnollHackM\GnollHackM.sln in Visual Studio 2022
-5. Build the solution on your preferred platform (e.g. Windows); building should now succeed
-6. Deploy and run the app; it should deploy and run successfully
+5. Open Developer Powershell, and run dotnet restore on the project folder
+6. Build the solution on your preferred platform (e.g. Windows); building should now succeed
+7. Deploy and run the app; it should deploy and run successfully
