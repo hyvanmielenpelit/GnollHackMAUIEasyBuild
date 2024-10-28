@@ -11,6 +11,6 @@ Easily buildable version of GnollHack's .NET MAUI version
         - win\win32\xpl\GnollHackM\Platforms\Android\banks
         - win\win32\xpl\GnollHackM\Platforms\iOS\banks
 4. Open the solution file at win\win32\xpl\GnollHackM\GnollHackM.sln in Visual Studio 2022
-5. Open Developer PowerShell in Tool > Command Line, and run `dotnet restore` on the project folder
+5. Open Developer PowerShell in Tools > Command Line, and run `dotnet restore` on the project folder
 6. Select Windows Machine (or another preferred target framework) from debugging dropdown list
 7. Press the Start Without Debugging light-green arrow. The project should now build, deploy, and start successfully.
