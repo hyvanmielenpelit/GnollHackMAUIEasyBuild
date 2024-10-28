@@ -3,7 +3,7 @@ Easily buildable version of GnollHack's .NET MAUI version
 
 ## Build instructions
 1. Create a local copy of this repository
-2. Download sound banks zip from Releases (they are too big to be directly in the repository)
+2. Download sound bank zip files from Releases (they are too big to be directly in the repository)
 3. Unzip the sound bank zip files
     - DesktopSoundBanks.zip should be unzipped to:
         - win\win32\xpl\GnollHackM\Platforms\Windows\banks
