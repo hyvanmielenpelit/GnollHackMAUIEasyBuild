@@ -1,0 +1,75 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<Project ToolsVersion="4.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <ItemGroup>
+    <ClCompile Include="$(SrcDir)animdef.c" />
+    <ClCompile Include="$(UtilDir)makedefs.c" />
+    <ClCompile Include="$(SrcDir)monst.c" />
+    <ClCompile Include="$(SrcDir)objects.c" />
+  </ItemGroup>
+  <ItemGroup>
+    <ClInclude Include="$(IncDir)action.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="$(IncDir)animation.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="$(IncDir)config.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="$(IncDir)config1.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="$(IncDir)context.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="$(IncDir)coord.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="$(LibDroidDir)droidconf.h">
+      <Filter>Android Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="$(IncDir)general.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="$(IncDir)global.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="$(IncDir)monattk.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="$(IncDir)monflag.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="$(IncDir)monsym.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="$(IncDir)objclass.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="$(IncDir)patchlevel.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="$(IncDir)qtext.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="$(IncDir)tradstdc.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="$(IncDir)align.h" />
+    <ClInclude Include="$(IncDir)obj.h" />
+    <ClInclude Include="$(IncDir)permonst.h" />
+    <ClInclude Include="$(IncDir)prop.h" />
+    <ClInclude Include="$(IncDir)rm.h" />
+    <ClInclude Include="$(IncDir)soundset.h" />
+    <ClInclude Include="$(IncDir)unixconf.h" />
+    <ClInclude Include="$(UtilDir)mdgrep.h" />
+  </ItemGroup>
+  <ItemGroup>
+    <Filter Include="Header Files">
+      <UniqueIdentifier>{98d8eddc-495a-4305-8975-9e9e0c761d40}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Android Header Files">
+      <UniqueIdentifier>{13627071-8d77-4ed4-bc72-c1db9aa60adf}</UniqueIdentifier>
+    </Filter>
+  </ItemGroup>
+</Project>

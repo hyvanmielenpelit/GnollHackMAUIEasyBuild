@@ -1,0 +1,21 @@
+
+    GnollHack version 4.2.0 [20]
+
+Options compiled into this edition:
+
+    color, data librarian, end-of-game dumplogs, end-of-game HTML dumplogs,
+    exclusive lock on level 0 file, insurance files for recovering from
+    crashes, log file, extended log file, errors and warnings log file, news
+    file, pattern matching via :PATMATCH:, pseudo random numbers generated
+    by ISAAC64, strong PRNG seed available from CNG BCryptGenRandom(),
+    restore saved games via menu, score on status line, screen clipping,
+    screen control via WIN32 console I/O, traditional status display, status
+    via windowport with highlighting, user sounds, system configuration at
+    run-time, save and bones files accepted from versions 4.2.0 Build 1
+    through 4.2.0 Build 20, and basic GnollHack features.
+
+Supported windowing systems:
+
+    "tty" (traditional text with optional line-drawing) and "mswin", with a
+    default of "mswin".
+

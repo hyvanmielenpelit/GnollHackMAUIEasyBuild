@@ -1,0 +1,69 @@
+# GnollHack File Change Notice: This file has been changed from the original. Date of last change: 2024-08-11
+
+# GnollHack 4.0	oracle.des	$NHDT-Date: 1524689580 2018/04/25 20:53:00 $  $NHDT-Branch: NetHack-3.6.0 $:$NHDT-Revision: 1.10 $
+# Copyright (c) 2015 by Pasi Kallinen
+# GnollHack may be freely redistributed.  See license for details.
+#
+# Oracle level
+#
+
+LEVEL: "oracle"
+NAMING:"Large room with centaur statues",name_revealed_seeing_monster, montype:"Oracle"
+
+ROOM: "ordinary" , lit, (3,3), (center,center), (11,9) tileset:tower_tileset decoration_style:0 {
+  OBJECT:('`',"statue"),(0,0),montype:'C',1
+  OBJECT:('`',"statue"),(0,8),montype:'C',1
+  OBJECT:('`',"statue"),(10,0),montype:'C',1
+  OBJECT:('`',"statue"),(10,8),montype:'C',1
+  OBJECT:('`',"statue"),(5,1),montype:"fire elemental",1
+  OBJECT:('`',"statue"),(5,7),montype:"water elemental",1
+  OBJECT:('`',"statue"),(1,4),montype:"earth elemental",1
+  OBJECT:('`',"statue"),(9,4),montype:"air elemental",1
+
+  SUBROOM: "delphi" , lit , (4,3) , (3,3) floorsubtype:floor_marble tileset:garden_tileset decoration_style:0 {
+    FOUNTAIN: (0, 1),fountain_healing
+    FOUNTAIN: (1, 0),fountain_magic
+    FOUNTAIN: (1, 2),fountain_water
+    FOUNTAIN: (2, 1),fountain_mana
+    MONSTER: ('@', "Oracle"), (1,1)
+    ROOMDOOR: false , nodoor , random, random
+  }
+
+  MONSTER: random, random
+  MONSTER: random, random
+  SPECIAL_REGION:(00,00,10,08),region_special_level_seen
+}
+
+
+ROOM: "ordinary" , random, random, random, random {
+  STAIR: random, up
+  OBJECT: random,random
+}
+
+ROOM: "ordinary" , random, random, random, random {
+  STAIR: random, down
+  OBJECT: random, random
+  TRAP: random, random
+  MONSTER: random, random
+  MONSTER: random, random
+}
+
+ROOM: "ordinary" , random, random, random, random {
+  OBJECT: random, random
+  OBJECT: random, random
+  MONSTER: random, random
+}
+
+ROOM: "ordinary" , random, random, random, random {
+  OBJECT: random, random
+  TRAP: random, random
+  MONSTER: random, random
+}
+
+ROOM: "ordinary" , random, random, random, random {
+  OBJECT: random, random
+  TRAP: random, random
+  MONSTER: random, random
+}
+
+RANDOM_CORRIDORS

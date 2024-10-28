@@ -1,0 +1,192 @@
+# GnollHack File Change Notice: This file has been changed from the original. Date of last change: 2023-07-16
+
+# GnollHack 4.0	dungeon.def	$NHDT-Date: 1462486876 2016/05/05 22:21:16 $  $NHDT-Branch: NetHack-3.6.0 $:$NHDT-Revision: 1.14 $
+#	Copyright (c) 1990-95 by M. Stephenson
+# GnollHack may be freely redistributed.  See license for details.
+#
+#	The dungeon description file for the "standard" 3.1 NetHack.
+#
+#	Note:	The order of the definition of dungeons in this file
+#		reflects in their order of creation in the real dungeon.
+#		The "Main" branch must *always* be first.
+#		Also note that the order of the dungeons in this file
+#		determines the order in which branch levels are assigned.
+#		If two dungeons have overlapping ranges for their entry
+#		points, then you should list the dungeon with the _least_
+#		number of choices for its branch level _first_.
+#
+
+DUNGEON:	"The Dungeons of Doom" "D" (24, 2)
+TILESET:    dungeons_of_doom_tileset
+ALIGNMENT:	unaligned
+BRANCH:		"The Gnomish Mines" @ (2, 3)
+LEVEL:		"Rogue Level" "rogue" "R" @ (15, 4)
+LEVELDESC:	roguelike
+LEVEL:		"Delphi" "oracle" "O" @ (5, 3)
+LEVALIGN:	neutral
+CHAINBRANCH:	"Sokoban" "oracle" + (1, 0) up
+RNDLEVEL:	"Big Room" "bigrm" "B" @ (10, 3) 40 10
+CHAINBRANCH:	"The Quest" "oracle" + (6, 2) portal
+CHAINLEVEL:		"Treasure Island" "treasure1" "I" "oracle" + (9, 2)
+BRANCH:		"Fort Ludios" @ (12, 9) portal
+RNDLEVEL:	"Medusa's Island" "medusa" "none" @ (-3, 0) 4
+LEVALIGN:	chaotic
+LEVEL:		"Minotaur Maze" "minotaur" "N" @ (-2, 0)
+LEVEL:		"Underground Castle" "castle" "none" @ (-1, 0)
+CHAINBRANCH:	"Gehennom" "castle" + (0, 0)
+BRANCH:		"The Elemental Planes" @ (1, 0) no_down up
+
+#
+#	Gehennom
+#
+#	Now re-worked for 3.1, hell is hopefully going to be a little
+#	less boring.  Also, in 3.1, the tower is not considered as a
+#	part of hell, but is set up as a separate dungeon.
+#
+#	Gehennom is no longer considered "hellish" as a complete dungeon.
+#	That is, fire resistance is no longer a condition for survival in
+#	it.  However, Gehennom, and the special levels in it in particular,
+#	is abundant with fire traps.  As a result, fire resistance is still
+#	a prudent survival strategy in Gehennom.
+#
+#	Note:	Gehennom *must* be the second dungeon defined so that
+#		monsters can properly migrate here under certain
+#		circumstances.
+#
+DUNGEON:	"Gehennom" "G" (18, 3)
+TILESET:    gehennom_tileset
+DESCRIPTION:	mazelike
+DESCRIPTION:	hellish
+ALIGNMENT:	noalign
+BRANCH:		"Vlad's Tower" @ (9, 5) up
+LEVEL:		"Valley of the Dead" "valley" "V" @ (1, 0)
+LEVEL:		"Moloch's Sanctum" "sanctum" "none" @ (-1, 0)
+LEVEL:		"Dis" "dispater" "A" @ (2, 0)
+LEVEL:		"Maladomini" "baalz" "B" @ (4, 5)
+LEVEL:		"Jubilex's Realm" "jubilex" "J" @ (4, 5)
+BRANCH:		"Plane of the Modron" @ (3, 2) portal
+BRANCH:		"Hellish Pastures" @ (8, 6) portal
+LEVEL:		"Wizard's Tower, Top Level" "wizard1" "none" @ (10, 2)
+CHAINLEVEL:	"Wizard's Tower, Middle Level" "wizard2" "X" "wizard1" + (1, 0)
+CHAINLEVEL:	"Wizard's Tower, Bottom Level" "wizard3" "Y" "wizard1" + (2, 0)
+LEVEL:		"First Fake Wizard's Tower" "fakewiz1" "F" @ (-6,4)
+LEVEL:		"Second Fake Wizard's Tower" "fakewiz2" "G" @ (-6,4)
+LEVEL:		"Lair of Tarrasque" "tarrasque" "U" @ (-9, 7)
+LEVEL:		"Yeenaghu's Domain" "yeenaghu" "Z" @ (-9, 7)
+LEVEL:		"Orcus Town" "orcus" "O" @ (5, 11)
+
+#
+#	The Mines of the Gnomes of Zurich.
+#
+DUNGEON:	"The Gnomish Mines" "M" (8, 2)
+TILESET:    gnomish_mines_tileset
+ALIGNMENT:	lawful
+DESCRIPTION:	mazelike
+RNDLEVEL:	"Mine Town" "minetn" "T" @ (3, 2) 7
+LEVELDESC:	town
+RNDLEVEL:	"Mines' End" "minend" "E" @ (-1, 0) 3
+CHAINBRANCH:	"The Large Circular Dungeon" "minetn" + (1, 2) portal
+
+#
+#	The Large Circular Dungeon
+#
+DUNGEON:	"The Large Circular Dungeon" "C" (2, 0)
+TILESET:    gnomish_mines_tileset
+DESCRIPTION:	mazelike
+ALIGNMENT:	unaligned
+LEVEL:		"Quantum Tunnel" "quantum1" "none" @ (1, 0)
+LEVEL:		"Quantum Core" "quantum2" "none" @ (2, 0)
+
+#
+#	The Questdungeon
+#
+#	This is a proto-dungeon.  The level file names will be prepended with
+#	three letter role abbreviation during initialization, replacing "x".
+#	A special "x-fill" level must be defined in the levels description
+#	file.  It will be used for all levels not defined explicitly below.
+#
+DUNGEON:	"The Quest" "Q" (5, 2)
+LEVEL:	"Starting Level" "x-strt" "none" @ (1, 1)
+LEVEL:	"Intermediate Level" "x-loca" "L" @ (3, 1)
+LEVEL:	"Final Level" "x-goal" "none" @ (-1, 0)
+
+#
+# Sokoban
+#
+DUNGEON:		"Sokoban" "none" (4, 0)
+TILESET:        sokoban_tileset
+DESCRIPTION:    mazelike
+ALIGNMENT:      neutral
+ENTRY:          -1
+RNDLEVEL:		"Top Level" "soko1" "none" @ (1, 0) 2
+RNDLEVEL:		"Higher Middle Level" "soko2" "none" @ (2, 0) 2
+RNDLEVEL:		"Lower Middle Level" "soko3" "none" @ (3, 0) 2
+RNDLEVEL:		"Bottom Level" "soko4" "none" @ (4, 0) 2
+
+#
+#	The Central Vault of Croesus.
+#
+DUNGEON:	"Fort Ludios" "K" (1, 0)
+TILESET:    dungeons_of_doom_tileset
+DESCRIPTION:	mazelike
+ALIGNMENT:	unaligned
+LEVEL:		"Fort Ludious" "knox" "K" @ (-1, 0)
+
+#
+#	Plane of the Modron
+#
+DUNGEON:	"Plane of the Modron" "N" (5, 0)
+DESCRIPTION:	mazelike
+ALIGNMENT:	unaligned
+LEVEL:		"Pemptonus" "modron1" "none" @ (1, 0)
+LEVEL:		"Tetartonus" "modron2" "none" @ (2, 0)
+LEVEL:		"Tritonus" "modron3" "none" @ (3, 0)
+LEVEL:		"Deuteronus" "modron4" "none" @ (4, 0)
+LEVEL:		"Protonus" "modron5" "none" @ (5, 0)
+
+#
+#	Hellish Pastures - Domain of Yacc
+#
+DUNGEON:	"Hellish Pastures" "P" (1, 0)
+TILESET:    gehennom_tileset
+DESCRIPTION:	mazelike
+DESCRIPTION:	hellish
+ALIGNMENT:	chaotic
+LEVEL:		"Barn from Hell" "bovine1" "none" @ (-1, 0)
+
+#
+#	Vlad's Tower
+#
+#	It has been removed from Gehennom, and it is surrounded by stone.
+#	Must not allow bones files for its top level.
+#
+DUNGEON:	"Vlad's Tower" "T" (3, 0)
+TILESET:    undead_tileset
+PROTOFILE:	"tower"
+DESCRIPTION:	mazelike
+ALIGNMENT:	chaotic
+ENTRY:		-1
+LEVEL:		"Top Level" "tower1" "none" @ (1, 0)
+# it isn't necessary to list these last two, but doing so makes them
+# show up in ^O output and in the level teleport menu
+LEVEL:		"Middle Level" "tower2" "none" @ (2, 0)
+LEVEL:		"Bottom Level" "tower3" "none" @ (3, 0)
+
+#
+#	The Endgame levels
+#
+#	Enter on 2nd level from bottom; 1st (from bottom) is a
+#	placeholder for surface level, and should be unreachable.
+#	[Note: the name "dummy" is checked for in init_dungeons().]
+#
+DUNGEON:	"The Elemental Planes" "E" (6, 0)
+TILESET:    elemental_tileset
+DESCRIPTION:	mazelike
+ALIGNMENT:	unaligned
+ENTRY:		-2
+LEVEL:		"Astral Plane" "astral" "none" @ (1, 0)
+LEVEL:		"Elemental Plane of Water" "water"  "none" @ (2, 0)
+LEVEL:		"Elemental Plane of Fire" "fire"   "none" @ (3, 0)
+LEVEL:		"Elemental Plane of Air" "air"    "none" @ (4, 0)
+LEVEL:		"Elemental Plane of Earth" "earth"  "none" @ (5, 0)
+LEVEL:		"Prime Material Plane" "dummy"  "none" @ (6, 0)

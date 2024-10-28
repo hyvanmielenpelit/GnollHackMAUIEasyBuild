@@ -1,0 +1,413 @@
+# GnollHack File Change Notice: This file has been changed from the original. Date of last change: 2024-08-11
+
+# GnollHack 4.0	yendor.des	$NHDT-Date: 1432512783 2015/05/25 00:13:03 $  $NHDT-Branch: master $:$NHDT-Revision: 1.10 $
+#	Copyright (c) 1989 by Jean-Christophe Collet
+#	Copyright (c) 1992 by M. Stephenson and Izchak Miller
+# GnollHack may be freely redistributed.  See license for details.
+#
+# The top (real) wizard level.
+# Keeping the Moat for old-time's sake
+MAZE:"wizard1",' '
+FLAGS:noteleport,hardfloor,corrmaze
+NAMING:"A large square tower",name_revealed_never
+GEOMETRY:center,center
+#         1         2         3         4         5         6         7         
+#1234567890123456789012345678901234567890123456789012345678901234567890123456789
+MAP
+----------------------------#
+|.......|..|.........|.....|#
+|.......S..|.}}}}}}}.|.....|#
+|..--S--|..|.}}---}}.|---S-|#
+|..|....|..|.}--.--}.|..|..|#
+|..|....|..|.}|...|}.|..|..|#
+|..--------|.}--.--}.|..|..|#
+|..|.......|.}}---}}.|..|..|#
+|..S.......|.}}}}}}}.|..|..|#
+|..|.......|.........|..|..|#
+|..|.......|-----------S-S-|#
+|..|.......S...............|#
+----------------------------#
+ENDMAP
+STAIR:levregion(01,00,79,20),(0,0,28,12),up
+STAIR:levregion(01,00,79,20),(0,0,28,12),down
+BRANCH:levregion(01,00,79,20),(0,0,28,12)
+TELEPORT_REGION:levregion(01,00,79,20),(0,0,27,12)
+SPECIAL_REGION:(01,01,27,11),region_special_level_seen
+# Make it a morgue for rm id in mkmaze.c
+# for the purpose of random sdoor placement
+REGION:(12,01,20,09),unlit,"morgue",unfilled
+REGION:(22,01,26,02),lit,"library",unfilled floorsubtype:floor_parquet
+# another region to constrain monster arrival
+REGION:(01,01,10,11),unlit,"ordinary",unfilled
+MAZEWALK:(28,05),east
+LADDER:(06,05),down
+SIGNPOST: (04,05), signpost_normal,"Wizard of Yendor's Private Quarters - Get Lost While You Can"
+BRAZIER: (04,07)
+BRAZIER: (10,07)
+BRAZIER: (04,11)
+BRAZIER: (10,11)
+BRAZIER: (26,11)
+BRAZIER: (01,11)
+BRAZIER: (01,01)
+BRAZIER: (07,01)
+IF[50%] {
+  DECORATION:(16,03),decoration_painting,painting_wizard_blue,direction_top
+} ELSE {
+  DECORATION:(16,03),decoration_painting,painting_wizard_red,direction_top
+}
+CARPET:(04,07,10,11),carpet_blue
+CARPET:(22,01,26,02),carpet_red
+CARPET:(25,04,26,09),carpet_red
+CARPET:(22,04,23,09),carpet_red
+CARPET:(04,04,07,05),carpet_red
+CARPET:(09,01,10,05),carpet_red
+OBJECT: ('`', "statue"), (07,09), no_pickup
+OBJECT: ('`', "statue"), (01,03), no_pickup
+OBJECT: ('`', "statue"), (01,05), no_pickup
+OBJECT: ('`', "statue"), (01,07), no_pickup
+OBJECT: ('`', "statue"), (01,09), no_pickup
+DECORATION:(03,00),decoration_painting,painting_wizard_blue,direction_top
+DECORATION:(05,00),decoration_painting,painting_wizard_red,direction_top
+DECORATION:(05,06),decoration_banner,banner_red,direction_top
+DECORATION:(07,06),decoration_banner,banner_red,direction_top
+DECORATION:(09,06),decoration_banner,banner_red,direction_top
+DECORATION:(05,12),decoration_banner,banner_red,direction_bottom
+DECORATION:(07,12),decoration_banner,banner_red,direction_bottom
+DECORATION:(09,12),decoration_banner,banner_red,direction_bottom
+
+# Non diggable walls
+# Walls inside the moat stay diggable
+NON_DIGGABLE:(00,00,11,12)
+NON_DIGGABLE:(11,00,21,00)
+NON_DIGGABLE:(11,10,27,12)
+NON_DIGGABLE:(21,00,27,10)
+# Non passable walls
+NON_PASSWALL:(00,00,11,12)
+NON_PASSWALL:(11,00,21,00)
+NON_PASSWALL:(11,10,27,12)
+NON_PASSWALL:(21,00,27,10)
+# The wizard and his guards
+MONSTER:('@',"Wizard of Yendor"),(16,05),asleep
+MONSTER:('d',"hell hound"),(15,05)
+MONSTER:('V',"vampire lord"),(17,05)
+# The local treasure
+OBJECT:('+',"Book of the Dead"),(16,05)
+# Surrounding terror
+MONSTER:(';',"kraken"),(14,02)
+MONSTER:(';',"giant eel"),(17,02)
+MONSTER:(';',"kraken"),(13,04)
+MONSTER:(';',"giant eel"),(13,06)
+MONSTER:(';',"kraken"),(19,04)
+MONSTER:(';',"giant eel"),(19,06)
+MONSTER:(';',"kraken"),(15,08)
+MONSTER:(';',"giant eel"),(17,08)
+MONSTER:(';',"piranha"),(15,02)
+MONSTER:(';',"piranha"),(19,08)
+# Random monsters
+MONSTER:'D',random
+MONSTER:'H',random
+MONSTER:'&',random
+MONSTER:'&',random
+MONSTER:'&',random
+MONSTER:'&',random
+# And to make things a little harder.
+TRAP:"board",(16,04)
+TRAP:"board",(16,06)
+TRAP:"board",(15,05)
+TRAP:"board",(17,05)
+# Random traps.
+TRAP:"spiked pit",random
+TRAP:"sleep gas",random
+TRAP:"anti magic",random
+TRAP:"magic",random
+# Some random loot.
+OBJECT:('*',"ruby"),random
+OBJECT:'!',random
+OBJECT:'!',random
+OBJECT:'?',random
+OBJECT:'?',random
+OBJECT:'+',random
+OBJECT:'+',random
+OBJECT:'+',random
+OBJECT: ('(', "bookshelf"),(23,01)
+OBJECT: ('(', "bookshelf"),(25,01)
+OBJECT: ('(', "chest"),(10,01)
+OBJECT: ('(', "chest"),(10,05)
+
+
+# The middle wizard level.
+MAZE:"wizard2",' '
+FLAGS:noteleport,hardfloor,corrmaze
+NAMING:"A large square tower",name_revealed_never
+GEOMETRY:center,center
+#         1         2         3         4         5         6         7         
+#1234567890123456789012345678901234567890123456789012345678901234567890123456789
+MAP
+----------------------------#
+|.....|.S....|.............|#
+|.....|.-------S--------S--|#
+|.....|.|.........|........|#
+|..-S--S|.........|........|#
+|..|....|.........|------S-|#
+|..|....|.........|.....|..|#
+|-S-----|.........|.....|..|#
+|.......|.........|S--S--..|#
+|.......|.........|.|......|#
+|-----S----S-------.|......|#
+|............|....S.|......|#
+----------------------------#
+ENDMAP
+STAIR:levregion(01,00,79,20),(0,0,28,12),up
+STAIR:levregion(01,00,79,20),(0,0,28,12),down
+BRANCH:levregion(01,00,79,20),(0,0,28,12)
+TELEPORT_REGION:levregion(01,00,79,20),(0,0,27,12)
+SPECIAL_REGION:(01,01,27,11),region_special_level_seen
+# entire tower in a region, constrains monster migration
+REGION:(01,01,26,11),unlit,"ordinary",unfilled
+REGION:(09,03,17,09),unlit,"zoo"
+DOOR:closed,(15,02)
+DOOR:closed,(11,10)
+MAZEWALK:(28,05),east
+LADDER:(12,01),up
+LADDER:(14,11),down
+SIGNPOST: (16,11), signpost_normal,"Rare Monsters on This Level. Thieves Watch Out!"
+CARPET:(19,03,26,04),carpet_red
+CARPET:(19,06,23,07),carpet_red
+CARPET:(01,08,07,09),carpet_red
+CARPET:(04,05,07,06),carpet_red
+BRAZIER:(14,01)
+BRAZIER:(12,11)
+BRAZIER:(26,01)
+BRAZIER:(01,06)
+BRAZIER:(01,01)
+BRAZIER:(05,01)
+BRAZIER:(05,03)
+BRAZIER:(01,11)
+BRAZIER:(21,09)
+BRAZIER:(21,11)
+BRAZIER:(26,11)
+BRAZIER:(26,06)
+BRAZIER:(26,09)
+
+# Non diggable walls everywhere
+NON_DIGGABLE:(00,00,27,12)
+#
+NON_PASSWALL:(00,00,06,12)
+NON_PASSWALL:(06,00,27,02)
+NON_PASSWALL:(16,02,27,12)
+NON_PASSWALL:(06,12,16,12)
+# Random traps.
+TRAP:"spiked pit",random
+TRAP:"sleep gas",random
+TRAP:"anti magic",random
+TRAP:"magic",random
+# Some random loot.
+OBJECT:'!',random
+OBJECT:'!',random
+OBJECT:'?',random
+OBJECT:'?',random
+OBJECT:'+',random
+# treasures
+OBJECT:'"',(04,06)
+OBJECT: ('(', "chest"),(12,01)
+OBJECT: ('(', "weapon rack"),(02,01)
+OBJECT: ('(', "weapon rack"),(04,01)
+OBJECT: ('(', "weapon rack"),(20,03)
+OBJECT: ('(', "weapon rack"),(22,03)
+OBJECT: ('(', "weapon rack"),(24,03)
+OBJECT: ('(', "weapon rack"),(26,03)
+
+# The bottom wizard level.
+# Memorialize the fakewiz setup.
+MAZE:"wizard3",' '
+FLAGS:noteleport,hardfloor,corrmaze
+NAMING:"A large square tower",name_revealed_never
+GEOMETRY:center,center
+#         1         2         3         4         5         6         7         
+#1234567890123456789012345678901234567890123456789012345678901234567890123456789
+MAP
+----------------------------#
+|..|............S..........|#
+|..|..------------------S--|#
+|..|..|.........|..........|#
+|..S..|.}}}}}}}.|..........|#
+|..|..|.}}---}}.|-S--------|#
+|..|..|.}--.--}.|..|.......|#
+|..|..|.}|...|}.|..|.......|#
+|..---|.}--.--}.|..|.......|#
+|.....|.}}---}}.|..|.......|#
+|.....S.}}}}}}}.|..|.......|#
+|.....|.........|..|.......|#
+----------------------------#
+ENDMAP
+STAIR:levregion(01,00,79,20),(0,0,28,12),up
+STAIR:levregion(01,00,79,20),(0,0,28,12),down
+BRANCH:levregion(01,00,79,20),(0,0,28,12)
+TELEPORT_REGION:levregion(01,00,79,20),(0,0,27,12)
+SPECIAL_REGION:(01,01,27,11),region_special_level_seen
+PORTAL:(25,11,25,11),(0,0,0,0),"fakewiz1"
+MAZEWALK:(28,09),east
+SIGNPOST: (23,08), signpost_normal,"Keep Out, and Don't Come Back! -Wizard of Yendor"
+SIGNPOST: (07,10), signpost_normal,"Don't Feed the Kraken!"
+REGION:(07,03,15,11),unlit,"morgue",unfilled
+REGION:(17,06,18,11),unlit,"beehive"
+# make the entry chamber a real room; it affects monster arrival;
+# `unfilled' is a kludge to force an ordinary room to remain a room
+REGION:(20,06,26,11),unlit,"ordinary",unfilled {
+  ROOMDOOR:true, closed, north|west, random
+}
+DOOR:closed,(18,05)
+LADDER:(11,07),up
+
+CARPET:(20,06,26,11),carpet_blue
+CARPET:(17,03,26,04),carpet_red
+CARPET:(01,09,05,11),carpet_blue
+BRAZIER:(01,01)
+BRAZIER:(04,01)
+BRAZIER:(01,11)
+BRAZIER:(26,01)
+BRAZIER:(04,07)
+BRAZIER:(01,09)
+BRAZIER:(05,09)
+BRAZIER:(05,11)
+OBJECT: ('`', "statue"), (20,06), no_pickup
+OBJECT: ('`', "statue"), (20,11), no_pickup
+OBJECT: ('`', "statue"), (26,06), no_pickup
+OBJECT: ('`', "statue"), (26,11), no_pickup
+OBJECT: ('`', "statue"), (17,03), no_pickup
+OBJECT: ('`', "statue"), (26,03), no_pickup
+OBJECT: ('`', "statue"), (01,03), no_pickup
+OBJECT: ('`', "statue"), (01,05), no_pickup
+OBJECT: ('`', "statue"), (01,07), no_pickup
+OBJECT: ('`', "statue"), (05,03), no_pickup
+OBJECT: ('`', "statue"), (05,05), no_pickup
+OBJECT: ('`', "statue"), (05,07), no_pickup
+OBJECT: ('`', "statue"), (03,10), no_pickup
+
+IF[50%] {
+  IF[50%] {
+    DECORATION:(11,05),decoration_painting,painting_wizard_blue,direction_top
+  } ELSE {
+    DECORATION:(11,05),decoration_painting,painting_wizard_red,direction_top
+  }
+}
+# Non diggable walls
+# Walls inside the moat stay diggable
+NON_DIGGABLE:(00,00,06,12)
+NON_DIGGABLE:(06,00,27,02)
+NON_DIGGABLE:(16,02,27,12)
+NON_DIGGABLE:(06,12,16,12)
+#
+NON_PASSWALL:(00,00,06,12)
+NON_PASSWALL:(06,00,27,02)
+NON_PASSWALL:(16,02,27,12)
+NON_PASSWALL:(06,12,16,12)
+#
+MONSTER:'L',(10,07)
+MONSTER:('V',"vampire lord"),(12,07)
+# Some surrounding horrors
+MONSTER:(';',"kraken"),(08,05)
+MONSTER:(';',"giant eel"),(08,08)
+MONSTER:(';',"kraken"),(14,05)
+MONSTER:(';',"giant eel"),(14,08)
+# Other monsters
+MONSTER:'L',random
+MONSTER:'D',random
+MONSTER:'D',(26,09)
+MONSTER:'&',random
+MONSTER:'&',random
+MONSTER:'&',random
+# And to make things a little harder.
+TRAP:"board",(10,07)
+TRAP:"board",(12,07)
+TRAP:"board",(11,06)
+TRAP:"board",(11,08)
+# Some loot
+OBJECT:')',random
+OBJECT:'!',random
+OBJECT:'?',random
+OBJECT:'?',random
+OBJECT:'(',random
+# treasures
+OBJECT:'"',(11,07)
+
+
+# The former decoy wizard levels.
+# There are two of these, and we need to
+# distinguish between them for the portal.
+MAZE:"fakewiz1",' '
+FLAGS:corrmaze
+NAMING:"A tower surrounded by a moat",name_revealed_never
+GEOMETRY:center,center
+MAP
+.........
+.}}}}}}}.
+.}}---}}.
+.}--.--}.
+.}|...|}.
+.}--.--}.
+.}}---}}.
+.}}}}}}}.
+ENDMAP
+STAIR:levregion(01,00,79,20),(0,0,8,7),up
+STAIR:levregion(01,00,79,20),(0,0,8,7),down
+BRANCH:levregion(01,00,79,20),(0,0,8,7)
+TELEPORT_REGION:levregion(01,00,79,20),(2,2,6,6)
+SPECIAL_REGION:(00,00,08,07),region_special_level_seen
+PORTAL:(4,4,4,4),(0,0,0,0),"wizard3"
+MAZEWALK:(08,05),east
+REGION:(04,03,06,06),unlit,"ordinary",unfilled,irregular
+MONSTER:'L',(04,04)
+MONSTER:('V',"vampire lord"),(03,04)
+MONSTER:(';',"kraken"),(06,06)
+# And to make things a little harder.
+TRAP:"board",(04,03)
+TRAP:"board",(04,05)
+TRAP:"board",(03,04)
+TRAP:"board",(05,04)
+IF[50%] {
+  IF[50%] {
+    DECORATION:(04,02),decoration_painting,painting_wizard_blue,direction_top
+  } ELSE {
+    DECORATION:(04,02),decoration_painting,painting_wizard_red,direction_top
+  }
+}
+
+MAZE:"fakewiz2",' '
+FLAGS:corrmaze
+NAMING:"A tower surrounded by a moat",name_revealed_never
+GEOMETRY:center,center
+MAP
+.........
+.}}}}}}}.
+.}}---}}.
+.}--.--}.
+.}|...|}.
+.}--.--}.
+.}}---}}.
+.}}}}}}}.
+ENDMAP
+STAIR:levregion(01,00,79,20),(0,0,8,7),up
+STAIR:levregion(01,00,79,20),(0,0,8,7),down
+BRANCH:levregion(01,00,79,20),(0,0,8,7)
+TELEPORT_REGION:levregion(01,00,79,20),(2,2,6,6)
+SPECIAL_REGION:(00,00,08,07),region_special_level_seen
+MAZEWALK:(08,05),east
+REGION:(04,03,06,06),unlit,"ordinary",unfilled,irregular
+MONSTER:'L',(04,04)
+MONSTER:('V',"vampire lord"),(03,04)
+MONSTER:(';',"kraken"),(06,06)
+# And to make things a little harder.
+TRAP:"board",(04,03)
+TRAP:"board",(04,05)
+TRAP:"board",(03,04)
+TRAP:"board",(05,04)
+IF[50%] {
+  IF[50%] {
+    DECORATION:(04,02),decoration_painting,painting_wizard_blue,direction_top
+  } ELSE {
+    DECORATION:(04,02),decoration_painting,painting_wizard_red,direction_top
+  }
+}
+# treasures
+OBJECT:'"',(04,04)

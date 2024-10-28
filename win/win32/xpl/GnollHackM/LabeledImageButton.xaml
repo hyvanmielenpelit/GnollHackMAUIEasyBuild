@@ -1,0 +1,22 @@
+﻿<?xml version="1.0" encoding="UTF-8"?>
+<ContentView xmlns="http://schemas.microsoft.com/dotnet/2021/maui" 
+             xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml" 
+             xmlns:gnh="clr-namespace:GnollHackM" 
+             xmlns:controls="clr-namespace:GnollHackM" 
+             x:Name="this"
+             x:Class="GnollHackM.LabeledImageButton"
+             x:DataType="controls:LabeledImageButton">
+    
+        <Grid x:Name="ViewGrid" CascadeInputTransparent="True" BindingContext="{x:Reference this}" Margin="{Binding GridMargin}" WidthRequest="{Binding GridWidth, FallbackValue='50'}" HeightRequest="{Binding GridHeight, FallbackValue='60'}" >
+            <gnh:GHCachedImage x:Name="ViewImage" BindingContext="{x:Reference this}" Source="{Binding ImgSourcePath}" HighFilterQuality="{Binding ImgHighFilterQuality}"
+                            WidthRequest="{Binding ImgWidth, FallbackValue='50'}" HeightRequest="{Binding ImgHeight, FallbackValue='50'}" 
+                            BackgroundColor="Transparent" VerticalOptions="Start" HorizontalOptions="Center" InputTransparent="True" />
+            <Label x:Name="ViewLabel" BindingContext="{x:Reference this}" Text="{Binding LblText}" TextColor="{Binding LblFontColor}" FontFamily="{Binding LblFontFamily}" FontSize="{Binding LblFontSize, FallbackValue='9'}" 
+                   BackgroundColor="Transparent" VerticalOptions="End" VerticalTextAlignment="End" HorizontalOptions="Fill" HorizontalTextAlignment="Center" 
+                   InputTransparent="True" />
+            <gnh:GHButton x:Name="ViewButton" BindingContext="{x:Reference this}" Text="" 
+                             Letter="{Binding BtnLetter}" ApplyMeta="{Binding BtnMeta}" ApplyCtrl="{Binding BtnCtrl}" RawCommand="{Binding BtnCommand}" 
+                             BackgroundColor="Transparent" VerticalOptions="Fill" HorizontalOptions="Fill" />
+        </Grid>
+    
+</ContentView>

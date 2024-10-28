@@ -1,0 +1,37 @@
+﻿<?xml version="1.0" encoding="utf-8" ?>
+<ContentPage xmlns="http://xamarin.com/schemas/2014/forms"
+             xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml" 
+             xmlns:gnh="clr-namespace:GnollHackX" 
+             xmlns:controls="clr-namespace:GnollHackX.Controls"
+             BackgroundColor="Black"
+             x:Class="GnollHackX.Pages.MainScreen.DisplayFilePage"
+             Appearing="ContentPage_Appearing">
+    <ContentPage.Content>
+        <Grid x:Name="RootGrid">
+            <gnh:BackgroundView x:Name="bkgView" BackgroundStyle="Automatic" BackgroundBitmap="AutoMenuBackground" BorderStyle="Simple" HorizontalOptions="Fill" VerticalOptions="Fill"/>
+            <Grid x:Name="MainGrid" WidthRequest  ="780" RowSpacing="6" HorizontalOptions  ="Center" VerticalOptions="Fill" >
+                <Grid.RowDefinitions>
+                    <RowDefinition Height="Auto" />
+                    <RowDefinition Height="*" />
+                    <RowDefinition Height="Auto" />
+                </Grid.RowDefinitions>
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="*" />
+                </Grid.ColumnDefinitions>
+                <Label x:Name="HeaderLabel" Grid.Row="0" HorizontalOptions="Center" VerticalOptions="Start" HorizontalTextAlignment="Center" FontSize="23" TextColor="Black" FontFamily="Immortal"/>
+                <gnh:CustomLabel Grid.Row="1" x:Name="TextLabel" IsVisible="False" VerticalTextAlignment="Start" HorizontalOptions="Center" VerticalOptions="Fill" Text="" TextColor="Black" BackgroundColor="Transparent"
+                        FontFamily="DejaVuSansMono" FontSize="13" IsScrollable="True" />
+                <WebView Grid.Row="1" x:Name="DisplayWebView" IsVisible="False" HorizontalOptions="Fill" VerticalOptions="Fill" BackgroundColor="Transparent" />
+                <controls:CustomImageButton Grid.Row="2" Text="Close" x:Name="CloseButton" IsVisible="True" Clicked="CloseButton_Clicked" FontFamily="Diablo" FontSize="20" TextColor="White" BackgroundColor="Transparent" WidthRequest="280" HeightRequest="60" HorizontalOptions="Center" />
+                <Grid x:Name="BottomLayout" IsVisible="False" Grid.Row="2" ColumnSpacing="6" HeightRequest="60" HorizontalOptions="Center" >
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="*" />
+                        <ColumnDefinition Width="*" />
+                    </Grid.ColumnDefinitions>
+                    <controls:CustomImageButton Grid.Column="0" Text="Share" x:Name="ShareButton" WidthRequest="135" Clicked="ShareButton_Clicked" FontFamily="Diablo" FontSize="19" TextColor="White" BackgroundColor="Transparent" HorizontalOptions="End" VerticalOptions="Fill" />
+                    <controls:CustomImageButton Grid.Column="1" Text="Close" x:Name="CloseButton2" WidthRequest="135" Clicked="CloseButton_Clicked" FontFamily="Diablo" FontSize="19" TextColor="White" BackgroundColor="Transparent" HorizontalOptions="Start" VerticalOptions="Fill" />
+                </Grid>
+            </Grid>
+        </Grid>    
+    </ContentPage.Content>
+</ContentPage>

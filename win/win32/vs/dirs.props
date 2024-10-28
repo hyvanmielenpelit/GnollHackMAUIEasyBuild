@@ -1,0 +1,64 @@
+<?xml version="1.0" encoding="utf-8"?>
+<Project ToolsVersion="4.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <PropertyGroup>
+    <RootDir>$(MSBuildProjectDirectory)\..\..\..\</RootDir>
+    <BinDir>$(RootDir)bin\$(Configuration)\$(Platform)\</BinDir>
+    <ObjDir>$(ProjectDir)obj\$(Configuration)\$(Platform)\$(TargetName)\</ObjDir>
+    <SymbolsDir>$(ProjectDir)symbols\$(Configuration)\$(Platform)\$(TargetName)\</SymbolsDir>
+    <ToolsDir>$(RootDir)tools\$(Configuration)\$(Platform)\</ToolsDir>
+    <UtilDir>$(RootDir)util\</UtilDir>
+    <DatDir>$(RootDir)dat\</DatDir>
+    <DocDir>$(RootDir)doc\</DocDir>
+    <IncDir>$(RootDir)include\</IncDir>
+    <SrcDir>$(RootDir)src\</SrcDir>
+    <SysDir>$(RootDir)sys\</SysDir>
+    <UtilDir>$(RootDir)util\</UtilDir>
+    <!--<Yacc>bison</Yacc>-->
+    <!--<Lex>flex</Lex>-->
+	<SysShareDir>$(RootDir)sys\share\</SysShareDir>
+    <SysWinntDir>$(RootDir)sys\winnt\</SysWinntDir>
+    <WinShareDir>$(RootDir)win\share\</WinShareDir>
+    <WinTtyDir>$(RootDir)win\tty\</WinTtyDir>
+    <WinWin32Dir>$(RootDir)win\win32\</WinWin32Dir>
+    <WinFmodDir>$(RootDir)win\win32\fmod\</WinFmodDir>
+    <WinCursesDir>$(RootDir)win\curses\</WinCursesDir>
+    <LibDroidDir>$(RootDir)win\win32\xpl\gnollhackdroid\</LibDroidDir>
+    <LibiOSDir>$(RootDir)win\win32\xpl\gnollhackios\</LibiOSDir>
+    <LibWinDir>$(RootDir)win\win32\xpl\gnollhackwin\</LibWinDir>
+    <LibShareDir>$(RootDir)win\win32\xpl\libshare\</LibShareDir>
+    <GooglePlayDir>$(RootDir)win\win32\xpl\GnollHackX\GnollHackX.Android.GooglePlay\</GooglePlayDir>
+    <GooglePlayInstallTimeDir>$(RootDir)win\win32\xpl\GnollHackX\GnollHackX.Android.GooglePlay\InstallTime\</GooglePlayInstallTimeDir>
+    <GooglePlayOnDemandDir>$(RootDir)win\win32\xpl\GnollHackX\GnollHackX.Android.GooglePlay\OnDemand\</GooglePlayOnDemandDir>
+    <!--<GooglePlayInstallTimeMauiDir>$(RootDir)win\win32\xpl\GnollHackX\GnollHackX.Android.GooglePlay\InstallTime-Maui\</GooglePlayInstallTimeMauiDir>-->
+    <!--<GooglePlayOnDemandMauiDir>$(RootDir)win\win32\xpl\GnollHackX\GnollHackX.Android.GooglePlay\OnDemand-Maui\</GooglePlayOnDemandMauiDir>-->
+    <AndroidLibsDir>$(RootDir)win\win32\xpl\GnollHackX\GnollHackX.Android\libs\</AndroidLibsDir>
+    <iOSNativeReferencesDir>$(RootDir)win\win32\xpl\GnollHackX\GnollHackX.iOS\Native References\</iOSNativeReferencesDir>
+    <MauiAndroidLibsDir>$(RootDir)win\win32\xpl\GnollHackM\Platforms\Android\libs\</MauiAndroidLibsDir>
+    <MauiiOSNativeReferencesDir>$(RootDir)win\win32\xpl\GnollHackM\Platforms\iOS\libs\</MauiiOSNativeReferencesDir>
+    <MauiWindowsLibsDir>$(RootDir)win\win32\xpl\GnollHackM\Platforms\Windows\libs\</MauiWindowsLibsDir>
+    <XamarinAssetsDir>$(RootDir)win\win32\xpl\GnollHackX\GnollHackX\Assets\</XamarinAssetsDir>
+    <MauiAssetsDir>$(RootDir)win\win32\xpl\GnollHackM\Assets\</MauiAssetsDir>
+    <AndroidGnhDir>$(RootDir)win\win32\xpl\GnollHackX\GnollHackX.Android\gnh\</AndroidGnhDir>
+    <iOSGnhDir>$(RootDir)win\win32\xpl\GnollHackX\GnollHackX.iOS\gnh\</iOSGnhDir>
+    <MauiAndroidGnhDir>$(RootDir)win\win32\xpl\GnollHackM\Platforms\Android\gnh\</MauiAndroidGnhDir>
+    <MauiiOSGnhDir>$(RootDir)win\win32\xpl\GnollHackM\Platforms\iOS\gnh\</MauiiOSGnhDir>
+    <MauiWindowsGnhDir>$(RootDir)win\win32\xpl\GnollHackM\Platforms\Windows\gnh\</MauiWindowsGnhDir>
+    <BankDesktopDir>$(WinWin32Dir)bank\Desktop\</BankDesktopDir>
+    <BankMobileDir>$(WinWin32Dir)bank\Mobile\</BankMobileDir>
+    <XamarinMainDir>$(RootDir)win\win32\xpl\GnollHackX\GnollHackX\</XamarinMainDir>
+    <XamarinGamePagesDir>$(RootDir)win\win32\xpl\GnollHackX\GnollHackX\Pages\Game\</XamarinGamePagesDir>
+    <XamarinStartScreenDir>$(RootDir)win\win32\xpl\GnollHackX\GnollHackX\Pages\MainScreen\</XamarinStartScreenDir>
+    <XamarinControlsDir>$(RootDir)win\win32\xpl\GnollHackX\GnollHackX\Controls\</XamarinControlsDir>
+    <MauiMainDir>$(RootDir)win\win32\xpl\GnollHackM\</MauiMainDir>
+    <OutDir>$(ToolsDir)</OutDir>
+    <WslInDir>C:\wsl-in\</WslInDir>
+    <WslOutDir>C:\wsl-out\</WslOutDir>
+    <MacOutDir>C:\mac-out\</MacOutDir>
+	<IntDir>$(ObjDir)</IntDir>
+	<WinCursDir>$(RootDir)win\curses\</WinCursDir>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(PDCURSES)'=='' AND Exists('$(RootDir)..\PDCurses')">
+	<PDCURSES>$(RootDir)..\PDCurses\</PDCURSES>
+  </PropertyGroup>
+</Project>
+

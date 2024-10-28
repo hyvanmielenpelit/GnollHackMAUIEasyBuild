@@ -1,0 +1,418 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<Project DefaultTargets="Build" InitialTargets="InitialBuild" ToolsVersion="15.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <ItemGroup Label="ProjectConfigurations">
+    <ProjectConfiguration Include="Debug|ARM">
+      <Configuration>Debug</Configuration>
+      <Platform>ARM</Platform>
+    </ProjectConfiguration>
+    <ProjectConfiguration Include="Release|ARM">
+      <Configuration>Release</Configuration>
+      <Platform>ARM</Platform>
+    </ProjectConfiguration>
+    <ProjectConfiguration Include="Debug|ARM64">
+      <Configuration>Debug</Configuration>
+      <Platform>ARM64</Platform>
+    </ProjectConfiguration>
+    <ProjectConfiguration Include="Release|ARM64">
+      <Configuration>Release</Configuration>
+      <Platform>ARM64</Platform>
+    </ProjectConfiguration>
+    <ProjectConfiguration Include="Debug|x86">
+      <Configuration>Debug</Configuration>
+      <Platform>x86</Platform>
+    </ProjectConfiguration>
+    <ProjectConfiguration Include="Release|x86">
+      <Configuration>Release</Configuration>
+      <Platform>x86</Platform>
+    </ProjectConfiguration>
+    <ProjectConfiguration Include="Debug|x64">
+      <Configuration>Debug</Configuration>
+      <Platform>x64</Platform>
+    </ProjectConfiguration>
+    <ProjectConfiguration Include="Release|x64">
+      <Configuration>Release</Configuration>
+      <Platform>x64</Platform>
+    </ProjectConfiguration>
+  </ItemGroup>
+  <PropertyGroup Label="Globals">
+    <ProjectGuid>{19c1c54d-60d5-44ab-820e-7d07b180f153}</ProjectGuid>
+    <Keyword>Linux</Keyword>
+    <RootNamespace>makedefsdroid</RootNamespace>
+    <MinimumVisualStudioVersion>15.0</MinimumVisualStudioVersion>
+    <ApplicationType>Linux</ApplicationType>
+    <ApplicationTypeRevision>1.0</ApplicationTypeRevision>
+    <TargetLinuxPlatform>Generic</TargetLinuxPlatform>
+    <LinuxProjectType>{D51BCBC9-82E9-4017-911E-C93873C4EA2B}</LinuxProjectType>
+  </PropertyGroup>
+  <Import Project="$(VCTargetsPath)\Microsoft.Cpp.Default.props" />
+  <PropertyGroup Condition="'$(Configuration)'=='Debug'" Label="Configuration">
+    <UseDebugLibraries>true</UseDebugLibraries>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)'=='Release'" Label="Configuration">
+    <UseDebugLibraries>false</UseDebugLibraries>
+  </PropertyGroup>
+  <Import Project="$(VCTargetsPath)\Microsoft.Cpp.props" />
+  <ImportGroup Label="ExtensionSettings" />
+  <ImportGroup Label="Shared" />
+  <ImportGroup Label="PropertySheets" />
+  <PropertyGroup Label="UserMacros" />
+  <PropertyGroup>
+    <RemoteRootDir>~/projects</RemoteRootDir>
+    <IncludePath>$(IncDir);$(LibDroidDir)</IncludePath>
+    <RemoteProjectDir>$(RemoteRootDir)/$(SolutionName)</RemoteProjectDir>
+    <SourcePath>$(SrcDir);$(LibDroidDir);$(SourcePath)</SourcePath>
+    <RemoteCopySourceMethod>rsync</RemoteCopySourceMethod>
+    <OutDir>$(ProjectDir)..\..\..\tools\$(Configuration)\$(Platform)\</OutDir>
+    <IntDir>$(ObjDir)makedefs\</IntDir>
+    <RemoteOutDir>$(RemoteRootDir)/$(SolutionName)/tools</RemoteOutDir>
+    <RemoteIntDir>$(RemoteRootDir)/$(SolutionName)/obj/makedefs</RemoteIntDir>
+    <RemoteDeployDir>$(RemoteRootDir)/$(SolutionName)/tools</RemoteDeployDir>
+    <RemoteDebuggerWorkingDirectory>$(RemoteOutDir)</RemoteDebuggerWorkingDirectory>
+  </PropertyGroup>
+  <ItemGroup>
+  </ItemGroup>
+  <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
+  <ImportGroup Label="ExtensionTargets" />
+  <Import Project="default.props" />
+  <Import Project="console.props" />
+  <Import Project="dirs.props" />
+  <Import Project="files.props" />
+  <Target Name="Sub">
+	  <Message Text="Start executing target Sub in makedefsdroid.vcxproj" Importance="High" />
+	  <XmlPeek NameSpaces="&lt;Namespace Prefix='msb' Uri='http://schemas.microsoft.com/developer/msbuild/2003%27/&gt;" XmlInputPath="..\xpl\GnollHackX\GnollHackX.Android\GnollHackX.Android.csproj" Query="(/msb:Project/msb:PropertyGroup[contains(@Condition, '$(Configuration)')]/msb:AndroidPackageFormat/text())[1]">
+      <Output TaskParameter="Result" ItemName="ItemValue" />
+    </XmlPeek>
+    <Message Text="Using AndroidPackageFormat @(ItemValue)." Importance="high" />
+    <WriteLinesToFile Lines="@(ItemValue)" Overwrite="true" File="C:\wsl-in\assetpack\androidpackageformat.txt" />
+  </Target>
+  <Target Name="BeforeBuild">
+    <CallTarget Targets="Sub" />
+  </Target>
+  <Target Name="BeforeRebuild">
+    <CallTarget Targets="Sub" />
+  </Target>
+  <ItemDefinitionGroup Condition="'$(Configuration)'=='Debug'">
+    <ClCompile>
+      <AdditionalIncludeDirectories>$(IncDir);$(LibDroidDir);%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <PreprocessorDefinitions>NDEBUG;GNH_MOBILE;GNH_ANDROID;USE_TILES;DLB;LIB_GRAPHICS;SAFEPROCS;NOTTYGRAPHICS;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+    </ClCompile>
+    <Link>
+      <OutputFile>$(TargetPath)</OutputFile>
+    </Link>
+    <RemotePostBuildEvent>
+      <!-- <Command>cd ../../../tools;dos2unix ../dat/*.txt;dos2unix ../dat/*.des;dos2unix ../dat/*.def;dos2unix ../dat/rumors.*;dos2unix ../dat/*help*;dos2unix ../dat/credits;dos2unix ../dat/xcredits;dos2unix ../dat/history;dos2unix ../dat/hh;dos2unix ../dat/symbols;dos2unix ../win/win32/xpl/libshare/defaults.gnh;dos2unix ../win/win32/xpl/libshare/sysconf;dos2unix ../win/win32/xpl/GnollHackX/GnollHackX.Android.GooglePlay/InstallTime/createassetpack.sh;dos2unix ../win/win32/xpl/GnollHackX/GnollHackX.Android.GooglePlay/OnDemand/createassetpack.sh;dos2unix ../win/win32/xpl/GnollHackX/GnollHackX.Android.GooglePlay/InstallTime/AndroidManifest.xml;dos2unix ../win/win32/xpl/GnollHackX/GnollHackX.Android.GooglePlay/OnDemand/AndroidManifest.xml;dos2unix ../win/win32/xpl/GnollHackX/GnollHackX.Android.GooglePlay/InstallTime-Maui/createassetpack.sh;dos2unix ../win/win32/xpl/GnollHackX/GnollHackX.Android.GooglePlay/OnDemand-Maui/createassetpack.sh;dos2unix ../win/win32/xpl/GnollHackX/GnollHackX.Android.GooglePlay/InstallTime-Maui/AndroidManifest.xml;dos2unix ../win/win32/xpl/GnollHackX/GnollHackX.Android.GooglePlay/OnDemand-Maui/AndroidManifest.xml;./makedefsdroid.out -v;./makedefsdroid.out -o;./makedefsdroid.out -p;./makedefsdroid.out -z;cd ../dat;../tools/makedefsdroid.out -d;../tools/makedefsdroid.out -r;../tools/makedefsdroid.out -q;../tools/makedefsdroid.out -h;../tools/makedefsdroid.out -s;../tools/makedefsdroid.out -a;../tools/makedefsdroid.out -e</Command> -->
+      <Command>cd ../../../tools;dos2unix ../dat/*.txt;dos2unix ../dat/*.des;dos2unix ../dat/*.def;dos2unix ../dat/rumors.*;dos2unix ../dat/*help*;dos2unix ../dat/credits;dos2unix ../dat/xcredits;dos2unix ../dat/history;dos2unix ../dat/hh;dos2unix ../dat/symbols;dos2unix ../win/win32/xpl/libshare/defaults.gnh;dos2unix ../win/win32/xpl/libshare/sysconf;dos2unix ../win/win32/xpl/GnollHackX/GnollHackX.Android.GooglePlay/InstallTime/createassetpack.sh;dos2unix ../win/win32/xpl/GnollHackX/GnollHackX.Android.GooglePlay/OnDemand/createassetpack.sh;dos2unix ../win/win32/xpl/GnollHackX/GnollHackX.Android.GooglePlay/InstallTime/AndroidManifest.xml;dos2unix ../win/win32/xpl/GnollHackX/GnollHackX.Android.GooglePlay/OnDemand/AndroidManifest.xml;./makedefsdroid.out -v;./makedefsdroid.out -o;./makedefsdroid.out -p;./makedefsdroid.out -z;cd ../dat;../tools/makedefsdroid.out -d;../tools/makedefsdroid.out -r;../tools/makedefsdroid.out -q;../tools/makedefsdroid.out -h;../tools/makedefsdroid.out -s;../tools/makedefsdroid.out -a;../tools/makedefsdroid.out -e</Command>
+    </RemotePostBuildEvent>
+    <PreBuildEvent>
+      <Command>..\xpl\GnollHackX\GnollHackX.Android.GooglePlay\update-wsl-in-debug.bat</Command>
+    </PreBuildEvent>
+  </ItemDefinitionGroup>
+  <ItemDefinitionGroup Condition="'$(Configuration)'=='Release'">
+    <ClCompile>
+      <AdditionalIncludeDirectories>$(IncDir);$(LibDroidDir);%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <PreprocessorDefinitions>NDEBUG;GNH_MOBILE;GNH_ANDROID;USE_TILES;DLB;LIB_GRAPHICS;SAFEPROCS;NOTTYGRAPHICS;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+    </ClCompile>
+    <Link>
+      <OutputFile>$(TargetPath)</OutputFile>
+    </Link>
+    <RemotePostBuildEvent>
+      <!--<Command>cd ../../../tools;dos2unix ../dat/*.txt;dos2unix ../dat/*.des;dos2unix ../dat/*.def;dos2unix ../dat/rumors.*;dos2unix ../dat/*help*;dos2unix ../dat/credits;dos2unix ../dat/xcredits;dos2unix ../dat/history;dos2unix ../dat/hh;dos2unix ../dat/symbols;dos2unix ../win/win32/xpl/libshare/defaults.gnh;dos2unix ../win/win32/xpl/libshare/sysconf;dos2unix ../win/win32/xpl/GnollHackX/GnollHackX.Android.GooglePlay/InstallTime/createassetpack.sh;dos2unix ../win/win32/xpl/GnollHackX/GnollHackX.Android.GooglePlay/OnDemand/createassetpack.sh;dos2unix ../win/win32/xpl/GnollHackX/GnollHackX.Android.GooglePlay/InstallTime/AndroidManifest.xml;dos2unix ../win/win32/xpl/GnollHackX/GnollHackX.Android.GooglePlay/OnDemand/AndroidManifest.xml;dos2unix ../win/win32/xpl/GnollHackX/GnollHackX.Android.GooglePlay/InstallTime-Maui/createassetpack.sh;dos2unix ../win/win32/xpl/GnollHackX/GnollHackX.Android.GooglePlay/OnDemand-Maui/createassetpack.sh;dos2unix ../win/win32/xpl/GnollHackX/GnollHackX.Android.GooglePlay/InstallTime-Maui/AndroidManifest.xml;dos2unix ../win/win32/xpl/GnollHackX/GnollHackX.Android.GooglePlay/OnDemand-Maui/AndroidManifest.xml;./makedefsdroid.out -v;./makedefsdroid.out -o;./makedefsdroid.out -p;./makedefsdroid.out -z;cd ../dat;../tools/makedefsdroid.out -d;../tools/makedefsdroid.out -r;../tools/makedefsdroid.out -q;../tools/makedefsdroid.out -h;../tools/makedefsdroid.out -s;../tools/makedefsdroid.out -a;../tools/makedefsdroid.out -e;cp ../win/win32/xpl/GnollHackX/GnollHackX.Android.GooglePlay/InstallTime/createassetpack.sh /mnt/c/wsl-in/assetpack/;cp ../win/win32/xpl/GnollHackX/GnollHackX.Android.GooglePlay/OnDemand/createassetpack.sh /mnt/c/wsl-in/assetpack2/;cp ../win/win32/xpl/GnollHackX/GnollHackX.Android.GooglePlay/InstallTime/AndroidManifest.xml /mnt/c/wsl-in/assetpack/;cp ../win/win32/xpl/GnollHackX/GnollHackX.Android.GooglePlay/OnDemand/AndroidManifest.xml /mnt/c/wsl-in/assetpack2/;cp ../win/win32/xpl/GnollHackX/GnollHackX.Android.GooglePlay/InstallTime-Maui/createassetpack.sh /mnt/c/wsl-in/assetpack-maui/;cp ../win/win32/xpl/GnollHackX/GnollHackX.Android.GooglePlay/OnDemand-Maui/createassetpack.sh /mnt/c/wsl-in/assetpack-maui2/;cp ../win/win32/xpl/GnollHackX/GnollHackX.Android.GooglePlay/InstallTime-Maui/AndroidManifest.xml /mnt/c/wsl-in/assetpack-maui/;cp ../win/win32/xpl/GnollHackX/GnollHackX.Android.GooglePlay/OnDemand-Maui/AndroidManifest.xml /mnt/c/wsl-in/assetpack-maui2/;cd /mnt/c/wsl-in/assetpack;./createassetpack.sh installtimeassetpack.zip com.soundmindentertainment.gnollhack androidpackageformat.txt;cd /mnt/c/wsl-in/assetpack2;./createassetpack.sh ondemandassetpack.zip com.soundmindentertainment.gnollhack androidpackageformat.txt;cd /mnt/c/wsl-in/assetpack-maui;./createassetpack.sh installtimeassetpack.zip com.soundmindgames.gnollhackm androidpackageformat.txt;cd /mnt/c/wsl-in/assetpack-maui2;./createassetpack.sh ondemandassetpack.zip com.soundmindgames.gnollhackm androidpackageformat.txt</Command>-->
+      <Command>cd ../../../tools;dos2unix ../dat/*.txt;dos2unix ../dat/*.des;dos2unix ../dat/*.def;dos2unix ../dat/rumors.*;dos2unix ../dat/*help*;dos2unix ../dat/credits;dos2unix ../dat/xcredits;dos2unix ../dat/history;dos2unix ../dat/hh;dos2unix ../dat/symbols;dos2unix ../win/win32/xpl/libshare/defaults.gnh;dos2unix ../win/win32/xpl/libshare/sysconf;dos2unix ../win/win32/xpl/GnollHackX/GnollHackX.Android.GooglePlay/InstallTime/createassetpack.sh;dos2unix ../win/win32/xpl/GnollHackX/GnollHackX.Android.GooglePlay/OnDemand/createassetpack.sh;dos2unix ../win/win32/xpl/GnollHackX/GnollHackX.Android.GooglePlay/InstallTime/AndroidManifest.xml;dos2unix ../win/win32/xpl/GnollHackX/GnollHackX.Android.GooglePlay/OnDemand/AndroidManifest.xml;./makedefsdroid.out -v;./makedefsdroid.out -o;./makedefsdroid.out -p;./makedefsdroid.out -z;cd ../dat;../tools/makedefsdroid.out -d;../tools/makedefsdroid.out -r;../tools/makedefsdroid.out -q;../tools/makedefsdroid.out -h;../tools/makedefsdroid.out -s;../tools/makedefsdroid.out -a;../tools/makedefsdroid.out -e;cp ../win/win32/xpl/GnollHackX/GnollHackX.Android.GooglePlay/InstallTime/createassetpack.sh /mnt/c/wsl-in/assetpack/;cp ../win/win32/xpl/GnollHackX/GnollHackX.Android.GooglePlay/OnDemand/createassetpack.sh /mnt/c/wsl-in/assetpack2/;cp ../win/win32/xpl/GnollHackX/GnollHackX.Android.GooglePlay/InstallTime/AndroidManifest.xml /mnt/c/wsl-in/assetpack/;cp ../win/win32/xpl/GnollHackX/GnollHackX.Android.GooglePlay/OnDemand/AndroidManifest.xml /mnt/c/wsl-in/assetpack2/;cd /mnt/c/wsl-in/assetpack;./createassetpack.sh installtimeassetpack.zip com.soundmindentertainment.gnollhack androidpackageformat.txt;cd /mnt/c/wsl-in/assetpack2;./createassetpack.sh ondemandassetpack.zip com.soundmindentertainment.gnollhack androidpackageformat.txt</Command>
+    </RemotePostBuildEvent>
+    <PreBuildEvent>
+      <Command>..\xpl\GnollHackX\GnollHackX.Android.GooglePlay\update-wsl-in-release.bat</Command>
+    </PreBuildEvent>
+  </ItemDefinitionGroup>
+  <ItemGroup>
+    <ClCompile Include="$(SrcDir)animdef.c" />
+    <ClCompile Include="$(UtilDir)makedefs.c" />
+    <ClCompile Include="$(SrcDir)monst.c" />
+    <ClCompile Include="$(SrcDir)objects.c" />
+    <SourcesToCopyRemotely Include="@(ClCompile)" />
+  </ItemGroup>
+  <ItemGroup>
+    <ClInclude Include="$(IncDir)action.h" />
+    <ClInclude Include="$(IncDir)align.h" />
+    <ClInclude Include="$(IncDir)animation.h" />
+    <ClInclude Include="$(IncDir)config.h" />
+    <ClInclude Include="$(IncDir)config1.h" />
+    <ClInclude Include="$(IncDir)context.h" />
+    <ClInclude Include="$(IncDir)coord.h" />
+    <ClInclude Include="$(IncDir)general.h" />
+    <ClInclude Include="$(IncDir)global.h" />
+    <ClInclude Include="$(IncDir)monattk.h" />
+    <ClInclude Include="$(IncDir)monflag.h" />
+    <ClInclude Include="$(IncDir)monsym.h" />
+    <ClInclude Include="$(IncDir)obj.h" />
+    <ClInclude Include="$(IncDir)objclass.h" />
+    <ClInclude Include="$(IncDir)patchlevel.h" />
+    <ClInclude Include="$(IncDir)permonst.h" />
+    <ClInclude Include="$(IncDir)prop.h" />
+    <ClInclude Include="$(IncDir)qtext.h" />
+    <ClInclude Include="$(IncDir)rm.h" />
+    <ClInclude Include="$(IncDir)soundset.h" />
+    <ClInclude Include="$(IncDir)tradstdc.h" />
+    <ClInclude Include="$(LibDroidDir)droidconf.h" />
+    <ClInclude Include="$(IncDir)unixconf.h" />
+    <ClInclude Include="$(UtilDir)mdgrep.h" />
+    <SourcesToCopyRemotely Include="@(ClInclude)" />
+    <SourcesToCopyRemotely Include="$(IncDir)*.h" />
+  </ItemGroup>
+  <ItemGroup>
+    <GnhDataFiles Include="$(DatDir)data.base" />
+    <GnhDataFiles Include="$(DatDir)rumors.tru" />
+    <GnhDataFiles Include="$(DatDir)rumors.fal" />
+    <GnhDataFiles Include="$(DatDir)dungeon.def" />
+    <GnhDataFiles Include="$(DatDir)*.txt" />
+    <GnhDataFiles Include="$(DatDir)*.des" />
+    <GnhDataFiles Include="$(DatDir)help" />
+    <GnhDataFiles Include="$(DatDir)hh" />
+    <GnhDataFiles Include="$(DatDir)cmdhelp" />
+    <GnhDataFiles Include="$(DatDir)keyhelp" />
+    <GnhDataFiles Include="$(DatDir)history" />
+    <GnhDataFiles Include="$(DatDir)opthelp" />
+    <GnhDataFiles Include="$(DatDir)wizhelp" />
+    <GnhDataFiles Include="$(DatDir)tribute" />
+    <GnhDataFiles Include="$(DatDir)symbols" />
+    <GnhDataFiles Include="$(DatDir)credits" />
+    <GnhDataFiles Include="$(DatDir)xcredits" />
+    <GnhDataFiles Include="$(DatDir)license" />
+    <GnhDataFiles Include="$(LibShareDir)defaults.gnh" />
+    <GnhDataFiles Include="$(LibShareDir)sysconf" />
+    <GnhDataFiles Include="$(GooglePlayInstallTimeDir)createassetpack.sh" />
+    <GnhDataFiles Include="$(GooglePlayInstallTimeDir)AndroidManifest.xml" />
+    <GnhDataFiles Include="$(GooglePlayOnDemandDir)createassetpack.sh" />
+    <GnhDataFiles Include="$(GooglePlayOnDemandDir)AndroidManifest.xml" />
+    <!-- <GnhDataFiles Include="$(GooglePlayInstallTimeMauiDir)createassetpack.sh" />
+    <GnhDataFiles Include="$(GooglePlayInstallTimeMauiDir)AndroidManifest.xml" />
+    <GnhDataFiles Include="$(GooglePlayOnDemandMauiDir)createassetpack.sh" />
+    <GnhDataFiles Include="$(GooglePlayOnDemandMauiDir)AndroidManifest.xml" /> -->
+    <DataFilesToCopyRemotely Include="@(GnhDataFiles)" />
+  </ItemGroup>
+  <Target Name="InitialBuild">
+	  <Message Text="Start executing copytilesetdroid.proj using initial build" Importance="High" />
+	  <MSBuild Projects="copytilesetdroid.proj" Targets="Build" />
+	  <Message Text="Start creating Maui pages from Xamarin pages" Importance="High" />
+      <PropertyGroup>
+          <InputFile>$(XamarinControlsDir)CustomImageButton.xaml</InputFile>
+          <OutputFile>$(MauiMainDir)CustomImageButton.xaml</OutputFile>
+      </PropertyGroup>
+      <WriteLinesToFile
+          File="$(OutputFile)"
+          Lines="$([System.IO.File]::ReadAllText($(InputFile)).Replace('GnollHackX.Controls','GnollHackM').Replace('GnollHackX','GnollHackM').Replace('SkiaSharp.Views.Forms','SkiaSharp.Views.Maui.Controls').Replace('http://xamarin.com/schemas/2014/forms','http://schemas.microsoft.com/dotnet/2021/maui').Replace('%3CContentView.Content%3E','').Replace('%3C/ContentView.Content%3E',''))"
+          Overwrite="true"
+          Encoding="UTF-8"/>
+	  <!-- <Copy SourceFiles="$(InputFile).cs" DestinationFolder="$(MauiMainDir)"/> -->
+	  <PropertyGroup>
+          <InputFile>$(XamarinControlsDir)LabeledImageButton.xaml</InputFile>
+          <OutputFile>$(MauiMainDir)LabeledImageButton.xaml</OutputFile>
+      </PropertyGroup>
+      <WriteLinesToFile
+          File="$(OutputFile)"
+          Lines="$([System.IO.File]::ReadAllText($(InputFile)).Replace('GnollHackX.Controls','GnollHackM').Replace('GnollHackX','GnollHackM').Replace('SkiaSharp.Views.Forms','SkiaSharp.Views.Maui.Controls').Replace('http://xamarin.com/schemas/2014/forms','http://schemas.microsoft.com/dotnet/2021/maui').Replace('%3CContentView.Content%3E','').Replace('%3C/ContentView.Content%3E',''))"
+          Overwrite="true"
+          Encoding="UTF-8"/>
+	  <!-- <Copy SourceFiles="$(InputFile).cs" DestinationFolder="$(MauiMainDir)"/> -->
+	  <PropertyGroup>
+          <InputFile>$(XamarinControlsDir)RowImageButton.xaml</InputFile>
+          <OutputFile>$(MauiMainDir)RowImageButton.xaml</OutputFile>
+      </PropertyGroup>
+      <WriteLinesToFile
+          File="$(OutputFile)"
+          Lines="$([System.IO.File]::ReadAllText($(InputFile)).Replace('GnollHackX.Controls','GnollHackM').Replace('GnollHackX','GnollHackM').Replace('SkiaSharp.Views.Forms','SkiaSharp.Views.Maui.Controls').Replace('http://xamarin.com/schemas/2014/forms','http://schemas.microsoft.com/dotnet/2021/maui').Replace('%3CContentView.Content%3E','').Replace('%3C/ContentView.Content%3E','').Replace('WidthRequest  =','MaximumWidthRequest='))"
+          Overwrite="true"
+          Encoding="UTF-8"/>
+	  <!-- <Copy SourceFiles="$(InputFile).cs" DestinationFolder="$(MauiMainDir)"/> -->
+	  <PropertyGroup>
+          <InputFile>$(XamarinControlsDir)SimpleImageButton.xaml</InputFile>
+          <OutputFile>$(MauiMainDir)SimpleImageButton.xaml</OutputFile>
+      </PropertyGroup>
+      <WriteLinesToFile
+          File="$(OutputFile)"
+          Lines="$([System.IO.File]::ReadAllText($(InputFile)).Replace('GnollHackX.Controls','GnollHackM').Replace('GnollHackX','GnollHackM').Replace('SkiaSharp.Views.Forms','SkiaSharp.Views.Maui.Controls').Replace('http://xamarin.com/schemas/2014/forms','http://schemas.microsoft.com/dotnet/2021/maui').Replace('%3CContentView.Content%3E','').Replace('%3C/ContentView.Content%3E',''))"
+          Overwrite="true"
+          Encoding="UTF-8"/>
+	  <!-- <Copy SourceFiles="$(InputFile).cs" DestinationFolder="$(MauiMainDir)"/> -->
+   	  <PropertyGroup>
+          <InputFile>$(XamarinControlsDir)SwitchableCanvasView.xaml</InputFile>
+          <OutputFile>$(MauiMainDir)SwitchableCanvasView.xaml</OutputFile>
+      </PropertyGroup>
+      <WriteLinesToFile
+          File="$(OutputFile)"
+          Lines="$([System.IO.File]::ReadAllText($(InputFile)).Replace('GnollHackX.Controls','GnollHackM').Replace('GnollHackX','GnollHackM').Replace('SkiaSharp.Views.Forms','SkiaSharp.Views.Maui.Controls').Replace('http://xamarin.com/schemas/2014/forms','http://schemas.microsoft.com/dotnet/2021/maui').Replace('%3CContentView.Content%3E','').Replace('%3C/ContentView.Content%3E',''))"
+          Overwrite="true"
+          Encoding="UTF-8"/>
+	  <!-- <Copy SourceFiles="$(InputFile).cs" DestinationFolder="$(MauiMainDir)"/> -->
+   	  <PropertyGroup>
+          <InputFile>$(XamarinMainDir)MainPage.xaml</InputFile>
+          <OutputFile>$(MauiMainDir)MainPage.xaml</OutputFile>
+      </PropertyGroup>
+      <WriteLinesToFile
+          File="$(OutputFile)"
+          Lines="$([System.IO.File]::ReadAllText($(InputFile)).Replace('GnollHackX.Controls','GnollHackM').Replace('GnollHackX','GnollHackM').Replace('WidthRequest  =','MaximumWidthRequest=').Replace('HorizontalOptions  =%22Center%22','HorizontalOptions=%22Fill%22').Replace('SkiaSharp.Views.Forms','SkiaSharp.Views.Maui.Controls').Replace('http://xamarin.com/schemas/2014/forms','http://schemas.microsoft.com/dotnet/2021/maui').Replace('UseVaryingBackgroundImages =%22False%22', 'UseVaryingBackgroundImages =%22True%22').Replace('%3CContentPage.Content%3E','').Replace('%3C/ContentPage.Content%3E','').Replace('%3CFrame','%3CBorder').Replace('%3C/Frame','%3C/Border').Replace('BorderColor=%22Black%22','Stroke=%22Black%22 Padding=%2212,12%22').Replace('CornerRadius=%2210%22','StrokeThickness=%221%22 StrokeShape=%22RoundRectangle 10,10,10,10%22').Replace('CornerRadius=%220%22','StrokeThickness=%221%22 StrokeShape=%22Rectangle%22'))"
+          Overwrite="true"
+          Encoding="UTF-8"/>
+   	  <PropertyGroup>
+          <InputFile>$(XamarinStartScreenDir)VaultPage.xaml</InputFile>
+          <OutputFile>$(MauiMainDir)VaultPage.xaml</OutputFile>
+      </PropertyGroup>
+      <WriteLinesToFile
+          File="$(OutputFile)"
+          Lines="$([System.IO.File]::ReadAllText($(InputFile)).Replace('GnollHackX.Controls','GnollHackM').Replace('GnollHackX.Pages.MainScreen','GnollHackM').Replace('GnollHackX','GnollHackM').Replace('WidthRequest  =','MaximumWidthRequest=').Replace('HorizontalOptions  =%22Center%22','HorizontalOptions=%22Fill%22').Replace('SkiaSharp.Views.Forms','SkiaSharp.Views.Maui.Controls').Replace('http://xamarin.com/schemas/2014/forms','http://schemas.microsoft.com/dotnet/2021/maui').Replace('UseVaryingBackgroundImages =%22False%22', 'UseVaryingBackgroundImages =%22True%22').Replace('%3CContentPage.Content%3E','').Replace('%3C/ContentPage.Content%3E',''))"
+          Overwrite="true"
+          Encoding="UTF-8"/>
+   	  <PropertyGroup>
+          <InputFile>$(XamarinStartScreenDir)SettingsPage.xaml</InputFile>
+          <OutputFile>$(MauiMainDir)SettingsPage.xaml</OutputFile>
+      </PropertyGroup>
+      <WriteLinesToFile
+          File="$(OutputFile)"
+          Lines="$([System.IO.File]::ReadAllText($(InputFile)).Replace('GnollHackX.Controls','GnollHackM').Replace('GnollHackX.Pages.MainScreen','GnollHackM').Replace('GnollHackX','GnollHackM').Replace('WidthRequest  =','MaximumWidthRequest=').Replace('HorizontalOptions  =%22Center%22','HorizontalOptions=%22Fill%22').Replace('SkiaSharp.Views.Forms','SkiaSharp.Views.Maui.Controls').Replace('http://xamarin.com/schemas/2014/forms','http://schemas.microsoft.com/dotnet/2021/maui').Replace('UseVaryingBackgroundImages =%22False%22', 'UseVaryingBackgroundImages =%22True%22').Replace('%3CContentPage.Content%3E','').Replace('%3C/ContentPage.Content%3E','').Replace('%3CFrame','%3CBorder').Replace('%3C/Frame','%3C/Border').Replace('BorderColor=%22Black%22','Stroke=%22Black%22 Padding=%2212,12%22').Replace('CornerRadius=%2210%22','StrokeThickness=%221%22 StrokeShape=%22RoundRectangle 10,10,10,10%22').Replace('CornerRadius=%220%22','StrokeThickness=%221%22 StrokeShape=%22Rectangle%22'))"
+          Overwrite="true"
+          Encoding="UTF-8"/>
+   	  <PropertyGroup>
+          <InputFile>$(XamarinStartScreenDir)ResetPage.xaml</InputFile>
+          <OutputFile>$(MauiMainDir)ResetPage.xaml</OutputFile>
+      </PropertyGroup>
+      <WriteLinesToFile
+          File="$(OutputFile)"
+          Lines="$([System.IO.File]::ReadAllText($(InputFile)).Replace('GnollHackX.Controls','GnollHackM').Replace('GnollHackX.Pages.MainScreen','GnollHackM').Replace('GnollHackX','GnollHackM').Replace('WidthRequest  =','MaximumWidthRequest=').Replace('HorizontalOptions  =%22Center%22','HorizontalOptions=%22Fill%22').Replace('SkiaSharp.Views.Forms','SkiaSharp.Views.Maui.Controls').Replace('http://xamarin.com/schemas/2014/forms','http://schemas.microsoft.com/dotnet/2021/maui').Replace('UseVaryingBackgroundImages =%22False%22', 'UseVaryingBackgroundImages =%22True%22').Replace('%3CContentPage.Content%3E','').Replace('%3C/ContentPage.Content%3E',''))"
+          Overwrite="true"
+          Encoding="UTF-8"/>
+   	  <PropertyGroup>
+          <InputFile>$(XamarinStartScreenDir)AboutPage.xaml</InputFile>
+          <OutputFile>$(MauiMainDir)AboutPage.xaml</OutputFile>
+      </PropertyGroup>
+      <WriteLinesToFile
+          File="$(OutputFile)"
+          Lines="$([System.IO.File]::ReadAllText($(InputFile)).Replace('GnollHackX.Controls','GnollHackM').Replace('GnollHackX.Pages.MainScreen','GnollHackM').Replace('GnollHackX','GnollHackM').Replace('WidthRequest  =','MaximumWidthRequest=').Replace('HorizontalOptions  =%22Center%22','HorizontalOptions=%22Fill%22').Replace('SkiaSharp.Views.Forms','SkiaSharp.Views.Maui.Controls').Replace('http://xamarin.com/schemas/2014/forms','http://schemas.microsoft.com/dotnet/2021/maui').Replace('UseVaryingBackgroundImages =%22False%22', 'UseVaryingBackgroundImages =%22True%22').Replace('%3CContentPage.Content%3E','').Replace('%3C/ContentPage.Content%3E',''))"
+          Overwrite="true"
+          Encoding="UTF-8"/>
+   	  <PropertyGroup>
+          <InputFile>$(XamarinStartScreenDir)DisplayFilePage.xaml</InputFile>
+          <OutputFile>$(MauiMainDir)DisplayFilePage.xaml</OutputFile>
+      </PropertyGroup>
+      <WriteLinesToFile
+          File="$(OutputFile)"
+          Lines="$([System.IO.File]::ReadAllText($(InputFile)).Replace('GnollHackX.Controls','GnollHackM').Replace('GnollHackX.Pages.MainScreen','GnollHackM').Replace('GnollHackX','GnollHackM').Replace('WidthRequest  =','MaximumWidthRequest=').Replace('HorizontalOptions  =%22Center%22','HorizontalOptions=%22Fill%22').Replace('SkiaSharp.Views.Forms','SkiaSharp.Views.Maui.Controls').Replace('http://xamarin.com/schemas/2014/forms','http://schemas.microsoft.com/dotnet/2021/maui').Replace('UseVaryingBackgroundImages =%22False%22', 'UseVaryingBackgroundImages =%22True%22').Replace('%3CContentPage.Content%3E','').Replace('%3C/ContentPage.Content%3E',''))"
+          Overwrite="true"
+          Encoding="UTF-8"/>
+	  <PropertyGroup>
+		  <InputFile>$(XamarinStartScreenDir)ReplayPage.xaml</InputFile>
+		  <OutputFile>$(MauiMainDir)ReplayPage.xaml</OutputFile>
+	  </PropertyGroup>
+	  <WriteLinesToFile
+          File="$(OutputFile)"
+          Lines="$([System.IO.File]::ReadAllText($(InputFile)).Replace('GnollHackX.Controls','GnollHackM').Replace('GnollHackX.Pages.MainScreen','GnollHackM').Replace('GnollHackX','GnollHackM').Replace('WidthRequest  =','MaximumWidthRequest=').Replace('HorizontalOptions  =%22Center%22','HorizontalOptions=%22Fill%22').Replace('SkiaSharp.Views.Forms','SkiaSharp.Views.Maui.Controls').Replace('http://xamarin.com/schemas/2014/forms','http://schemas.microsoft.com/dotnet/2021/maui').Replace('UseVaryingBackgroundImages =%22False%22', 'UseVaryingBackgroundImages =%22True%22').Replace('%3CContentPage.Content%3E','').Replace('%3C/ContentPage.Content%3E','').Replace('%3CFrame','%3CBorder').Replace('%3C/Frame','%3C/Border').Replace('BorderColor=%22Black%22','Stroke=%22Black%22 Padding=%2212,12%22').Replace('CornerRadius=%2210%22','StrokeThickness=%221%22 StrokeShape=%22RoundRectangle 10,10,10,10%22').Replace('CornerRadius=%220%22','StrokeThickness=%221%22 StrokeShape=%22Rectangle%22'))"
+          Overwrite="true"
+          Encoding="UTF-8"/>
+	  <PropertyGroup>
+		  <InputFile>$(XamarinStartScreenDir)ImportExportPage.xaml</InputFile>
+		  <OutputFile>$(MauiMainDir)ImportExportPage.xaml</OutputFile>
+	  </PropertyGroup>
+	  <WriteLinesToFile
+          File="$(OutputFile)"
+          Lines="$([System.IO.File]::ReadAllText($(InputFile)).Replace('GnollHackX.Controls','GnollHackM').Replace('GnollHackX.Pages.MainScreen','GnollHackM').Replace('GnollHackX','GnollHackM').Replace('WidthRequest  =','MaximumWidthRequest=').Replace('HorizontalOptions  =%22Center%22','HorizontalOptions=%22Fill%22').Replace('SkiaSharp.Views.Forms','SkiaSharp.Views.Maui.Controls').Replace('http://xamarin.com/schemas/2014/forms','http://schemas.microsoft.com/dotnet/2021/maui').Replace('UseVaryingBackgroundImages =%22False%22', 'UseVaryingBackgroundImages =%22True%22').Replace('%3CContentPage.Content%3E','').Replace('%3C/ContentPage.Content%3E',''))"
+          Overwrite="true"
+          Encoding="UTF-8"/>
+	  <PropertyGroup>
+          <InputFile>$(XamarinStartScreenDir)EditorPage.xaml</InputFile>
+          <OutputFile>$(MauiMainDir)EditorPage.xaml</OutputFile>
+      </PropertyGroup>
+      <WriteLinesToFile
+          File="$(OutputFile)"
+          Lines="$([System.IO.File]::ReadAllText($(InputFile)).Replace('GnollHackX.Controls','GnollHackM').Replace('GnollHackX.Pages.MainScreen','GnollHackM').Replace('GnollHackX','GnollHackM').Replace('WidthRequest  =','MaximumWidthRequest=').Replace('HorizontalOptions  =%22Center%22','HorizontalOptions=%22Fill%22').Replace('SkiaSharp.Views.Forms','SkiaSharp.Views.Maui.Controls').Replace('http://xamarin.com/schemas/2014/forms','http://schemas.microsoft.com/dotnet/2021/maui').Replace('UseVaryingBackgroundImages =%22False%22', 'UseVaryingBackgroundImages =%22True%22').Replace('%3CContentPage.Content%3E','').Replace('%3C/ContentPage.Content%3E',''))"
+          Overwrite="true"
+          Encoding="UTF-8"/>
+   	  <PropertyGroup>
+          <InputFile>$(XamarinStartScreenDir)TopScorePage.xaml</InputFile>
+          <OutputFile>$(MauiMainDir)TopScorePage.xaml</OutputFile>
+      </PropertyGroup>
+      <WriteLinesToFile
+          File="$(OutputFile)"
+          Lines="$([System.IO.File]::ReadAllText($(InputFile)).Replace('GnollHackX.Controls','GnollHackM').Replace('GnollHackX.Pages.MainScreen','GnollHackM').Replace('GnollHackX','GnollHackM').Replace('WidthRequest  =','MaximumWidthRequest=').Replace('HorizontalOptions  =%22Center%22','HorizontalOptions=%22Fill%22').Replace('SkiaSharp.Views.Forms','SkiaSharp.Views.Maui.Controls').Replace('http://xamarin.com/schemas/2014/forms','http://schemas.microsoft.com/dotnet/2021/maui').Replace('UseVaryingBackgroundImages =%22False%22', 'UseVaryingBackgroundImages =%22True%22').Replace('%3CContentPage.Content%3E','').Replace('%3C/ContentPage.Content%3E',''))"
+          Overwrite="true"
+          Encoding="UTF-8"/>
+   	  <PropertyGroup>
+          <InputFile>$(XamarinStartScreenDir)LibraryPage.xaml</InputFile>
+          <OutputFile>$(MauiMainDir)LibraryPage.xaml</OutputFile>
+      </PropertyGroup>
+      <WriteLinesToFile
+          File="$(OutputFile)"
+          Lines="$([System.IO.File]::ReadAllText($(InputFile)).Replace('GnollHackX.Controls','GnollHackM').Replace('GnollHackX.Pages.MainScreen','GnollHackM').Replace('GnollHackX','GnollHackM').Replace('WidthRequest  =','MaximumWidthRequest=').Replace('HorizontalOptions  =%22Center%22','HorizontalOptions=%22Fill%22').Replace('SkiaSharp.Views.Forms','SkiaSharp.Views.Maui.Controls').Replace('http://xamarin.com/schemas/2014/forms','http://schemas.microsoft.com/dotnet/2021/maui').Replace('UseVaryingBackgroundImages =%22False%22', 'UseVaryingBackgroundImages =%22True%22').Replace('%3CContentPage.Content%3E','').Replace('%3C/ContentPage.Content%3E',''))"
+          Overwrite="true"
+          Encoding="UTF-8"/>
+    <PropertyGroup>
+      <InputFile>$(XamarinStartScreenDir)MusicPage.xaml</InputFile>
+      <OutputFile>$(MauiMainDir)MusicPage.xaml</OutputFile>
+    </PropertyGroup>
+    <WriteLinesToFile
+        File="$(OutputFile)"
+        Lines="$([System.IO.File]::ReadAllText($(InputFile)).Replace('GnollHackX.Controls','GnollHackM').Replace('GnollHackX.Pages.MainScreen','GnollHackM').Replace('GnollHackX','GnollHackM').Replace('WidthRequest  =','MaximumWidthRequest=').Replace('HorizontalOptions  =%22Center%22','HorizontalOptions=%22Fill%22').Replace('SkiaSharp.Views.Forms','SkiaSharp.Views.Maui.Controls').Replace('http://xamarin.com/schemas/2014/forms','http://schemas.microsoft.com/dotnet/2021/maui').Replace('UseVaryingBackgroundImages =%22False%22', 'UseVaryingBackgroundImages =%22True%22').Replace('%3CContentPage.Content%3E','').Replace('%3C/ContentPage.Content%3E',''))"
+        Overwrite="true"
+        Encoding="UTF-8"/>
+    <PropertyGroup>
+      <InputFile>$(XamarinStartScreenDir)SnapshotPage.xaml</InputFile>
+      <OutputFile>$(MauiMainDir)SnapshotPage.xaml</OutputFile>
+    </PropertyGroup>
+    <WriteLinesToFile
+        File="$(OutputFile)"
+        Lines="$([System.IO.File]::ReadAllText($(InputFile)).Replace('GnollHackX.Controls','GnollHackM').Replace('GnollHackX.Pages.MainScreen','GnollHackM').Replace('GnollHackX','GnollHackM').Replace('WidthRequest  =','MaximumWidthRequest=').Replace('HorizontalOptions  =%22Center%22','HorizontalOptions=%22Fill%22').Replace('SkiaSharp.Views.Forms','SkiaSharp.Views.Maui.Controls').Replace('http://xamarin.com/schemas/2014/forms','http://schemas.microsoft.com/dotnet/2021/maui').Replace('UseVaryingBackgroundImages =%22False%22', 'UseVaryingBackgroundImages =%22True%22').Replace('%3CContentPage.Content%3E','').Replace('%3C/ContentPage.Content%3E',''))"
+        Overwrite="true"
+        Encoding="UTF-8"/>
+    <PropertyGroup>
+          <InputFile>$(XamarinStartScreenDir)VersionPage.xaml</InputFile>
+          <OutputFile>$(MauiMainDir)VersionPage.xaml</OutputFile>
+      </PropertyGroup>
+      <WriteLinesToFile
+          File="$(OutputFile)"
+          Lines="$([System.IO.File]::ReadAllText($(InputFile)).Replace('GnollHackX.Controls','GnollHackM').Replace('GnollHackX.Pages.MainScreen','GnollHackM').Replace('GnollHackX','GnollHackM').Replace('WidthRequest  =','MaximumWidthRequest=').Replace('HorizontalOptions  =%22Center%22','HorizontalOptions=%22Fill%22').Replace('SkiaSharp.Views.Forms','SkiaSharp.Views.Maui.Controls').Replace('http://xamarin.com/schemas/2014/forms','http://schemas.microsoft.com/dotnet/2021/maui').Replace('UseVaryingBackgroundImages =%22False%22', 'UseVaryingBackgroundImages =%22True%22').Replace('%3CContentPage.Content%3E','').Replace('%3C/ContentPage.Content%3E',''))"
+          Overwrite="true"
+          Encoding="UTF-8"/>
+   	  <PropertyGroup>
+          <InputFile>$(XamarinGamePagesDir)GameMenuPage.xaml</InputFile>
+          <OutputFile>$(MauiMainDir)GameMenuPage.xaml</OutputFile>
+      </PropertyGroup>
+      <WriteLinesToFile
+          File="$(OutputFile)"
+          Lines="$([System.IO.File]::ReadAllText($(InputFile)).Replace('GnollHackX.Controls','GnollHackM').Replace('GnollHackX.Pages.Game','GnollHackM').Replace('GnollHackX','GnollHackM').Replace('WidthRequest  =','MaximumWidthRequest=').Replace('HorizontalOptions  =%22Center%22','HorizontalOptions=%22Fill%22').Replace('SkiaSharp.Views.Forms','SkiaSharp.Views.Maui.Controls').Replace('http://xamarin.com/schemas/2014/forms','http://schemas.microsoft.com/dotnet/2021/maui').Replace('UseVaryingBackgroundImages =%22False%22', 'UseVaryingBackgroundImages =%22True%22').Replace('%3CContentPage.Content%3E','').Replace('%3C/ContentPage.Content%3E',''))"
+          Overwrite="true"
+          Encoding="UTF-8"/>
+   	  <PropertyGroup>
+          <InputFile>$(XamarinGamePagesDir)GamePage.xaml</InputFile>
+          <OutputFile>$(MauiMainDir)GamePage.xaml</OutputFile>
+      </PropertyGroup>
+      <WriteLinesToFile
+          File="$(OutputFile)"
+          Lines="$([System.IO.File]::ReadAllText($(InputFile)).Replace('GnollHackX.Controls','GnollHackM').Replace('GnollHackX.Pages.Game','GnollHackM').Replace('GnollHackX','GnollHackM').Replace('WidthRequest  =','MaximumWidthRequest=').Replace('HorizontalOptions  =%22Center%22','HorizontalOptions=%22Fill%22').Replace('SkiaSharp.Views.Forms','SkiaSharp.Views.Maui.Controls').Replace('http://xamarin.com/schemas/2014/forms','http://schemas.microsoft.com/dotnet/2021/maui').Replace('UseVaryingBackgroundImages =%22False%22', 'UseVaryingBackgroundImages =%22True%22').Replace('%3CContentPage.Content%3E','').Replace('%3C/ContentPage.Content%3E','').Replace('%3CFrame','%3CBorder').Replace('%3C/Frame','%3C/Border').Replace('BorderColor=%22Black%22 Padding=%224%22','Stroke=%22Black%22 Padding=%2214,14%22').Replace('BorderColor=%22Black%22','Stroke=%22Black%22 Padding=%2212,12%22').Replace('CornerRadius=%2210%22','StrokeThickness=%221%22 StrokeShape=%22RoundRectangle 10,10,10,10%22').Replace('CornerRadius=%220%22','StrokeThickness=%221%22 StrokeShape=%22Rectangle%22'))"
+          Overwrite="true"
+          Encoding="UTF-8"/>
+   	  <PropertyGroup>
+          <InputFile>$(XamarinGamePagesDir)NamePage.xaml</InputFile>
+          <OutputFile>$(MauiMainDir)NamePage.xaml</OutputFile>
+      </PropertyGroup>
+      <WriteLinesToFile
+          File="$(OutputFile)"
+          Lines="$([System.IO.File]::ReadAllText($(InputFile)).Replace('GnollHackX.Controls','GnollHackM').Replace('GnollHackX.Pages.Game','GnollHackM').Replace('GnollHackX','GnollHackM').Replace('WidthRequest  =','MaximumWidthRequest=').Replace('HorizontalOptions  =%22Center%22','HorizontalOptions=%22Fill%22').Replace('SkiaSharp.Views.Forms','SkiaSharp.Views.Maui.Controls').Replace('http://xamarin.com/schemas/2014/forms','http://schemas.microsoft.com/dotnet/2021/maui').Replace('UseVaryingBackgroundImages =%22False%22', 'UseVaryingBackgroundImages =%22True%22').Replace('%3CContentPage.Content%3E','').Replace('%3C/ContentPage.Content%3E',''))"
+          Overwrite="true"
+          Encoding="UTF-8"/>
+   	  <PropertyGroup>
+          <InputFile>$(XamarinGamePagesDir)OutRipPage.xaml</InputFile>
+          <OutputFile>$(MauiMainDir)OutRipPage.xaml</OutputFile>
+      </PropertyGroup>
+      <WriteLinesToFile
+          File="$(OutputFile)"
+          Lines="$([System.IO.File]::ReadAllText($(InputFile)).Replace('GnollHackX.Controls','GnollHackM').Replace('GnollHackX.Pages.Game','GnollHackM').Replace('GnollHackX','GnollHackM').Replace('WidthRequest  =','MaximumWidthRequest=').Replace('HorizontalOptions  =%22Center%22','HorizontalOptions=%22Fill%22').Replace('SkiaSharp.Views.Forms','SkiaSharp.Views.Maui.Controls').Replace('http://xamarin.com/schemas/2014/forms','http://schemas.microsoft.com/dotnet/2021/maui').Replace('UseVaryingBackgroundImages =%22False%22', 'UseVaryingBackgroundImages =%22True%22').Replace('%3CContentPage.Content%3E','').Replace('%3C/ContentPage.Content%3E',''))"
+          Overwrite="true"
+          Encoding="UTF-8"/>
+	  <PropertyGroup>
+		  <InputFile>$(XamarinGamePagesDir)WikiPage.xaml</InputFile>
+		  <OutputFile>$(MauiMainDir)WikiPage.xaml</OutputFile>
+	  </PropertyGroup>
+	  <WriteLinesToFile
+          File="$(OutputFile)"
+          Lines="$([System.IO.File]::ReadAllText($(InputFile)).Replace('GnollHackX.Controls','GnollHackM').Replace('GnollHackX.Pages.Game','GnollHackM').Replace('GnollHackX','GnollHackM').Replace('WidthRequest  =','MaximumWidthRequest=').Replace('HorizontalOptions  =%22Center%22','HorizontalOptions=%22Fill%22').Replace('SkiaSharp.Views.Forms','SkiaSharp.Views.Maui.Controls').Replace('http://xamarin.com/schemas/2014/forms','http://schemas.microsoft.com/dotnet/2021/maui').Replace('UseVaryingBackgroundImages =%22False%22', 'UseVaryingBackgroundImages =%22True%22').Replace('%3CContentPage.Content%3E','').Replace('%3C/ContentPage.Content%3E',''))"
+          Overwrite="true"
+          Encoding="UTF-8"/>
+  </Target>
+</Project>

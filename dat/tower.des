@@ -1,0 +1,214 @@
+# GnollHack File Change Notice: This file has been changed from the original. Date of last change: 2023-03-17
+
+# GnollHack 4.0	tower.des	$NHDT-Date: 1432512784 2015/05/25 00:13:04 $  $NHDT-Branch: master $:$NHDT-Revision: 1.9 $
+#	Copyright (c) 1989 by Jean-Christophe Collet
+# GnollHack may be freely redistributed.  See license for details.
+#
+# Upper stage of Vlad's tower
+MAZE:"tower1",' '
+FLAGS: noteleport,hardfloor,solidify
+GEOMETRY:half-left,center
+#12345678901234567890
+MAP
+  --- --- ---  
+  |.| |.| |.|  
+---S---S---S---
+|.......+.+...|
+---+-----.-----
+  |...\.|.+.|  
+---+-----.-----
+|.......+.+...|
+---S---S---S---
+  |.| |.| |.|  
+  --- --- ---  
+ENDMAP
+
+MONSTER_GENERATION: 50, ('V', "vampire king") 
+MONSTER_GENERATION: 25, ('V', "vampire lord") 
+MONSTER_GENERATION: 25, 'V' 
+MONSTER_GENERATION: 10, '&' 
+
+DECORATION:(06,04),decoration_painting,painting_vlad,direction_top
+IF[50%] {
+  DECORATION:(03,00),decoration_painting,painting_vampire_male,direction_top
+}
+IF[50%] {
+  DECORATION:(07,00),decoration_painting,painting_vampire_female,direction_top
+}
+IF[50%] {
+  DECORATION:(11,00),decoration_painting,painting_vampire_male,direction_top
+}
+IF[50%] {
+  DECORATION:(06,06),decoration_painting,painting_vampire_female,direction_top
+}
+
+$niches = { (03,01), (03,09), (07,01), (07,09), (11,01), (11,09) }
+SHUFFLE: $niches
+LADDER:(11,05),down
+# The lord and his court
+MONSTER:('V',"Vlad the Impaler"),(06,05)
+MONSTER:'V',$niches[0]
+MONSTER:'V',$niches[1]
+MONSTER:'V',$niches[2]
+#MONSTER:'V',$niches[3]
+#MONSTER:'V',$niches[4]
+#MONSTER:'V',$niches[5]
+# The doors
+DOOR:closed,(08,03)
+DOOR:closed,(10,03)
+DOOR:closed,(03,04)
+DOOR:locked,(10,05)
+DOOR:locked,(08,07)
+DOOR:locked,(10,07)
+DOOR:closed,(03,06)
+# treasures
+OBJECT:('(',"coffin"),(07,05),open
+
+OBJECT:('(',"coffin"),$niches[0],open
+OBJECT:('(',"coffin"),$niches[1],open
+CONTAINER:('(',"coffin"),$niches[2],montype:"vampire mage" {
+  OBJECT:('=', "levitation")
+}
+OBJECT:('(',"coffin"),$niches[3],montype:"vampire lord"
+CONTAINER:('(',"coffin"),$niches[4],montype:"vampire king" {
+  OBJECT:('(', "wax candle"), quantity:4d2
+}
+CONTAINER:('(',"coffin"),$niches[5],montype:"vampire king" {
+  OBJECT:('(', "tallow candle"), quantity:4d2
+}
+# We have to protect the tower against outside attacks
+NON_DIGGABLE:(00,00,14,10)
+
+
+# Intermediate stage of Vlad's tower
+MAZE:"tower2",' '
+FLAGS: noteleport,hardfloor,solidify
+GEOMETRY:half-left,center
+#12345678901234567890
+MAP
+  --- --- ---  
+  |.| |.| |.|  
+---S---S---S---
+|.S.........S.|
+---.------+----
+  |......|..|  
+--------.------
+|.S......+..S.|
+---S---S---S---
+  |.| |.| |.|  
+  --- --- ---  
+ENDMAP
+
+MONSTER_GENERATION: 80, 'V' 
+MONSTER_GENERATION: 20, '&' 
+
+IF[50%] {
+  DECORATION:(03,00),decoration_painting,painting_vampire_male,direction_top
+}
+IF[50%] {
+  DECORATION:(07,00),decoration_painting,painting_vampire_female,direction_top
+}
+IF[50%] {
+  DECORATION:(11,00),decoration_painting,painting_vampire_male,direction_top
+}
+IF[50%] {
+  DECORATION:(06,06),decoration_painting,painting_vampire_female,direction_top
+}
+IF[50%] {
+  DECORATION:(06,04),decoration_painting,painting_vlad,direction_top
+}
+
+# Random places are the 10 niches
+$place = { (03,01),(07,01),(11,01),(01,03),(13,03),
+	   (01,07),(13,07),(03,09),(07,09),(11,09) }
+SHUFFLE: $place
+LADDER:(11,05),up
+LADDER:(03,07),down
+DOOR:locked,(10,04)
+DOOR:locked,(09,07)
+
+OBJECT:('(',"coffin"),$place[0]
+OBJECT:('(',"coffin"),$place[1]
+OBJECT:('(',"coffin"),$place[2]
+OBJECT:('(',"coffin"),$place[3]
+OBJECT:('(',"coffin"),$place[4]
+
+CONTAINER:('(',"coffin"),$place[5],montype:"vampire king" {
+  OBJECT:('"',"amulet of life saving")
+}
+CONTAINER:('(',"coffin"),$place[6],montype:"vampire king" {
+  OBJECT:('"',"amulet of strangulation")
+}
+CONTAINER:('(',"coffin"),$place[7],montype:"vampire lord" {
+  OBJECT:('[',"water walking boots")
+}
+CONTAINER:('(',"coffin"),$place[8],montype:"vampire lord" {
+  OBJECT:('[',"plate mail"),material:material_hard_crystal
+}
+CONTAINER:('(',"coffin"),$place[9],montype:"vampire mage" {
+  OBJECT:('+',"invisibility")
+}
+
+# Walls in the tower are non diggable
+NON_DIGGABLE:(00,00,14,10)
+
+
+# Bottom most stage of Vlad's tower
+MAZE:"tower3",' '
+FLAGS: noteleport,hardfloor,solidify
+GEOMETRY:half-left,center
+#12345678901234567890
+MAP
+    --- --- ---  
+    |.| |.| |.|    
+  ---S---S---S---
+  |.S.........S.|  
+-----.........-----
+|...|.........+...|
+|.---.........---.|
+|.|.S.........S.|.|
+|.---S---S---S---.|
+|...|.|.|.|.|.|...|
+---.---.---.---.---
+  |.............|  
+  ---------------  
+ENDMAP
+
+MONSTER_GENERATION: 70, 'V' 
+MONSTER_GENERATION: 20, 'z' 
+MONSTER_GENERATION: 10, '&' 
+
+# Random places are the 10 niches
+$place = { (05,01),(09,01),(13,01),(03,03),(15,03),
+	   (03,07),(15,07),(05,09),(09,09),(13,09) }
+SHUFFLE: $place
+BRANCH:(02,05,02,05),(00,00,00,00)
+LADDER:(05,07),up
+# Entry door is, of course, locked
+DOOR:locked,(14,05)
+# Let's put a dracolich behind the door, just for the fun...
+MONSTER:('D', "dracolich" ),(13,05)
+MONSTER:random,(12,04)
+MONSTER:random,(12,06)
+MONSTER:random,random
+MONSTER:random,random
+MONSTER:random,random
+MONSTER:random,random
+MONSTER:random,random
+MONSTER:random,random
+OBJECT:('(',"coffin"),$place[0]
+CONTAINER:('(',"coffin"),$place[1],montype:"vampire lord" {
+  OBJECT:('(',"lock pick")
+}
+OBJECT:('(',"coffin"),$place[2]
+CONTAINER:('(',"coffin"),$place[3],montype:"vampire lord" {
+  OBJECT:('(',"blindfold")
+}
+OBJECT:('(',"coffin"),$place[4]
+OBJECT:('(',"coffin"),$place[5]
+OBJECT:('(',"coffin"),$place[6]
+
+OBJECT: ('`', "statue"), (09,05), no_pickup, montype:"vampire king", 1
+
+# Walls in the tower are non diggable
+NON_DIGGABLE:(00,00,18,12)

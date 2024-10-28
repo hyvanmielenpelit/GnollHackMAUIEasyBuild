@@ -1,0 +1,133 @@
+# GnollHack File Change Notice: This file has been changed from the original. Date of last change: 2024-08-11
+
+# GnollHack 4.0	Ranger.des	$NHDT-Date: 1432512783 2015/05/25 00:13:03 $  $NHDT-Branch: master $:$NHDT-Revision: 1.9 $
+#	Copyright (c) 1989 by Jean-Christophe Collet
+#	Copyright (c) 1991 by M. Stephenson
+# GnollHack may be freely redistributed.  See license for details.
+#
+#
+MAZE: "bovine1",','
+FLAGS: noteleport,hardfloor,arboreal
+INIT_MAP:mines,',',',',true,true,lit,false
+FOREST: forest_gehennom
+REPLACE_TERRAIN:(0,0,76,19),',', 'T', 5%
+GEOMETRY:left,center
+#1234567890123456789012345678901234567890123456789012345678901234567890
+MAP
+,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,
+,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,
+,,,-+----------+--------,,,,,,,,,,,,,,,,,,,,,,,
+,,,|.............|.....|,,,,,,,,,,}}},,,,,,,,,,
+,,,|.............S.....|,,,,,,,,,}}}}},,,,,,,,,
+,,,|--S------S------...|,,,,,,,,,}}}}},,,,,,,,,
+,,,S.....S,,,,,,,,,|-+--,,,,,,,,,,}}},,,,,,,,,,
+,,,|.....|,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,
+,,,S.....S,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,
+,,,|.....|,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,
+,,,S.....S,,,,,,,,,|-+--,,,,,,,,,,}}},,,,,,,,,,
+,,,|--S------S------...|,,,,,,,,,}}}}},,,,,,,,,
+,,,|.............S.....|,,,,,,,,,}}}}},,,,,,,,,
+,,,-+-----------+-------,,,,,,,,,,}}},,,,,,,,,,
+,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,
+,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,
+ENDMAP
+
+MONSTER_GENERATION: 50, ('H', "hell bovine") 
+MONSTER_GENERATION: 25, ('H', "minotaur") 
+MONSTER_GENERATION: 20, ('q',"bison") 
+MONSTER_GENERATION: 5, '&' 
+
+# Dungeon Description
+REGION:(00,00,46,15),lit,"ordinary"
+## Portal arrival point; just about anywhere on the right hand side of the map
+BRANCH:levregion(51,2,77,18),(0,0,26,15)
+# Doors
+DOOR:closed,(04,02)
+DOOR:closed,(04,13)
+DOOR:closed,(15,02)
+DOOR:closed,(15,13)
+DOOR:closed,(21,06)
+DOOR:closed,(21,10)
+# Yacc
+MONSTER:('&',"Yacc"),(06,08)
+# The treasure of Yacc
+CONTAINER:('(',"chest"),not_trapped,(06,08) {
+    IF [50%] {
+      OBJECT:('/',"disintegration")
+    } ELSE {
+      OBJECT:('(',"magic lamp")
+    }
+    [50%]:OBJECT:('!',"full healing")
+    [50%]:OBJECT:('!',"gain level")
+    [50%]:OBJECT:('!',"gain ability")
+    OBJECT:class_treasure_weapon, notcursed
+}
+# Decorations
+OBJECT: ('`', "statue"), (21,08), no_pickup, montype:"bison", 1
+FOUNTAIN:(14,08),fountain_random
+FOUNTAIN:(06,07),fountain_random
+FOUNTAIN:(06,09),fountain_random
+
+# Base bovine army
+LOOP [40 + 1d10] {
+  MONSTER:('H',"hell bovine"),random,hostile
+}
+
+# Non diggable walls
+NON_DIGGABLE:(00,00,26,15)
+# Traps
+TRAP:"spiked pit",random
+TRAP:"spiked pit",random
+TRAP:"bear",random
+TRAP:"bear",random
+TRAP:"bear",random
+TRAP:"fire",random
+TRAP:"fire",random
+TRAP:"fire",random
+TRAP:"fire",random
+TRAP:"fire",random
+TRAP:"fire",random
+TRAP:"fire",random
+TRAP:"fire",random
+TRAP:"anti magic", random
+TRAP:"magic", random
+TRAP:"magic", random
+TRAP:"magic", random
+
+# Other monsters on siege duty.
+MONSTER: ('H',"minotaur"),random,hostile
+MONSTER: ('q',"bison"),random,hostile
+MONSTER: ('H',"minotaur"),random,hostile
+MONSTER: ('q',"bison"),random,hostile
+MONSTER: ('H',"minotaur"),random,hostile
+MONSTER: ('q',"bison"),random,hostile
+MONSTER: ('H',"minotaur"),random,hostile
+MONSTER: ('q',"bison"),random,hostile
+MONSTER: ('H',"minotaur"),random,hostile
+MONSTER: ('q',"bison"),random,hostile
+MONSTER: ('H',"minotaur"),random,hostile
+MONSTER: ('q',"bison"),random,hostile
+MONSTER: ('H',"minotaur"),random,hostile
+MONSTER: ('q',"bison"),random,hostile
+MONSTER: ('H',"minotaur"),random,hostile
+MONSTER: ('q',"bison"),random,hostile
+MONSTER: ('H',"minotaur"),random,hostile
+MONSTER: ('q',"bison"),random,hostile
+MONSTER: ('H',"minotaur"),random,hostile
+MONSTER: ('q',"bison"),random,hostile
+MONSTER: ('H',"minotaur"),random,hostile
+MONSTER: ('q',"bison"),random,hostile
+MONSTER: ('H',"minotaur"),random,hostile
+MONSTER: ('q',"bison"),random,hostile
+
+OBJECT:'[',random
+OBJECT:'[',random
+OBJECT:')',random
+OBJECT:')',random
+OBJECT:'*',random
+OBJECT:'!',random
+OBJECT:'!',random
+OBJECT:'?',random
+OBJECT:'?',random
+OBJECT:'?',random
+

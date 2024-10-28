@@ -1,0 +1,504 @@
+# GnollHack File Change Notice: This file has been changed from the original. Date of last change: 2023-03-17
+
+# GnollHack 4.0	Priest.des	$NHDT-Date: 1432512784 2015/05/25 00:13:04 $  $NHDT-Branch: master $:$NHDT-Revision: 1.11 $
+#	Copyright (c) 1989 by Jean-Christophe Collet
+#	Copyright (c) 1991-2 by M. Stephenson
+# GnollHack may be freely redistributed.  See license for details.
+#
+#	The "start" level for the quest.
+#
+#	Here you meet your (besieged) class leader, High Priest
+#	and receive your quest assignment.
+#
+MAZE: "Pri-strt",'T'
+FLAGS: noteleport,hardfloor
+GEOMETRY:center,center
+#         1         2         3         4         5         6         7         
+#1234567890123456789012345678901234567890123456789012345678901234567890123456789
+MAP
+,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,
+,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,
+,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,
+,,,,,,,,,,,,,,,,,,,,------------------------------------,,,,,,,,,,,,,,,,,,,,
+,,,,,,,,,,,,,,,,,,,,|................|.....|.....|.....|,,,,,,,,,,,,,,,,,,,,
+,,,,,,,,,,,,,,,,,,,,|..------------..|--+-----+-----+--|,,,,,,,,,,,,,,,,,,,,
+,,,,,,,,,,,,,,,,,,,,|..|..........|..|.................|,,,,,,,,,,,,,,,,,,,,
+,,,,,,,,,,,,,,,,,,,,|..|..........|..|+---+---+-----+--|,,,,,,,,,,,,,,,,,,,,
+,,,,,,,,,,,,,,,,,,---..|..........|......|...|...|.....|,,,,,,,,,,,,,,,,,,,,
+,,,,,,,,,,,,,,,,,,+....|..........+......|...|...|.....|,,,,,,,,,,,,,,,,,,,,
+,,,,,,,,,,,,,,,,,,+....|..........+......|...|...|.....|,,,,,,,,,,,,,,,,,,,,
+,,,,,,,,,,,,,,,,,,---..|..........|......|...|...|.....|,,,,,,,,,,,,,,,,,,,,
+,,,,,,,,,,,,,,,,,,,,|..|..........|..|+-----+---+---+--|,,,,,,,,,,,,,,,,,,,,
+,,,,,,,,,,,,,,,,,,,,|..|..........|..|.................|,,,,,,,,,,,,,,,,,,,,
+,,,,,,,,,,,,,,,,,,,,|..------------..|--+-----+-----+--|,,,,,,,,,,,,,,,,,,,,
+,,,,,,,,,,,,,,,,,,,,|................|.....|.....|.....|,,,,,,,,,,,,,,,,,,,,
+,,,,,,,,,,,,,,,,,,,,------------------------------------,,,,,,,,,,,,,,,,,,,,
+,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,
+,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,
+,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,
+ENDMAP
+# Dungeon Description
+REGION:(00,00,75,19),lit,"ordinary"
+REGION:(24,06,33,13),lit,"temple" floorsubtype:floor_marble
+
+# Signposts
+SIGNPOST: (14,09), signpost_normal,"Welcome to the Great Temple"
+SIGNPOST: (37,09), signpost_normal,"Silence Please - Place of Worship"
+
+REPLACE_TERRAIN:(0,0,10,19),',','T',10%
+REPLACE_TERRAIN:(65,0,75,19),',','T',10%
+TERRAIN:(05,04),','
+
+# Portal arrival point
+BRANCH:(05,04,05,04),(0,0,0,0)
+
+# Stairs
+STAIR:(52,09),down
+
+
+# Braziers
+BRAZIER:(43,09)
+BRAZIER:(43,10)
+BRAZIER:(47,09)
+BRAZIER:(47,10)
+
+CARPET:(25,07,32,12),carpet_yellow
+DECORATION:(26,05),decoration_priest_statue,0,direction_top,item_in_holder
+DECORATION:(31,05),decoration_priest_statue,0,direction_top,item_in_holder
+DECORATION:(23,07),decoration_priest_statue,0,direction_left,item_in_holder
+DECORATION:(23,12),decoration_priest_statue,0,direction_left,item_in_holder
+DECORATION:(34,07),decoration_priest_statue,0,direction_right,item_in_holder
+DECORATION:(34,12),decoration_priest_statue,0,direction_right,item_in_holder
+
+# Doors
+DOOR:locked,(18,09)
+DOOR:locked,(18,10)
+DOOR:closed,(34,09)
+DOOR:closed,(34,10)
+DOOR:closed,(40,05)
+DOOR:closed,(46,05)
+DOOR:closed,(52,05)
+DOOR:locked,(38,07)
+DOOR:closed,(42,07)
+DOOR:closed,(46,07)
+DOOR:closed,(52,07)
+DOOR:locked,(38,12)
+DOOR:closed,(44,12)
+DOOR:closed,(48,12)
+DOOR:closed,(52,12)
+DOOR:closed,(40,14)
+DOOR:closed,(46,14)
+DOOR:closed,(52,14)
+
+# Unattended Altar - unaligned due to conflict - player must align it.
+ALTAR:(28,09),noalign,altar
+
+# High Priest
+MONSTER:('@',"Arch Priest"),(28,10),protector
+
+# The treasure of High Priest
+OBJECT:('(',"chest"),(27,10)
+
+# Acolytes of the audience chamber
+MONSTER:('@',"acolyte"),(32,07),protector
+MONSTER:('@',"acolyte"),(32,08),protector
+MONSTER:('@',"acolyte"),(32,11),protector
+MONSTER:('@',"acolyte"),(32,12),protector
+MONSTER:('@',"acolyte"),(33,07),protector
+MONSTER:('@',"acolyte"),(33,08),protector
+MONSTER:('@',"acolyte"),(33,11),protector
+MONSTER:('@',"acolyte"),(33,12),protector
+
+# Non diggable walls
+NON_DIGGABLE:(18,03,55,16)
+
+# Some candelabrums
+IF[80%] {
+  IF[50%] {
+    OBJECT: ('(', "large five-branched candelabrum"), (21,04), special_quality:(1d5), age:99000, lit
+  } ELSE {
+    OBJECT: ('(', "large five-branched candelabrum"), (21,04), special_quality:(1d5), age:1000, unlit
+  }
+} ELSE {
+    OBJECT: ('(', "large five-branched candelabrum"), (21,04), special_quality:0
+}
+IF[80%] {
+  IF[50%] {
+    OBJECT: ('(', "large five-branched candelabrum"), (36,04), special_quality:(1d5), age:99000, lit
+  } ELSE {
+    OBJECT: ('(', "large five-branched candelabrum"), (36,04), special_quality:(1d5), age:1000, unlit
+  }
+} ELSE {
+    OBJECT: ('(', "large five-branched candelabrum"), (36,04), special_quality:0
+}
+IF[80%] {
+  IF[50%] {
+    OBJECT: ('(', "large five-branched candelabrum"), (36,15), special_quality:(1d5), age:99000, lit
+  } ELSE {
+    OBJECT: ('(', "large five-branched candelabrum"), (36,15), special_quality:(1d5), age:1000, unlit
+  }
+} ELSE {
+    OBJECT: ('(', "large five-branched candelabrum"), (36,15), special_quality:0
+}
+IF[80%] {
+  IF[50%] {
+    OBJECT: ('(', "large five-branched candelabrum"), (21,15), special_quality:(1d5), age:99000, lit
+  } ELSE {
+    OBJECT: ('(', "large five-branched candelabrum"), (21,15), special_quality:(1d5), age:1000, unlit
+  }
+} ELSE {
+    OBJECT: ('(', "large five-branched candelabrum"), (21,15), special_quality:0
+}
+
+IF[90%] {
+  IF[75%] {
+    OBJECT: ('(', "large five-branched candelabrum"), (24,06), special_quality:(1d5), age:99000, lit
+  } ELSE {
+    OBJECT: ('(', "large five-branched candelabrum"), (24,06), special_quality:(1d5), age:1000, unlit
+  }
+} ELSE {
+    OBJECT: ('(', "large five-branched candelabrum"), (24,06), special_quality:0
+}
+IF[90%] {
+  IF[75%] {
+    OBJECT: ('(', "large five-branched candelabrum"), (33,06), special_quality:(1d5), age:99000, lit
+  } ELSE {
+    OBJECT: ('(', "large five-branched candelabrum"), (33,06), special_quality:(1d5), age:1000, unlit
+  }
+} ELSE {
+    OBJECT: ('(', "large five-branched candelabrum"), (33,06), special_quality:0
+}
+IF[90%] {
+  IF[75%] {
+    OBJECT: ('(', "large five-branched candelabrum"), (33,13), special_quality:(1d5), age:99000, lit
+  } ELSE {
+    OBJECT: ('(', "large five-branched candelabrum"), (33,13), special_quality:(1d5), age:1000, unlit
+  }
+} ELSE {
+    OBJECT: ('(', "large five-branched candelabrum"), (33,13), special_quality:0
+}
+IF[90%] {
+  IF[75%] {
+    OBJECT: ('(', "large five-branched candelabrum"), (24,13), special_quality:(1d5), age:99000, lit
+  } ELSE {
+    OBJECT: ('(', "large five-branched candelabrum"), (24,13), special_quality:(1d5), age:1000, unlit
+  }
+} ELSE {
+    OBJECT: ('(', "large five-branched candelabrum"), (24,13), special_quality:0
+}
+
+IF[80%] {
+  IF[50%] {
+    OBJECT: ('(', "large five-branched candelabrum"), (40,08), special_quality:(1d5), age:99000, lit
+  } ELSE {
+    OBJECT: ('(', "large five-branched candelabrum"), (40,08), special_quality:(1d5), age:1000, unlit
+  }
+} ELSE {
+    OBJECT: ('(', "large five-branched candelabrum"), (40,08), special_quality:0
+}
+IF[80%] {
+  IF[50%] {
+    OBJECT: ('(', "large five-branched candelabrum"), (40,11), special_quality:(1d5), age:99000, lit
+  } ELSE {
+    OBJECT: ('(', "large five-branched candelabrum"), (40,11), special_quality:(1d5), age:1000, unlit
+  }
+} ELSE {
+    OBJECT: ('(', "large five-branched candelabrum"), (40,11), special_quality:0
+}
+
+OBJECT: ('(', "large five-branched candelabrum"), (54,06), special_quality:(1d5), age:99000, lit
+OBJECT: ('(', "large five-branched candelabrum"), (54,13), special_quality:(1d5), age:99000, lit
+OBJECT: ('(', "large five-branched candelabrum"), (50,08), special_quality:(1d5), age:1000, unlit
+OBJECT: ('(', "large five-branched candelabrum"), (50,11), special_quality:(1d5), age:1000, unlit
+OBJECT: ('(', "large five-branched candelabrum"), (54,08), special_quality:(1d5), age:1000, unlit
+OBJECT: ('(', "large five-branched candelabrum"), (54,11), special_quality:(1d5), age:1000, unlit
+
+# Some other furniture
+OBJECT: ('(', "bookshelf"), (38,04)
+OBJECT: ('(', "bookshelf"), (42,04)
+OBJECT: ('(', "large box"), (44,04)
+OBJECT: ('(', "large box"), (48,04)
+OBJECT: ('(', "sarcophagus"), (50,04)
+OBJECT: ('(', "coffin"), (54,04)
+
+OBJECT: ('9', "clove of garlic"), (38,15)
+OBJECT: ('9', "ginseng root"), (42,15)
+OBJECT: '9', (44,15)
+OBJECT: '9', (48,15)
+OBJECT: ('(', "chest"), (50,15)
+OBJECT: ('(', "chest"), (54,15)
+
+# Random traps
+TRAP:"dart",(20,09)
+TRAP:"dart",(20,10)
+
+# Monsters on siege duty.
+MONSTER: ('z',"human zombie"),(37,01)
+MONSTER: ('z',"human zombie"),(37,18)
+MONSTER: ('z',"human zombie"),(03,03)
+MONSTER: ('z',"human zombie"),(65,04)
+MONSTER: ('z',"human zombie"),(12,11)
+MONSTER: ('z',"human zombie"),(60,12)
+MONSTER: ('z',"human zombie"),(14,08)
+MONSTER: ('z',"human zombie"),(55,00)
+MONSTER: ('z',"human zombie"),(18,18)
+MONSTER: ('z',"human zombie"),(59,10)
+MONSTER: ('z',"human zombie"),(13,09)
+MONSTER: ('z',"human zombie"),(01,17)
+
+#
+#	The "locate" level for the quest.
+#
+#	Here you have to locate the Temple of Nalzok to go
+#	further towards your assigned quest.
+#
+
+MAZE: "Pri-loca",'T'
+FLAGS: hardfloor
+# This is a kludge to init the level as a lit field.
+INIT_MAP: mines, ',' , ',' , false , false , lit , false
+TILESET: undead_tileset
+GEOMETRY:center,center
+MAP
+,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,
+,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,
+,,,,,,,,,,----------+----------,,,,,,,,,
+,,,,,,,,,,|........|.|........|,,,,,,,,,
+,,,,,,,,,,|........|.|........|,,,,,,,,,
+,,,,,,,,,,|----.----.----.----|,,,,,,,,,
+,,,,,,,,,,+...................+,,,,,,,,,
+,,,,,,,,,,+...................+,,,,,,,,,
+,,,,,,,,,,|----.----.----.----|,,,,,,,,,
+,,,,,,,,,,|........|.|........|,,,,,,,,,
+,,,,,,,,,,|........|.|........|,,,,,,,,,
+,,,,,,,,,,----------+----------,,,,,,,,,
+,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,
+,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,
+ENDMAP
+# Dungeon Description
+REGION:(00,00,09,13),unlit,"morgue"
+REGION:(09,00,30,01),unlit,"morgue"
+REGION:(09,12,30,13),unlit,"morgue"
+REGION:(31,00,39,13),unlit,"morgue"
+REGION:(11,03,29,10),lit,"temple",filled,irregular
+# The altar inside the temple; this is Moloch's altar
+ALTAR:(20,07),noalign,shrine,altar_moloch
+MONSTER:('@',"aligned priest"),(20,07),noalign,hostile
+# Doors
+DOOR:locked,(10,06)
+DOOR:locked,(10,07)
+DOOR:locked,(20,02)
+DOOR:locked,(20,11)
+DOOR:locked,(30,06)
+DOOR:locked,(30,07)
+# Stairs
+# Note:  The up stairs are *intentionally* off of the map.
+STAIR:(43,05),up
+STAIR:(20,06),down
+# Non diggable walls
+NON_DIGGABLE:(10,02,30,13)
+# Objects (inside the antechambers).
+OBJECT:random,(14,03)
+OBJECT:random,(15,03)
+OBJECT:random,(16,03)
+OBJECT:random,(14,10)
+OBJECT:random,(15,10)
+OBJECT:random,(16,10)
+OBJECT:random,(17,10)
+OBJECT:random,(24,03)
+OBJECT:random,(25,03)
+OBJECT:random,(26,03)
+OBJECT:random,(27,03)
+OBJECT:random,(24,10)
+OBJECT:random,(25,10)
+OBJECT:random,(26,10)
+OBJECT:random,(27,10)
+# Random traps
+TRAP:random,(15,04)
+TRAP:random,(25,04)
+TRAP:random,(15,09)
+TRAP:random,(25,09)
+TRAP:random,random
+TRAP:random,random
+# No random monsters - the morgue generation will put them in.
+
+#
+#	The "goal" level for the quest.
+#
+#	Here you meet Nalzok your nemesis monster.  You have to
+#	defeat Nalzok in combat to gain the artifact you have
+#	been assigned to retrieve.
+#
+
+MAZE: "Pri-goal", ' '
+INIT_MAP: mines, 'L' , ':' , false , false , unlit , false
+TILESET: gehennom_cavernous_tileset
+GEOMETRY:center,center
+MAP
+xxxxxx::xxxxxx:::xxxxxxxxx
+xxxx::::::xx::::::xxxxxxxx
+xx:xx:::::::::::::xxxxxxxx
+x::::::::::::::::::::xxxxx
+::::::::::::::::::::::xxxx
+::::::::::::::::::::::xxxx
+xx::::::::::::::::::::::::
+xxx::::::::::::::::::::::x
+xxx::::::::::::::::xxxxxxx
+xxxx:::::x:xx:::::::xxxxxx
+xxxxx:::xxxxxx::::xxxxxxxx
+ENDMAP
+# Dungeon Description
+$place = { (14,04),(13,07) }
+SHUFFLE: $place
+
+REGION:(00,00,25,10),unlit,"ordinary"
+# Stairs
+STAIR:(20,05),up
+# Objects
+OBJECT:('[',"helm of brilliance"),$place[0],blessed,0,name:"The Mitre of Holiness"
+OBJECT:random,random
+OBJECT:random,random
+OBJECT:random,random
+OBJECT:random,random
+OBJECT:random,random
+OBJECT:random,random
+OBJECT:random,random
+OBJECT:random,random
+OBJECT:random,random
+OBJECT:random,random
+OBJECT:random,random
+OBJECT:random,random
+OBJECT:random,random
+OBJECT:random,random
+# Random traps
+TRAP:"fire",random
+TRAP:"fire",random
+TRAP:"fire",random
+TRAP:"fire",random
+TRAP:random,random
+TRAP:random,random
+# Random monsters.
+MONSTER:('&',"Nalzok"),$place[0]
+MONSTER:('z',"human zombie"),random
+MONSTER:('z',"human zombie"),random
+MONSTER:('z',"human zombie"),random
+MONSTER:('z',"human zombie"),random
+MONSTER:('z',"human zombie"),random
+MONSTER:('z',"human zombie"),random
+MONSTER:('z',"human zombie"),random
+MONSTER:('z',"human zombie"),random
+MONSTER:('z',"human zombie"),random
+MONSTER:('z',"human zombie"),random
+MONSTER:('z',"human zombie"),random
+MONSTER:('z',"human zombie"),random
+MONSTER:('z',"human zombie"),random
+MONSTER:('z',"human zombie"),random
+MONSTER:('z',"human zombie"),random
+MONSTER:('z',"human zombie"),random
+MONSTER:'z',random
+MONSTER:'z',random
+MONSTER:('W',"wraith"),random
+MONSTER:('W',"wraith"),random
+MONSTER:('W',"wraith"),random
+MONSTER:('W',"wraith"),random
+MONSTER:('W',"wraith"),random
+MONSTER:('W',"wraith"),random
+MONSTER:('W',"wraith"),random
+MONSTER:('W',"wraith"),random
+MONSTER:'W',random
+
+#
+#	The "fill" levels for the quest.
+#
+#	These levels are used to fill out any levels not occupied by specific
+#	levels as defined above. "filla" is the upper filler, between the
+#	start and locate levels, and "fillb" the lower between the locate
+#	and goal levels.
+#
+
+LEVEL: "Pri-fila"
+TILESET: undead_tileset
+#
+ROOM: "ordinary" , random, random, random, random {
+  STAIR: random, up
+  OBJECT: random,random
+  MONSTER: ('z', "human zombie"), random
+}
+
+ROOM: "ordinary" , random, random, random, random {
+  OBJECT: random, random
+  OBJECT: random,random
+}
+
+ROOM: "ordinary" , random, random, random, random {
+  OBJECT: random, random
+  TRAP: random, random
+  OBJECT: random,random
+  MONSTER: ('z', "human zombie"), random
+}
+
+ROOM: "morgue" , random, random, random, random {
+  STAIR: random, down
+  OBJECT: random, random
+  TRAP: random, random
+}
+
+ROOM: "ordinary" , random, random, random, random {
+  OBJECT: random, random
+  OBJECT: random, random
+  TRAP: random, random
+  MONSTER: ('W', "wraith"), random
+}
+
+ROOM: "morgue" , random, random, random, random {
+  OBJECT: random, random
+  TRAP: random, random
+}
+
+RANDOM_CORRIDORS
+
+LEVEL: "Pri-filb"
+TILESET: undead_tileset
+#
+ROOM: "ordinary" , random, random, random, random {
+  STAIR: random, up
+  OBJECT: random,random
+  MONSTER: ('z', "human zombie"), random
+  MONSTER: ('W', "wraith"), random
+}
+
+ROOM: "morgue" , random, random, random, random {
+  OBJECT: random, random
+  OBJECT: random, random
+  OBJECT: random,random
+}
+
+ROOM: "ordinary" , random, random, random, random {
+  OBJECT: random, random
+  TRAP: random, random
+  OBJECT: random,random
+  MONSTER: ('z', "human zombie"), random
+  MONSTER: ('W', "wraith"), random
+}
+
+ROOM: "morgue" , random, random, random, random {
+  STAIR: random, down
+  OBJECT: random, random
+  OBJECT: random, random
+  TRAP: random, random
+}
+
+ROOM: "ordinary" , random, random, random, random {
+  OBJECT: random, random
+  OBJECT: random, random
+  TRAP: random, random
+  MONSTER: ('z', "human zombie"), random
+  MONSTER: ('W', "wraith"), random
+}
+
+ROOM: "morgue" , random, random, random, random {
+  OBJECT: random, random
+  TRAP: random, random
+}
+
+RANDOM_CORRIDORS
