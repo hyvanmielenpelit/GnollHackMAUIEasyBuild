@@ -752,6 +752,12 @@
     <!--<PublishTrimmed>False</PublishTrimmed>-->
     <!--<RunAOTCompilation>False</RunAOTCompilation>-->
   </PropertyGroup>
+	<PropertyGroup Condition="'$(Configuration)|$(TargetFramework)|$(Platform)'=='Debug|net9.0-android|AnyCPU'">
+	  <Debugger>Native</Debugger>
+	</PropertyGroup>
+	<PropertyGroup Condition="'$(Configuration)|$(TargetFramework)|$(Platform)'=='Release|net9.0-android|AnyCPU'">
+	  <Debugger>Native</Debugger>
+	</PropertyGroup>
 
 	<ItemGroup>
 	  <EmbeddedResource Include="Assets\archristy.ttf" />
