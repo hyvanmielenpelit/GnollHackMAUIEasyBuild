@@ -78,16 +78,19 @@
 
 	<PropertyGroup Condition="$(TargetFramework.Contains('-ios'))">
 		<UseInterpreter>false</UseInterpreter>
-		<MtouchInterpreter>-all,FMODService.dll</MtouchInterpreter>
+		<MtouchInterpreter>-all</MtouchInterpreter>
     <RuntimeIdentifier>ios-arm64</RuntimeIdentifier>
 	</PropertyGroup>
 
-  <ItemGroup Condition=" '$(IncludeWindowsSDKRefFrameworkReferences)' == 'True'">
+  <!--<ItemGroup Condition=" '$(IncludeWindowsSDKRefFrameworkReferences)' == 'True'">
     <FrameworkReference Include="Microsoft.Windows.SDK.NET.Ref" IsImplicitlyDefined="true" Pack="false" PrivateAssets="All" />
-  </ItemGroup>
+  </ItemGroup>-->
   
   <PropertyGroup Condition="$(TargetFramework.Contains('-windows'))">
-    <WindowsSdkPackageVersion>10.0.19041.38</WindowsSdkPackageVersion>
+    <!--<WindowsSdkPackageVersion>10.0.19041.38</WindowsSdkPackageVersion>-->
+    <WindowsPackageType>MSIX</WindowsPackageType>
+    <WindowsAppSDKSelfContained>true</WindowsAppSDKSelfContained>
+    <SelfContained>true</SelfContained>
   </PropertyGroup>
 
   <PropertyGroup Condition="'$(Configuration)' == 'Debug'">
