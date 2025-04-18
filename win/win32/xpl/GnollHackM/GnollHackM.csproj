@@ -84,16 +84,19 @@
 
 	<PropertyGroup Condition="$(TargetFramework.Contains('-ios'))">
 		<UseInterpreter>false</UseInterpreter>
-		<MtouchInterpreter>-all,FMODService.dll</MtouchInterpreter>
+		<MtouchInterpreter>-all</MtouchInterpreter>
     <RuntimeIdentifier>ios-arm64</RuntimeIdentifier>
 	</PropertyGroup>
 
-  <ItemGroup Condition=" '$(IncludeWindowsSDKRefFrameworkReferences)' == 'True'">
+  <!--<ItemGroup Condition=" '$(IncludeWindowsSDKRefFrameworkReferences)' == 'True'">
     <FrameworkReference Include="Microsoft.Windows.SDK.NET.Ref" IsImplicitlyDefined="true" Pack="false" PrivateAssets="All" />
-  </ItemGroup>
+  </ItemGroup>-->
   
   <PropertyGroup Condition="$(TargetFramework.Contains('-windows'))">
-    <WindowsSdkPackageVersion>10.0.19041.38</WindowsSdkPackageVersion>
+    <!--<WindowsSdkPackageVersion>10.0.19041.38</WindowsSdkPackageVersion>-->
+    <WindowsPackageType>MSIX</WindowsPackageType>
+    <WindowsAppSDKSelfContained>true</WindowsAppSDKSelfContained>
+    <SelfContained>true</SelfContained>
   </PropertyGroup>
 
   <PropertyGroup Condition="'$(Configuration)' == 'Debug'">
@@ -1057,8 +1060,8 @@
 		<PackageReference Include="SkiaSharp.Views.Maui.Controls" Version="3.116.1" Condition="'$(TargetFramework)'=='net9.0-windows10.0.19041.0'" />
 		<PackageReference Include="SkiaSharp.Views.Maui.Core" Version="3.116.1" Condition="'$(TargetFramework)'=='net9.0-windows10.0.19041.0'" />
 		
-    <PackageReference Include="Microsoft.Maui.Controls" Version="9.0.40" />
-		<PackageReference Include="Microsoft.Maui.Controls.Compatibility" Version="9.0.40" />
+    <PackageReference Include="Microsoft.Maui.Controls" Version="9.0.60" />
+		<PackageReference Include="Microsoft.Maui.Controls.Compatibility" Version="9.0.60" />
     
     <!-- Platform-specific packages -->
     <PackageReference Include="System.Management" Version="9.0.0" Condition="'$(TargetFramework)'=='net9.0-windows10.0.19041.0'" />
