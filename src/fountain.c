@@ -1345,7 +1345,8 @@ drinksink()
     case 4:
         do {
             otmp = mkobj(POTION_CLASS, FALSE, FALSE);
-            if (otmp->otyp == POT_WATER) {
+            if (otmp && otmp->otyp == POT_WATER) {
+                Sprintf(priority_debug_buf_4, "drinksink: %d", otmp->otyp);
                 obfree(otmp, (struct obj *) 0);
                 otmp = (struct obj *) 0;
             }
@@ -1357,6 +1358,7 @@ drinksink()
         otmp->quan++;       /* Avoid panic upon useup() */
         otmp->speflags |= SPEFLAGS_FROM_SINK; /* kludge for docall() */
         (void) dopotion(otmp);
+        Sprintf(priority_debug_buf_4, "drinksink2: %d", otmp->otyp);
         obfree(otmp, (struct obj *) 0);
         break;
     case 5:
@@ -1396,7 +1398,7 @@ drinksink()
     case 10:
         play_sfx_sound(SFX_QUAFF);
         pline_ex(ATR_NONE, CLR_MSG_WARNING, "This %s contains toxic wastes!", hliquid("water"));
-        if (!Unchanging) {
+        if (!Unchanging && !Polymorph_resistance) {
             You("undergo a freakish metamorphosis!");
             polyself(0);
         }

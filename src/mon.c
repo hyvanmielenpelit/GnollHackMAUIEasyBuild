@@ -2716,26 +2716,25 @@ nexttry: /* eels prefer the water, but if there is no water nearby,
                             continue;
                     }
                     /* The if excludes the types of the traps the mon should not care about */
-                    if ((ttmp->ttyp != RUST_TRAP
-                         || is_iron(mdat))
+                    if ((ttmp->ttyp != RUST_TRAP || is_iron(mdat))
                         && !(trap_type_definitions[ttmp->ttyp].tdflags & TRAPDEF_FLAGS_IGNORED_BY_MONSTERS)
-                        && ((!is_pit(ttmp->ttyp)) /* exclude/include pits for flyers/nonflyers */
+                        && (!is_pit(ttmp->ttyp) /* exclude/include pits for flyers/nonflyers */
                             || (!has_pitwalk(mdat) && !(is_flying(mon) || is_levitating(mon))
-                                && !is_clinger(mdat)) || Sokoban)
-                        && ((!is_hole(ttmp->ttyp)) /* exclude/include holes or flyers/nonflyers */
+                                && !is_clinger(mdat) && mdat->difficulty < 15) || Sokoban)
+                        && (!is_hole(ttmp->ttyp) /* exclude/include holes or flyers/nonflyers */
                             || (!(is_flying(mon) || is_levitating(mon))
                                 && !is_clinger(mdat)) || Sokoban)
                         && (ttmp->ttyp != SLP_GAS_TRAP || !resists_sleep(mon))
                         && (ttmp->ttyp != BEAR_TRAP
                             || (mdat->msize > MZ_SMALL && !amorphous(mdat)
                                 && !(is_flying(mon) || is_levitating(mon))
-                                && !is_whirly(mdat) && !unsolid(mdat)))
+                                && !is_whirly(mdat) && !unsolid(mdat) && mdat->difficulty < 10))
                         && (ttmp->ttyp != FIRE_TRAP || !is_mon_immune_to_fire(mon))
-                        && (ttmp->ttyp != SQKY_BOARD || !(is_flying(mon) || is_levitating(mon)))
+                        && (ttmp->ttyp != SQKY_BOARD || !(is_flying(mon) || is_levitating(mon) || mdat->difficulty >= 4 || !rn2(2)))
                         && (ttmp->ttyp != WEB
                             || (!amorphous(mdat) && !webmaker(mdat)
-                                && !is_whirly(mdat) && !unsolid(mdat)))
-                        && (ttmp->ttyp != ANTI_MAGIC_TRAP || !resists_magic(mon)))
+                                && !is_whirly(mdat) && !unsolid(mdat) && mdat->difficulty < 10 && rn2(3)))
+                        && (ttmp->ttyp != ANTI_MAGIC_TRAP || (!resists_magic(mon) && attacktype(mon->data, AT_MAGC) && mdat->difficulty < 25 && rn2(3))))
                     {
                         /* Here are all relevant traps the mon should care about */
                         if (flag & ALLOW_TRAPS)
@@ -3437,7 +3436,7 @@ uint64_t mondeadflags;
     {
         add_glyph_buffer_layer_flags(mtmp->mx, mtmp->my, 0UL, LMFLAGS_KILLED | (disintegrated ? LMFLAGS_FADES_UPON_DEATH : 0UL) | (stoned ? LMFLAGS_STONED : 0UL));
         update_m_action_core(mtmp, ACTION_TILE_DEATH, 4, NEWSYM_FLAGS_KEEP_OLD_EFFECT_MISSILE_ZAP_GLYPHS | NEWSYM_FLAGS_KEEP_OLD_FLAGS);
-        m_wait_until_action();
+        m_wait_until_action(mtmp, ACTION_TILE_DEATH);
     }
 
     /* Player is thrown from his steed when it dies */
@@ -3615,7 +3614,7 @@ uint64_t mondeadflags;
 
     if (!(mondeadflags & MONDEAD_FLAGS_NO_DEATH_ACTION))
     {
-        m_wait_until_end();
+        m_wait_until_end(mtmp, ACTION_TILE_DEATH);
     }
 
     remove_glyph_buffer_layer_flags(mtmp->mx, mtmp->my, 0UL, LMFLAGS_KILLED | LMFLAGS_STONED);
@@ -3871,6 +3870,7 @@ struct monst *mdef;
         while ((obj = oldminvent) != 0) {
             oldminvent = obj->nobj;
             obj->nobj = 0; /* avoid merged-> obfree-> dealloc_obj-> panic */
+            Sprintf(priority_debug_buf_2, "monstone2: %d, %d", otmp->otyp, obj->otyp);
             (void) add_to_container(otmp, obj);
         }
         /* Archaeologists should not break unique statues */
@@ -3880,6 +3880,7 @@ struct monst *mdef;
     } else
         otmp = mksobj_at(ROCK, x, y, TRUE, FALSE);
 
+    Sprintf(priority_debug_buf_2, "monstone: %d", otmp->otyp);
     stackobj(otmp);
     /* mondead() already does this, but we must do it before the newsym */
     if (glyph_is_invisible(levl[x][y].hero_memory_layers.glyph))

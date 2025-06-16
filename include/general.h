@@ -351,32 +351,6 @@ enum ghmenu_styles
 };
 
 
-/* Special view */
-enum special_view_types
-{
-    SPECIAL_VIEW_NONE = 0,
-    SPECIAL_VIEW_CHAT_MESSAGE,
-    SPECIAL_VIEW_SHOW_SPECIAL_EFFECT,
-    SPECIAL_VIEW_GUI_TIPS,
-    SPECIAL_VIEW_CRASH_DETECTED,
-    SPECIAL_VIEW_PANIC,
-    SPECIAL_VIEW_DEBUGLOG,
-    SPECIAL_VIEW_MESSAGE,
-    SPECIAL_VIEW_SELFIE,
-    SPECIAL_VIEW_HELP_DIR,
-    SPECIAL_VIEW_GUI_YN_CONFIRMATION_DEFAULT_N,
-    SPECIAL_VIEW_GUI_YN_CONFIRMATION_DEFAULT_Y,
-    MAX_SPECIAL_VIEW_TYPES
-};
-
-struct special_view_info {
-    enum special_view_types viewtype;
-    const char* text;
-    const char* title;
-    int attr;
-    int color;
-};
-
 /* Fountain types */
 enum fountain_subtypes
 {
@@ -626,6 +600,7 @@ enum context_menu_styles {
 #define MKOBJ_FLAGS_PARAM_IS_SPECIAL_QUALITY           0x00008000
 #define MKOBJ_FLAGS_PARAM_IS_MNUM                      0x00010000
 #define MKOBJ_FLAGS_FOUND_THIS_TURN                    0x00020000
+#define MKOBJ_FLAGS_OWNER_IS_DEMON                     0x00040000
 
 #define MONDEAD_FLAGS_NONE                             0x00000000
 #define MONDEAD_FLAGS_NO_DEATH_ACTION                  0x00000001
@@ -712,6 +687,18 @@ enum gui_command_types {
     GUI_CMD_REPORT_MOUSE_COMMAND,
     GUI_CMD_TOGGLE_QUICK_ZAP_WAND,
     GUI_CMD_TOGGLE_QUICK_CAST_SPELL,
+    GUI_CMD_TOGGLE_DICE_AS_RANGES,
+    GUI_CMD_ZOOM_NORMAL,
+    GUI_CMD_ZOOM_IN,
+    GUI_CMD_ZOOM_OUT,
+    GUI_CMD_ZOOM_MINI,
+    GUI_CMD_ZOOM_HALF,
+    GUI_CMD_ZOOM_TO_SCALE,
+    GUI_CMD_SAVE_ZOOM,
+    GUI_CMD_RESTORE_ZOOM,
+    GUI_CMD_TOGGLE_GETPOS_ARROWS,
+    GUI_CMD_DELETE_TRACKING_FILE,
+    GUI_CMD_KEYBOARD_FOCUS,
 };
 
 enum game_status_types
@@ -750,6 +737,7 @@ enum diagnostic_data_attachment_types
 enum debug_log_types
 {
     DEBUGLOG_GENERAL = 0,
+    DEBUGLOG_PRIORITY,
     DEBUGLOG_DEBUG_ONLY,
     DEBUGLOG_FILE_DESCRIPTOR,
 };
@@ -974,6 +962,8 @@ enum cat_breeds {
 #define CONDUCT_SCORE_MULTIPLIER 10000L
 
 #define ARCHAEOLOGIST_PER_ARTIFACT_SCORE 30000L
+#define ARCHAEOLOGIST_PER_HISTORIC_STATUE_SCORE 15000L
+#define ARCHAEOLOGIST_ART_OBJECT_SCORE_MULTIPLIER 10L
 #define BARBARIAN_PER_WEAPON_SCORE 30000L
 #define CAVEMAN_PER_AMULET_OF_LIFE_SAVING_SCORE 75000L
 #define CAVEMAN_PER_OTHER_AMULET_SCORE 15000L

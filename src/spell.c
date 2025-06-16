@@ -204,6 +204,7 @@ struct obj *spellbook;
         if (!objects[spellbook->otyp].oc_name_known
             && !objects[spellbook->otyp].oc_uname)
             docall(spellbook, dcbuf);
+        Sprintf(priority_debug_buf_2, "confused_book: %d", spellbook->otyp);
         useup(spellbook);
         gone = TRUE;
     } else {
@@ -431,6 +432,8 @@ learn(VOID_ARGS)
         nomul(context.spbook.delay); /* remaining delay is uninterrupted */
         multi_reason = "reading a book";
         nomovemsg = 0;
+        nomovemsg_attr = ATR_NONE;
+        nomovemsg_color = NO_COLOR;
         context.spbook.delay = 0;
         return 0;
 #endif
@@ -488,6 +491,7 @@ learn(VOID_ARGS)
             if (!objects[book->otyp].oc_name_known
                 && !objects[book->otyp].oc_uname)
                 docall(book, (char*)0);
+            Sprintf(priority_debug_buf_2, "learn: %d", book->otyp);
             useup(book);
         }
         else
@@ -530,6 +534,7 @@ learn(VOID_ARGS)
             pline_ex(ATR_NONE, CLR_MSG_FAIL, "This spellbook is too faint to be read any more.");
             book->otyp = booktype = SPE_BLANK_PAPER;
             book->material = objects[book->otyp].oc_material;
+            book->owt = weight(book);
             /* reset spestudied as if polymorph had taken place */
             book->spestudied = rn2(book->spestudied);
         }
@@ -570,6 +575,7 @@ learn(VOID_ARGS)
             pline_ex(ATR_NONE, CLR_MSG_FAIL, "This spellbook is too faint to read even once.");
             book->otyp = booktype = SPE_BLANK_PAPER;
             book->material = objects[book->otyp].oc_material;
+            book->owt = weight(book);
             /* reset spestudied as if polymorph had taken place */
             book->spestudied = rn2(book->spestudied);
         } 
@@ -618,6 +624,7 @@ learn(VOID_ARGS)
     { /* maybe a demon cursed it */
         if (cursed_book(book)) 
         {
+            Sprintf(priority_debug_buf_2, "learn2: %d", book->otyp);
             useup(book);
             gone = TRUE;
             context.spbook.book = 0;
@@ -632,6 +639,7 @@ learn(VOID_ARGS)
     {
         play_sfx_sound(SFX_ITEM_CRUMBLES_TO_DUST);
         pline_The_ex(ATR_NONE, CLR_MSG_ATTENTION, "spellbook crumbles to dust.");
+        Sprintf(priority_debug_buf_2, "learn3: %d", book->otyp);
         useup(book);
         gone = TRUE;
     }
@@ -840,8 +848,7 @@ register struct obj *spellbook;
             /* Obtain current Terry Pratchett book title */
             const char *tribtitle = noveltitle(&spellbook->novelidx, 0UL, 0UL);
 
-            if (read_tribute("books", tribtitle, 0, (char *) 0, 0,
-                             spellbook->o_id))
+            if (read_tribute("books", tribtitle, 0, (char *) 0, 0, spellbook->o_id))
             {
                 if (!u.uconduct.literate++)
                     livelog_printf(LL_CONDUCT,
@@ -942,6 +949,8 @@ register struct obj *spellbook;
             nomul(context.spbook.delay); /* study time */
             multi_reason = "reading a book";
             nomovemsg = 0;
+            nomovemsg_attr = ATR_NONE;
+            nomovemsg_color = NO_COLOR;
             context.spbook.delay = 0;
             if (gone || !rn2(2)) {
                 if (!gone)
@@ -966,6 +975,8 @@ register struct obj *spellbook;
             nomul(context.spbook.delay);
             multi_reason = "reading a book";
             nomovemsg = 0;
+            nomovemsg_attr = ATR_NONE;
+            nomovemsg_color = NO_COLOR;
             context.spbook.delay = 0;
             return 1;
 #endif
@@ -986,7 +997,7 @@ register struct obj *spellbook;
     if (context.spbook.book)
         context.spbook.o_id = context.spbook.book->o_id;
 
-    set_occupation(learn, "studying", objects[spellbook->otyp].oc_soundset, OCCUPATION_STUDYING, resume ? OCCUPATION_SOUND_TYPE_RESUME : OCCUPATION_SOUND_TYPE_START, 0);
+    set_occupation(learn, "studying", ATR_NONE, CLR_MSG_ATTENTION, objects[spellbook->otyp].oc_soundset, OCCUPATION_STUDYING, resume ? OCCUPATION_SOUND_TYPE_RESUME : OCCUPATION_SOUND_TYPE_START, 0);
     return 1;
 }
 
@@ -1253,7 +1264,9 @@ int* spell_no;
                     info.menu_flags |= MENU_FLAGS_ACTIVE;
                 }
                 if (!is_inactive)
+                {
                     info.menu_flags |= MENU_FLAGS_ACTIVE;
+                }
 
                 any.a_int = is_inactive ? 0 : splnum + 1; /* must be non-zero */
                 add_extended_menu(tmpwin, glyph, &any, 0, 0, ATR_INDENT_AT_DOUBLE_SPACE, mcolor, buf,
@@ -2101,31 +2114,33 @@ int spell, booktype;
     {
         damageprinted = TRUE;
 
-        char plusbuf[BUFSZ];
-        boolean maindiceprinted = FALSE;
+        //char plusbuf[BUFSZ];
+        //boolean maindiceprinted = FALSE;
 
         if (objects[booktype].oc_skill == P_HEALING_SPELL)
             Sprintf(buf, "Healing:          ");
         else
             Sprintf(buf, "Damage:           ");
 
+        printdice(eos(buf), objects[booktype].oc_spell_dmg_dice, objects[booktype].oc_spell_dmg_diesize, objects[booktype].oc_spell_dmg_plus);
+
         if (objects[booktype].oc_spell_dmg_dice > 0 && objects[booktype].oc_spell_dmg_diesize > 0)
         {
-            maindiceprinted = TRUE;
-            Sprintf(plusbuf, "%dd%d", objects[booktype].oc_spell_dmg_dice, objects[booktype].oc_spell_dmg_diesize);
-            Strcat(buf, plusbuf);
+            //maindiceprinted = TRUE;
+            //Sprintf(plusbuf, "%dd%d", objects[booktype].oc_spell_dmg_dice, objects[booktype].oc_spell_dmg_diesize);
+            //Strcat(buf, plusbuf);
             baseavg += (double)objects[booktype].oc_spell_dmg_dice * (double)(1.0 + objects[booktype].oc_spell_dmg_diesize) / 2.0;
         }
 
         if (objects[booktype].oc_spell_dmg_plus != 0)
         {
-            if (maindiceprinted && objects[booktype].oc_spell_dmg_plus > 0)
-            {
-                Sprintf(plusbuf, "+");
-                Strcat(buf, plusbuf);
-            }
-            Sprintf(plusbuf, "%d", objects[booktype].oc_spell_dmg_plus);
-            Strcat(buf, plusbuf);
+            //if (maindiceprinted && objects[booktype].oc_spell_dmg_plus > 0)
+            //{
+            //    Sprintf(plusbuf, "+");
+            //    Strcat(buf, plusbuf);
+            //}
+            //Sprintf(plusbuf, "%d", objects[booktype].oc_spell_dmg_plus);
+            //Strcat(buf, plusbuf);
             baseavg += (double)objects[booktype].oc_spell_dmg_plus;
         }
 
@@ -2136,23 +2151,25 @@ int spell, booktype;
         if ((objects[booktype].oc_spell_flags & S1_LDMG_IS_PER_LEVEL_DMG_INCREASE) && objects[booktype].oc_spell_per_level_step > 0)
         {
             Sprintf(buf, "Level bonus:      ");
+            printdice(eos(buf), objects[booktype].oc_spell_per_level_dice, objects[booktype].oc_spell_per_level_diesize, objects[booktype].oc_spell_per_level_plus);
+
             if (objects[booktype].oc_spell_per_level_dice > 0 && objects[booktype].oc_spell_per_level_diesize > 0)
             {
-                maindiceprinted = TRUE;
-                Sprintf(plusbuf, "%dd%d", objects[booktype].oc_spell_per_level_dice, objects[booktype].oc_spell_per_level_diesize);
-                Strcat(buf, plusbuf);
+                //maindiceprinted = TRUE;
+                //Sprintf(plusbuf, "%dd%d", objects[booktype].oc_spell_per_level_dice, objects[booktype].oc_spell_per_level_diesize);
+                //Strcat(buf, plusbuf);
                 perlevelavg += (double)objects[booktype].oc_spell_per_level_dice * (double)(1.0 + objects[booktype].oc_spell_per_level_diesize) / 2.0;
             }
 
             if (objects[booktype].oc_spell_per_level_plus != 0)
             {
-                if (maindiceprinted && objects[booktype].oc_spell_per_level_plus > 0)
-                {
-                    Sprintf(plusbuf, "+");
-                    Strcat(buf, plusbuf);
-                }
-                Sprintf(plusbuf, "%d", objects[booktype].oc_spell_per_level_plus);
-                Strcat(buf, plusbuf);
+                //if (maindiceprinted && objects[booktype].oc_spell_per_level_plus > 0)
+                //{
+                //    Sprintf(plusbuf, "+");
+                //    Strcat(buf, plusbuf);
+                //}
+                //Sprintf(plusbuf, "%d", objects[booktype].oc_spell_per_level_plus);
+                //Strcat(buf, plusbuf);
                 perlevelavg += (double)objects[booktype].oc_spell_per_level_plus;
             }
 
@@ -2286,27 +2303,28 @@ int spell, booktype;
     if (!has_spell_otyp_per_level_bonus(booktype) && (objects[booktype].oc_spell_dur_dice > 0 || objects[booktype].oc_spell_dur_diesize > 0 || objects[booktype].oc_spell_dur_plus > 0))
     {
         char plusbuf[BUFSZ];
-        boolean maindiceprinted = FALSE;
+        //boolean maindiceprinted = FALSE;
 
         Sprintf(buf, "Duration:         ");
+        printdice(eos(buf), objects[booktype].oc_spell_dur_dice, objects[booktype].oc_spell_dur_diesize, objects[booktype].oc_spell_dur_plus);
 
-        if (objects[booktype].oc_spell_dur_dice > 0 && objects[booktype].oc_spell_dur_diesize > 0)
-        {
-            maindiceprinted = TRUE;
-            Sprintf(plusbuf, "%dd%d", objects[booktype].oc_spell_dur_dice, objects[booktype].oc_spell_dur_diesize);
-            Strcat(buf, plusbuf); 
-        }
+        //if (objects[booktype].oc_spell_dur_dice > 0 && objects[booktype].oc_spell_dur_diesize > 0)
+        //{
+        //    maindiceprinted = TRUE;
+        //    Sprintf(plusbuf, "%dd%d", objects[booktype].oc_spell_dur_dice, objects[booktype].oc_spell_dur_diesize);
+        //    Strcat(buf, plusbuf); 
+        //}
 
-        if (objects[booktype].oc_spell_dur_plus != 0)
-        {
-            if (maindiceprinted && objects[booktype].oc_spell_dur_plus > 0)
-            {
-                Sprintf(plusbuf, "+");
-                Strcat(buf, plusbuf);
-            }
-            Sprintf(plusbuf, "%d", objects[booktype].oc_spell_dur_plus);
-            Strcat(buf, plusbuf);
-        }
+        //if (objects[booktype].oc_spell_dur_plus != 0)
+        //{
+        //    if (maindiceprinted && objects[booktype].oc_spell_dur_plus > 0)
+        //    {
+        //        Sprintf(plusbuf, "+");
+        //        Strcat(buf, plusbuf);
+        //    }
+        //    Sprintf(plusbuf, "%d", objects[booktype].oc_spell_dur_plus);
+        //    Strcat(buf, plusbuf);
+        //}
         Sprintf(plusbuf, " round%s", (objects[booktype].oc_spell_dur_dice == 0 && objects[booktype].oc_spell_dur_diesize == 0 && objects[booktype].oc_spell_dur_plus == 1) ? "" : "s");
         Strcat(buf, plusbuf);        
         putstr(datawin, ATR_INDENT_AT_COLON, buf);
@@ -3505,6 +3523,9 @@ int otyp;
         case SLIME_RESISTANCE:
             Your_ex(ATR_NONE, CLR_MSG_POSITIVE, "skin feels fiery!");
             break;
+        case POLYMORPH_RESISTANCE:
+            You_feel_ex(ATR_NONE, CLR_MSG_POSITIVE, "less prone to change!");
+            break;
         default:
             break;
         }
@@ -4525,6 +4546,7 @@ int splaction;
 
     double spellmanacost = get_spell_mana_cost(splnum);
     double displayed_manacost = ceil(10 * spellmanacost) / 10;
+    int percent = percent_success(splnum, TRUE);
 
     if (spellknow(splnum) <= 0)
     {
@@ -4539,7 +4561,7 @@ int splaction;
             "%s%s {%s &success; %d%% &mana; %.1f &cool; %s%d &casts; %s}" : "%s%s {%s Success %d%% Mana %.1f Cool %s%d Casts %s}";
         Sprintf(buf, fmt, fullname, descbuf,
             levelbuf,
-            percent_success(splnum, TRUE),
+            percent,
             displayed_manacost,
             extrabuf, getspellcooldown(splnum),
             availablebuf);
@@ -4548,19 +4570,40 @@ int splaction;
     boolean inactive = FALSE;
     struct extended_menu_info info = zeroextendedmenuinfo;
     int mcolor = NO_COLOR;
+    int mattr = ATR_NONE;
     info.menu_flags |= MENU_FLAGS_USE_SPECIAL_SYMBOLS;
-    if (spellcooldownleft(splnum) > 0 || spellknow(splnum) <= 0)
+    if (spellknow(splnum) <= 0)
     {
         mcolor = CLR_GRAY;
+        mattr = ATR_ALT_COLORS;
         info.menu_flags |= MENU_FLAGS_USE_COLOR_FOR_SUFFIXES;
         inactive = TRUE;
     }
-    if(!inactive)
+    else if (spellcooldownleft(splnum) > 0)
+    {
+        mcolor = CLR_MAGENTA;
+        inactive = TRUE;
+    }
+    if (!inactive)
+    {
         info.menu_flags |= MENU_FLAGS_ACTIVE;
+        if (percent <= 0)
+        {
+            mcolor = CLR_RED;
+        }
+        else if (spellamount(splnum) == 0)
+        {
+            mcolor = CLR_BROWN;
+        }
+        else if ((double)u.uen + (double)u.uen_fraction / 10000 < spellmanacost)
+        {
+            mcolor = CLR_BLUE;
+        }
+    }
 
     any.a_int = inactive ? 0 : splnum + 1; /* must be non-zero */
 
-    add_extended_menu(tmpwin, glyph, &any, 0, 0, ATR_NONE, mcolor, buf,
+    add_extended_menu(tmpwin, glyph, &any, 0, 0, mattr, mcolor, buf,
         (splnum == splaction) ? MENU_SELECTED : MENU_UNSELECTED, info);
 
 }
@@ -4748,6 +4791,7 @@ boolean usehotkey;
 
     double spellmanacost = get_spell_mana_cost(splnum);
     double displayed_manacost = ceil(10 * spellmanacost) / 10;
+    int percent = percent_success(splnum, TRUE);
 
     //Category
     if (spellknow(splnum) <= 0)
@@ -4757,7 +4801,7 @@ boolean usehotkey;
             categorybuf,
             displayed_manacost >= 100 ? 0 : 1, displayed_manacost,
             statbuf,
-            100 - percent_success(splnum, TRUE),
+            100 - percent,
             spellcooldownleft(splnum) > 0 ? spellcooldownleft(splnum) : getspellcooldown(splnum),
             availablebuf);  //spellretention(splnum, retentionbuf));
 
@@ -4774,7 +4818,37 @@ boolean usehotkey;
     else
         letter = 0; // spellet(splnum);
 
-    add_menu(tmpwin, NO_GLYPH, &any, letter, 0, ATR_NONE, (spellcooldownleft(splnum) > 0 && splaction != SPELLMENU_PREPARE) || spellknow(splnum) <= 0 ? CLR_BLACK : NO_COLOR, buf,
+    boolean inactive = FALSE;
+    int mcolor = NO_COLOR;
+    int mattr = ATR_NONE;
+    if (spellknow(splnum) <= 0)
+    {
+        inactive = TRUE;
+        mcolor = CLR_GRAY;
+        mattr = ATR_ALT_COLORS;
+    }
+    else if (spellcooldownleft(splnum) > 0 && splaction != SPELLMENU_PREPARE)
+    {
+        inactive = TRUE;
+        mcolor = CLR_MAGENTA;
+    }
+    if (!inactive && splaction == SPELLMENU_CAST)
+    {
+        if (percent <= 0)
+        {
+            mcolor = CLR_RED;
+        }
+        else if (spellamount(splnum) == 0)
+        {
+            mcolor = CLR_BROWN;
+        }
+        else if ((double)u.uen + (double)u.uen_fraction / 10000 < spellmanacost)
+        {
+            mcolor = CLR_BLUE;
+        }
+    }
+
+    add_menu(tmpwin, NO_GLYPH, &any, letter, 0, mattr, mcolor, buf,
         (splnum == splaction) ? MENU_SELECTED : MENU_UNSELECTED);
 
     //Strcat(shortenedname, "=black");
@@ -5558,6 +5632,9 @@ int spell;
             int used_amount = (failure ? 1 : selected_multiplier) * mc->amount;
             if(otmp->quan >= used_amount)
             {
+                Sprintf(priority_debug_buf_2, "domaterialcomponentsmenu: %d", otmp->otyp);
+                Strcpy(priority_debug_buf_3, "domaterialcomponentsmenu");
+                Strcpy(priority_debug_buf_4, "domaterialcomponentsmenu");
                 for (i = 0; i < used_amount; i++)
                     useup(otmp);
 
@@ -5566,6 +5643,7 @@ int spell;
             else
             {
                 impossible("There should always be enough material components at this stage");
+                Sprintf(priority_debug_buf_3, "domaterialcomponentsmenu: %d", otmp->otyp);
                 useupall(otmp);
                 failure = TRUE;
             }
@@ -5917,11 +5995,11 @@ int splidx;
 
 #if defined (DUMPLOG) || defined (DUMPHTML)
 void
-dump_spells()
+dump_spells(VOID_ARGS)
 {
     if (spellid(0) == NO_SPELL)
     {
-        putstr(0, ATR_HEADING, "You did not know any spells.");
+        putstr(0, ATR_HEADING, program_state.gameover ? "You did not know any spells." : "You do not know any spells.");
     }
     else
     {

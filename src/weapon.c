@@ -420,7 +420,7 @@ int use_type;
         tmp += 2;
 
     /* trident is highly effective against swimmers */
-    if (otmp->otyp == TRIDENT && is_swimmer(ptr))
+    if (is_trident(otmp) && is_swimmer(ptr))
     {
         if (is_pool(mon->mx, mon->my))
             tmp += 4;
@@ -2082,13 +2082,14 @@ int skill;
 {
     if (P_RESTRICTED(skill))
         return FALSE;
+    if (P_SKILL_LEVEL(skill) >= P_GRAND_MASTER)
+        return TRUE;
 
     return (boolean) (P_SKILL_LEVEL(skill) >= P_MAX_SKILL_LEVEL(skill)
-                      && (
-                           ((int)P_ADVANCE(skill) >= practice_needed_to_advance(skill, P_SKILL_LEVEL(skill)))
-                              || (P_SKILL_LEVEL(skill) < P_GRAND_MASTER && P_SKILL_LEVEL(skill) > P_ISRESTRICTED && urole.skill_advance_levels[skill][P_SKILL_LEVEL(skill) + 1] > 0
+                      && (((int)P_ADVANCE(skill) >= practice_needed_to_advance(skill, P_SKILL_LEVEL(skill)))
+                              || (urole.skill_advance_levels[skill][P_SKILL_LEVEL(skill) + 1] > 0
                                   && u.ulevel >= urole.skill_advance_levels[skill][P_SKILL_LEVEL(skill) + 1])
-                              ));
+                         ));
 }
 
 STATIC_OVL void
@@ -3858,7 +3859,7 @@ uchar apply_extra_bonuses; /* 1 = normal bonus and extra bonuses, 2 = Just the e
     {
         int skill = min(P_MAX_SKILL_LEVEL(P_DUAL_WEAPON_COMBAT), use_this_level > 0 ? use_this_level : P_SKILL_LEVEL(P_DUAL_WEAPON_COMBAT) + (nextlevel ? 1 : 0));
         int wep_skill = min(P_MAX_SKILL_LEVEL(wep_type), use_this_level > 0 ? use_this_level : P_SKILL_LEVEL(wep_type) + (nextlevel ? 1 : 0));
-        if (wep_type != P_NONE && wep_skill < skill)
+        if (wep_type != P_NONE && wep_skill < skill && type != P_DUAL_WEAPON_COMBAT)
             skill = wep_skill;
         switch (skill) 
         {
@@ -4075,7 +4076,7 @@ uchar apply_extra_bonuses; /* 1 = normal bonus and extra bonuses, 2 = Just the e
     {
         int skill = min(P_MAX_SKILL_LEVEL(P_DUAL_WEAPON_COMBAT), use_this_level > 0 ? use_this_level : P_SKILL_LEVEL(P_DUAL_WEAPON_COMBAT) + (nextlevel ? 1 : 0));
         int wep_skill = min(P_MAX_SKILL_LEVEL(wep_type), use_this_level > 0 ? use_this_level : P_SKILL_LEVEL(wep_type) + (nextlevel ? 1 : 0));
-        if (wep_type != P_NONE && wep_skill < skill)
+        if (wep_type != P_NONE && wep_skill < skill && type != P_DUAL_WEAPON_COMBAT)
             skill = wep_skill;
         switch (skill) 
         {
@@ -4767,7 +4768,7 @@ dump_skills(VOID_ARGS)
     char skillnamebufC[BUFSZ];
     char skilllevelbuf[BUFSZ];
     char skillmaxbuf[BUFSZ];
-    putstr(0, ATR_HEADING, "Final Skills:");
+    putstr(0, ATR_HEADING, program_state.gameover ? "Final Skills:" : "Current Skills:");
 
     int skill_cnt = 0;
     for (i = 1; i < P_NUM_SKILLS; i++)
@@ -4793,7 +4794,7 @@ dump_skills(VOID_ARGS)
         Sprintf(buf, "  %-34s  %s / %s", skillnamebufC, skilllevelbuf, skillmaxbuf);
         putstr(0, ATR_TABLE_ROW | (skill_idx == 1 ? ATR_START_TABLE : 0) | (skill_idx == skill_cnt ? ATR_END_TABLE : 0), buf);
     }
-    Sprintf(buf, "You had %d skill slot%s available", u.weapon_slots, plur(u.weapon_slots));
+    Sprintf(buf, "You %s %d skill slot%s available", program_state.gameover ? "had" : "have", u.weapon_slots, plur(u.weapon_slots));
     putstr(0, ATR_PARAGRAPH_LINE, buf);
 }
 

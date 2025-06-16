@@ -395,7 +395,8 @@ register struct obj *sobj;
 
 outgoldmap:
     cls();
-    double scale_before = flags.screen_scale_adjustment;
+    //double scale_before = flags.screen_scale_adjustment;
+    issue_simple_gui_command(GUI_CMD_SAVE_ZOOM);
     dozoommini();
     (void) unconstrain_map();
 
@@ -478,7 +479,8 @@ outgoldmap:
     browse_map(ter_typ, "gold");
 
     reconstrain_map();
-    zoomtoscale(scale_before);
+    issue_simple_gui_command(GUI_CMD_RESTORE_ZOOM);
+    //zoomtoscale(scale_before);
     docrt();
     if (Underwater)
         under_water(2);
@@ -564,7 +566,8 @@ register struct obj *sobj;
 
         known = TRUE;
         cls();
-        double scale_before = flags.screen_scale_adjustment;
+        //double scale_before = flags.screen_scale_adjustment;
+        issue_simple_gui_command(GUI_CMD_SAVE_ZOOM);
         dozoommini();
 
         (void) unconstrain_map();
@@ -607,7 +610,8 @@ register struct obj *sobj;
         browse_map(ter_typ, "food");
 
         reconstrain_map();
-        zoomtoscale(scale_before);
+        issue_simple_gui_command(GUI_CMD_RESTORE_ZOOM);
+        //zoomtoscale(scale_before);
         docrt();
         if (Underwater)
             under_water(2);
@@ -723,7 +727,8 @@ int class;            /* an object class, 0 for all */
     }
 
     cls();
-    double scale_before = flags.screen_scale_adjustment;
+    //double scale_before = flags.screen_scale_adjustment;
+    issue_simple_gui_command(GUI_CMD_SAVE_ZOOM);
     dozoommini();
     (void) unconstrain_map();
     /*
@@ -827,7 +832,8 @@ int class;            /* an object class, 0 for all */
         browse_map(ter_typ, "object");
 
     reconstrain_map();
-    zoomtoscale(scale_before);
+    issue_simple_gui_command(GUI_CMD_RESTORE_ZOOM);
+    //zoomtoscale(scale_before);
     docrt(); /* this will correctly reset vision */
     if (Underwater)
         under_water(2);
@@ -875,7 +881,8 @@ int mclass;                /* monster class, 0 for all */
         unsigned swallowed = u.uswallow; /* before unconstrain_map() */
 
         cls();
-        double scale_before = flags.screen_scale_adjustment;
+        //double scale_before = flags.screen_scale_adjustment;
+        issue_simple_gui_command(GUI_CMD_SAVE_ZOOM);
         dozoommini();
 
         unconstrained = unconstrain_map();
@@ -924,7 +931,8 @@ int mclass;                /* monster class, 0 for all */
         }
 
         reconstrain_map();
-        zoomtoscale(scale_before);
+        issue_simple_gui_command(GUI_CMD_RESTORE_ZOOM);
+        //zoomtoscale(scale_before);
         docrt(); /* redraw the screen to remove unseen monsters from map */
         if (Underwater)
             under_water(2);
@@ -1080,7 +1088,8 @@ struct obj *sobj; /* detecting object */
 
 outtrapmap:
     cls();
-    double scale_before = flags.screen_scale_adjustment;
+    //double scale_before = flags.screen_scale_adjustment;
+    issue_simple_gui_command(GUI_CMD_SAVE_ZOOM);
     dozoommini();
 
     (void) unconstrain_map();
@@ -1118,7 +1127,8 @@ outtrapmap:
     browse_map(ter_typ, "trap of interest");
 
     reconstrain_map();
-    zoomtoscale(scale_before);
+    issue_simple_gui_command(GUI_CMD_RESTORE_ZOOM);
+    //zoomtoscale(scale_before);
     docrt(); /* redraw the screen to remove unseen traps from the map */
     if (Underwater)
         under_water(2);
@@ -1260,6 +1270,7 @@ struct obj **optr;
             play_special_effect_at(SPECIAL_EFFECT_SMALL_FIERY_EXPLOSION, 0, u.ux, u.uy, FALSE);
             special_effect_wait_until_action(0);
             pline_ex(ATR_NONE, CLR_MSG_NEGATIVE, "%s!", Tobjnam(obj, "explode"));
+            Sprintf(priority_debug_buf_2, "use_crystal_ball: %d", obj->otyp);
             useup(obj);
             *optr = obj = 0; /* it's gone */
             /* physical damage cause by the shards and force */

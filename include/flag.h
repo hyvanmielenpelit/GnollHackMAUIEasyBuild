@@ -45,7 +45,7 @@ struct flag {
     boolean ignintr;         /* ignore interrupts */
     boolean ins_chkpt;       /* checkpoint as appropriate; INSURANCE */
     boolean invlet_constant; /* let objects keep their inventory symbol */
-    boolean knapsack_prompt; /* automatic prompt for putting items in a bag / dropping them when knapsack is full */
+    boolean knapsack_prompt; /* automatic prompt for putting items in a bag / dropping them when inventory is full */
     boolean legacy;          /* print game entry "story" */
     boolean lit_corridor;    /* show a dark corr as lit if it is in sight */
     boolean nap;             /* `timed_delay' option for display effects */
@@ -248,9 +248,9 @@ struct flag {
 
     uchar right_click_command;
     uchar middle_click_command;
-    uchar reserved_uchar1;
-    uchar reserved_uchar2;
-    uchar reserved_uchar3;
+    boolean stash_on_autopickup;
+    boolean save_file_tracking_migrated; /* 1 = save file tracking in use (if 0, migrate to save file tracking) */
+    uchar save_file_tracking_value; /* this is the track value when tracking is supported and needed (desktop) */
     uchar reserved_uchar4;
     uchar reserved_uchar5;
     uchar reserved_uchar6;
@@ -271,6 +271,9 @@ struct flag {
     boolean reserved_bool3;
     boolean reserved_bool4;
 };
+
+#define SAVEFILETRACK_INVALID 0 /* Tracking the save file has failed at some point */
+#define SAVEFILETRACK_VALID 1  /* Tracking the save file has been successful when needed */
 
 /*
  * System-specific flags that are saved with the game if SYSFLAGS is defined.
@@ -582,6 +585,13 @@ struct instance_flags {
     boolean obsolete;  /* obsolete options can point at this, it isn't used */
 
     struct monst* spell_target_monster;
+    uint64_t found_manuals;
+    boolean show_dice_as_ranges;
+    boolean getpos_arrows;
+    boolean save_file_secure; /* Is the save file secure (like on Unix servers) */
+    boolean save_file_tracking_supported; /* Does this version of GnollHack support save file tracking (= modern GUI) */
+    boolean save_file_tracking_needed; /* Does GUI need save file tracking (= is desktop) */
+    boolean save_file_tracking_on; /* Is save file tracking turned on in GUI settings */
 };
 
 /*
@@ -777,6 +787,18 @@ struct startup_flags {
     boolean click_action_value;
     uchar right_click_action;
     uchar middle_click_action;
+    boolean dice_as_ranges_set;
+    boolean dice_as_ranges_value;
+    boolean getpos_arrows_set;
+    boolean getpos_arrows_value;
+    boolean save_file_tracking_supported_set;
+    boolean save_file_tracking_supported_value;
+    boolean save_file_tracking_needed_set;
+    boolean save_file_tracking_needed_value;
+    boolean save_file_tracking_on_set;
+    boolean save_file_tracking_on_value;
+
+    uint64_t found_manuals;
 };
 
 extern NEARDATA struct startup_flags initial_flags;

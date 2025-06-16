@@ -115,6 +115,7 @@ STATIC_DCL int FDECL(do_chat_shk_payitems, (struct monst*));
 STATIC_DCL int FDECL(do_chat_shk_pricequote, (struct monst*));
 STATIC_DCL int FDECL(do_chat_shk_chat, (struct monst*));
 STATIC_DCL int FDECL(do_chat_shk_identify, (struct monst*));
+STATIC_DCL int FDECL(do_chat_shk_credit, (struct monst*));
 STATIC_DCL int FDECL(do_chat_shk_reconciliation, (struct monst*));
 STATIC_DCL int FDECL(do_chat_smith_reconciliation, (struct monst*));
 STATIC_DCL int FDECL(do_chat_smith_enchant_armor, (struct monst*));
@@ -192,6 +193,7 @@ STATIC_DCL boolean FDECL(maybe_dragon_scales, (struct obj*));
 STATIC_DCL boolean FDECL(maybe_otyp, (struct obj*));
 STATIC_VAR int otyp_for_maybe_otyp = 0;
 STATIC_VAR boolean stop_chat = FALSE;
+STATIC_PTR int FDECL(CFDECLSPEC available_chat_cmp, (const genericptr, const genericptr));
 
 extern const struct shclass shtypes[]; /* defined in shknam.c */
 
@@ -1528,6 +1530,8 @@ bark_here:
         nomul(-2);
         multi_reason = "scared by rattling";
         nomovemsg = 0;
+        nomovemsg_attr = ATR_NONE;
+        nomovemsg_color = NO_COLOR;
         break;
     case MS_LAUGH: {
         static const char *const laugh_msg[4] = {
@@ -2130,7 +2134,7 @@ struct monst* mtmp;
 {
     if (is_silenced(mtmp))
     {
-        char Mhis[BUFSZ * 2];
+        char Mhis[BUFSZ];
         Strcpy(Mhis, mhis(mtmp));
         *Mhis = highc(*Mhis);
         pline("%s cannot answer you. %s voice is gone!", noittame_Monnam(mtmp), Mhis);
@@ -2169,7 +2173,7 @@ genl_chat_message(VOID_ARGS)
 {
     while (1)
     {
-        char buf[BUFSZ * 2] = "";
+        char buf[BUFSZ] = "";
         getlin("Chat>", buf);
         if (!*buf || *buf == '\033')
             return;
@@ -2272,6 +2276,54 @@ dochat(VOID_ARGS)
     return dochatmon(mtmp);
 }
 
+struct available_chat_item
+{
+    int charnum;
+    char name[PL_PSIZ + 64];
+    schar category;
+    boolean stops_dialogue;
+    boolean inactive;
+    boolean using_special_symbols;
+    boolean using_menu_color;
+    uchar color;
+    int (*function_ptr)();
+};
+
+#define CHAT_CATEGORY_GENERAL 0
+#define CHAT_CATEGORY_INFORMATION 1
+#define CHAT_CATEGORY_INTERACTION 2
+#define CHAT_CATEGORY_COMBAT 3
+#define CHAT_CATEGORY_SERVICE 4
+#define CHAT_CATEGORY_COMMERCE 5
+#define CHAT_CATEGORY_STATISTICS 6
+#define NUM_CHAT_CATEGORIES 7
+
+#define MAXCHATNUM 50
+struct available_chat_item available_chat_list[MAXCHATNUM] = { {0} };
+
+const char* available_chat_category_titles[NUM_CHAT_CATEGORIES] =
+{ "General", "Information", "Interaction" , "Combat" , "Service", "Commerce", "Statistics" };
+
+STATIC_OVL int CFDECLSPEC
+available_chat_cmp(p, q)
+const genericptr p;
+const genericptr q;
+{
+    if (!p || !q)
+        return 0;
+
+    struct available_chat_item item1 = *(struct available_chat_item*)p;
+    struct available_chat_item item2 = *(struct available_chat_item*)q;
+
+    schar cat1 = item1.category;
+    schar cat2 = item2.category;
+
+    if (cat1 != cat2)
+        return cat1 - cat2;
+
+    return strcmpi(item1.name, item2.name);
+}
+
 int
 dochatmon(mtmp)
 struct monst* mtmp;
@@ -2363,22 +2415,21 @@ struct monst* mtmp;
     if (!canspotmon(mtmp))
         map_invisible(mtmp->mx, mtmp->my);
 
-#define MAXCHATNUM 50
-    struct available_chat_item
-    {
-        int charnum;
-        char name[80];
-        boolean stops_dialogue;
-        int (*function_ptr)();
-    };
-
     int i = '\0';
     int result = 0;
     boolean stopsdialogue = FALSE;
+    boolean firsttime = TRUE;
     stop_chat = FALSE;
     do
     {
+        if (!firsttime)
+        {
+            stop_all_dialogue_of_mon_on_mobile(mtmp);
+            firsttime = FALSE;
+        }
+
         i = '\0';
+        memset(available_chat_list, 0, sizeof(available_chat_list));
 
         menu_item* pick_list = (menu_item*)0;
         winid win;
@@ -2388,22 +2439,21 @@ struct monst* mtmp;
         win = create_nhwindow_ex(NHW_MENU, GHWINDOW_STYLE_CHAT_MENU, get_seen_monster_glyph(mtmp), extended_create_window_info_from_mon(mtmp));
         start_menu_ex(win, GHMENU_STYLE_CHAT);
 
-        struct available_chat_item available_chat_list[MAXCHATNUM] = { {0} };
         int chatnum = 0;
-
         any = zeroany;
 
         /* Hello! This is the old chat, i.e., domonnoise function */
         Strcpy(available_chat_list[chatnum].name, "\"Hello there!\"");
         available_chat_list[chatnum].function_ptr = &domonnoise_with_popup;
-        available_chat_list[chatnum].charnum = 'a' + chatnum;
+        //available_chat_list[chatnum].charnum = 'a' + chatnum;
+        available_chat_list[chatnum].category = CHAT_CATEGORY_GENERAL;
 
-        any = zeroany;
-        any.a_char = available_chat_list[chatnum].charnum;
+        //any = zeroany;
+        //any.a_char = available_chat_list[chatnum].charnum;
 
-        add_menu(win, NO_GLYPH, &any,
-            any.a_char, 0, ATR_NONE, NO_COLOR,
-            available_chat_list[chatnum].name, MENU_UNSELECTED);
+        //add_menu(win, NO_GLYPH, &any,
+        //    any.a_char, 0, ATR_NONE, NO_COLOR,
+        //    available_chat_list[chatnum].name, MENU_UNSELECTED);
 
         chatnum++;
 
@@ -2412,14 +2462,15 @@ struct monst* mtmp;
             /* Who are you? */
             Strcpy(available_chat_list[chatnum].name, "\"Who are you?\"");
             available_chat_list[chatnum].function_ptr = &do_chat_whoareyou;
-            available_chat_list[chatnum].charnum = 'a' + chatnum;
+            //available_chat_list[chatnum].charnum = 'a' + chatnum;
+            available_chat_list[chatnum].category = CHAT_CATEGORY_GENERAL;
 
-            any = zeroany;
-            any.a_char = available_chat_list[chatnum].charnum;
+            //any = zeroany;
+            //any.a_char = available_chat_list[chatnum].charnum;
 
-            add_menu(win, NO_GLYPH, &any,
-                any.a_char, 0, ATR_NONE, NO_COLOR,
-                available_chat_list[chatnum].name, MENU_UNSELECTED);
+            //add_menu(win, NO_GLYPH, &any,
+            //    any.a_char, 0, ATR_NONE, NO_COLOR,
+            //    available_chat_list[chatnum].name, MENU_UNSELECTED);
 
             chatnum++;
         }
@@ -2428,14 +2479,15 @@ struct monst* mtmp;
         {
             Strcpy(available_chat_list[chatnum].name, "\"How is it going?\"");
             available_chat_list[chatnum].function_ptr = &domonnoise_with_popup_nonpc;
-            available_chat_list[chatnum].charnum = 'a' + chatnum;
+            //available_chat_list[chatnum].charnum = 'a' + chatnum;
+            available_chat_list[chatnum].category = CHAT_CATEGORY_GENERAL;
 
-            any = zeroany;
-            any.a_char = available_chat_list[chatnum].charnum;
+            //any = zeroany;
+            //any.a_char = available_chat_list[chatnum].charnum;
 
-            add_menu(win, NO_GLYPH, &any,
-                any.a_char, 0, ATR_NONE, NO_COLOR,
-                available_chat_list[chatnum].name, MENU_UNSELECTED);
+            //add_menu(win, NO_GLYPH, &any,
+            //    any.a_char, 0, ATR_NONE, NO_COLOR,
+            //    available_chat_list[chatnum].name, MENU_UNSELECTED);
 
             chatnum++;
         }
@@ -2452,14 +2504,15 @@ struct monst* mtmp;
                     Strcpy(available_chat_list[chatnum].name, mtmp->told_rumor ? "Ask for further adventuring advice" : "Ask for adventuring advice");
 
                 available_chat_list[chatnum].function_ptr = &do_chat_rumors;
-                available_chat_list[chatnum].charnum = 'a' + chatnum;
+                //available_chat_list[chatnum].charnum = 'a' + chatnum;
+                available_chat_list[chatnum].category = CHAT_CATEGORY_INFORMATION;
 
-                any = zeroany;
-                any.a_char = available_chat_list[chatnum].charnum;
+                //any = zeroany;
+                //any.a_char = available_chat_list[chatnum].charnum;
 
-                add_menu(win, NO_GLYPH, &any,
-                    any.a_char, 0, ATR_NONE, NO_COLOR,
-                    available_chat_list[chatnum].name, MENU_UNSELECTED);
+                //add_menu(win, NO_GLYPH, &any,
+                //    any.a_char, 0, ATR_NONE, NO_COLOR,
+                //    available_chat_list[chatnum].name, MENU_UNSELECTED);
 
                 chatnum++;
             }
@@ -2472,14 +2525,15 @@ struct monst* mtmp;
             {
                 Strcpy(available_chat_list[chatnum].name, "Ask about experiments");
                 available_chat_list[chatnum].function_ptr = &do_chat_quantum_experiments;
-                available_chat_list[chatnum].charnum = 'a' + chatnum;
+                //available_chat_list[chatnum].charnum = 'a' + chatnum;
+                available_chat_list[chatnum].category = CHAT_CATEGORY_INFORMATION;
 
-                any = zeroany;
-                any.a_char = available_chat_list[chatnum].charnum;
+                //any = zeroany;
+                //any.a_char = available_chat_list[chatnum].charnum;
 
-                add_menu(win, NO_GLYPH, &any,
-                    any.a_char, 0, ATR_NONE, NO_COLOR,
-                    available_chat_list[chatnum].name, MENU_UNSELECTED);
+                //add_menu(win, NO_GLYPH, &any,
+                //    any.a_char, 0, ATR_NONE, NO_COLOR,
+                //    available_chat_list[chatnum].name, MENU_UNSELECTED);
 
                 chatnum++;
             }
@@ -2488,14 +2542,15 @@ struct monst* mtmp;
             {
                 Strcpy(available_chat_list[chatnum].name, "Ask about the Large Circular Dungeon");
                 available_chat_list[chatnum].function_ptr = &do_chat_quantum_large_circular_dungeon;
-                available_chat_list[chatnum].charnum = 'a' + chatnum;
+                //available_chat_list[chatnum].charnum = 'a' + chatnum;
+                available_chat_list[chatnum].category = CHAT_CATEGORY_INFORMATION;
 
-                any = zeroany;
-                any.a_char = available_chat_list[chatnum].charnum;
+                //any = zeroany;
+                //any.a_char = available_chat_list[chatnum].charnum;
 
-                add_menu(win, NO_GLYPH, &any,
-                    any.a_char, 0, ATR_NONE, NO_COLOR,
-                    available_chat_list[chatnum].name, MENU_UNSELECTED);
+                //add_menu(win, NO_GLYPH, &any,
+                //    any.a_char, 0, ATR_NONE, NO_COLOR,
+                //    available_chat_list[chatnum].name, MENU_UNSELECTED);
 
                 chatnum++;
             }
@@ -2505,14 +2560,15 @@ struct monst* mtmp;
             {
                 Sprintf(available_chat_list[chatnum].name, "Ask about %s", thesimpleoname(tpwand));
                 available_chat_list[chatnum].function_ptr = &do_chat_quantum_special_wand;
-                available_chat_list[chatnum].charnum = 'a' + chatnum;
+                //available_chat_list[chatnum].charnum = 'a' + chatnum;
+                available_chat_list[chatnum].category = CHAT_CATEGORY_INFORMATION;
 
-                any = zeroany;
-                any.a_char = available_chat_list[chatnum].charnum;
+                //any = zeroany;
+                //any.a_char = available_chat_list[chatnum].charnum;
 
-                add_menu(win, NO_GLYPH, &any,
-                    any.a_char, 0, ATR_NONE, NO_COLOR,
-                    available_chat_list[chatnum].name, MENU_UNSELECTED);
+                //add_menu(win, NO_GLYPH, &any,
+                //    any.a_char, 0, ATR_NONE, NO_COLOR,
+                //    available_chat_list[chatnum].name, MENU_UNSELECTED);
 
                 chatnum++;
             }
@@ -2521,14 +2577,15 @@ struct monst* mtmp;
             {
                 Sprintf(available_chat_list[chatnum].name, "Ask about %s", thesimpleoname(diswand));
                 available_chat_list[chatnum].function_ptr = &do_chat_quantum_disintegration_wand;
-                available_chat_list[chatnum].charnum = 'a' + chatnum;
+                //available_chat_list[chatnum].charnum = 'a' + chatnum;
+                available_chat_list[chatnum].category = CHAT_CATEGORY_INFORMATION;
 
-                any = zeroany;
-                any.a_char = available_chat_list[chatnum].charnum;
+                //any = zeroany;
+                //any.a_char = available_chat_list[chatnum].charnum;
 
-                add_menu(win, NO_GLYPH, &any,
-                    any.a_char, 0, ATR_NONE, NO_COLOR,
-                    available_chat_list[chatnum].name, MENU_UNSELECTED);
+                //add_menu(win, NO_GLYPH, &any,
+                //    any.a_char, 0, ATR_NONE, NO_COLOR,
+                //    available_chat_list[chatnum].name, MENU_UNSELECTED);
 
                 chatnum++;
             }
@@ -2537,14 +2594,15 @@ struct monst* mtmp;
             {
                 Sprintf(available_chat_list[chatnum].name, "Ask about %s", thesimpleoname(telewand));
                 available_chat_list[chatnum].function_ptr = &do_chat_quantum_teleportation_wand;
-                available_chat_list[chatnum].charnum = 'a' + chatnum;
+                //available_chat_list[chatnum].charnum = 'a' + chatnum;
+                available_chat_list[chatnum].category = CHAT_CATEGORY_INFORMATION;
 
-                any = zeroany;
-                any.a_char = available_chat_list[chatnum].charnum;
+                //any = zeroany;
+                //any.a_char = available_chat_list[chatnum].charnum;
 
-                add_menu(win, NO_GLYPH, &any,
-                    any.a_char, 0, ATR_NONE, NO_COLOR,
-                    available_chat_list[chatnum].name, MENU_UNSELECTED);
+                //add_menu(win, NO_GLYPH, &any,
+                //    any.a_char, 0, ATR_NONE, NO_COLOR,
+                //    available_chat_list[chatnum].name, MENU_UNSELECTED);
 
                 chatnum++;
             }
@@ -2555,40 +2613,43 @@ struct monst* mtmp;
             /* Hermit - Starting Quests */
             Strcpy(available_chat_list[chatnum].name, "Ask about the Dungeons of Doom");
             available_chat_list[chatnum].function_ptr = &do_chat_hermit_dungeons;
-            available_chat_list[chatnum].charnum = 'a' + chatnum;
+            //available_chat_list[chatnum].charnum = 'a' + chatnum;
+            available_chat_list[chatnum].category = CHAT_CATEGORY_INFORMATION;
 
-            any = zeroany;
-            any.a_char = available_chat_list[chatnum].charnum;
+            //any = zeroany;
+            //any.a_char = available_chat_list[chatnum].charnum;
 
-            add_menu(win, NO_GLYPH, &any,
-                any.a_char, 0, ATR_NONE, NO_COLOR,
-                available_chat_list[chatnum].name, MENU_UNSELECTED);
+            //add_menu(win, NO_GLYPH, &any,
+            //    any.a_char, 0, ATR_NONE, NO_COLOR,
+            //    available_chat_list[chatnum].name, MENU_UNSELECTED);
 
             chatnum++;
 
             Strcpy(available_chat_list[chatnum].name, "Ask about the Amulet of Yendor");
             available_chat_list[chatnum].function_ptr = &do_chat_hermit_quests;
-            available_chat_list[chatnum].charnum = 'a' + chatnum;
+            //available_chat_list[chatnum].charnum = 'a' + chatnum;
+            available_chat_list[chatnum].category = CHAT_CATEGORY_INFORMATION;
 
-            any = zeroany;
-            any.a_char = available_chat_list[chatnum].charnum;
+            //any = zeroany;
+            //any.a_char = available_chat_list[chatnum].charnum;
 
-            add_menu(win, NO_GLYPH, &any,
-                any.a_char, 0, ATR_NONE, NO_COLOR,
-                available_chat_list[chatnum].name, MENU_UNSELECTED);
+            //add_menu(win, NO_GLYPH, &any,
+            //    any.a_char, 0, ATR_NONE, NO_COLOR,
+            //    available_chat_list[chatnum].name, MENU_UNSELECTED);
 
             chatnum++;
 
             Strcpy(available_chat_list[chatnum].name, "Ask about further advice");
             available_chat_list[chatnum].function_ptr = &do_chat_hermit_further_advice;
-            available_chat_list[chatnum].charnum = 'a' + chatnum;
+            //available_chat_list[chatnum].charnum = 'a' + chatnum;
+            available_chat_list[chatnum].category = CHAT_CATEGORY_INFORMATION;
 
-            any = zeroany;
-            any.a_char = available_chat_list[chatnum].charnum;
+            //any = zeroany;
+            //any.a_char = available_chat_list[chatnum].charnum;
 
-            add_menu(win, NO_GLYPH, &any,
-                any.a_char, 0, ATR_NONE, NO_COLOR,
-                available_chat_list[chatnum].name, MENU_UNSELECTED);
+            //add_menu(win, NO_GLYPH, &any,
+            //    any.a_char, 0, ATR_NONE, NO_COLOR,
+            //    available_chat_list[chatnum].name, MENU_UNSELECTED);
 
             chatnum++;
 
@@ -2596,27 +2657,29 @@ struct monst* mtmp;
             {
                 Strcpy(available_chat_list[chatnum].name, "Ask about the Gnomish Mines");
                 available_chat_list[chatnum].function_ptr = &do_chat_hermit_gnomish_mines;
-                available_chat_list[chatnum].charnum = 'a' + chatnum;
+                //available_chat_list[chatnum].charnum = 'a' + chatnum;
+                available_chat_list[chatnum].category = CHAT_CATEGORY_INFORMATION;
 
-                any = zeroany;
-                any.a_char = available_chat_list[chatnum].charnum;
+                //any = zeroany;
+                //any.a_char = available_chat_list[chatnum].charnum;
 
-                add_menu(win, NO_GLYPH, &any,
-                    any.a_char, 0, ATR_NONE, NO_COLOR,
-                    available_chat_list[chatnum].name, MENU_UNSELECTED);
+                //add_menu(win, NO_GLYPH, &any,
+                //    any.a_char, 0, ATR_NONE, NO_COLOR,
+                //    available_chat_list[chatnum].name, MENU_UNSELECTED);
 
                 chatnum++;
 
                 Strcpy(available_chat_list[chatnum].name, "Ask about the Sokoban");
                 available_chat_list[chatnum].function_ptr = &do_chat_hermit_sokoban;
-                available_chat_list[chatnum].charnum = 'a' + chatnum;
+                //available_chat_list[chatnum].charnum = 'a' + chatnum;
+                available_chat_list[chatnum].category = CHAT_CATEGORY_INFORMATION;
 
-                any = zeroany;
-                any.a_char = available_chat_list[chatnum].charnum;
+                //any = zeroany;
+                //any.a_char = available_chat_list[chatnum].charnum;
 
-                add_menu(win, NO_GLYPH, &any,
-                    any.a_char, 0, ATR_NONE, NO_COLOR,
-                    available_chat_list[chatnum].name, MENU_UNSELECTED);
+                //add_menu(win, NO_GLYPH, &any,
+                //    any.a_char, 0, ATR_NONE, NO_COLOR,
+                //    available_chat_list[chatnum].name, MENU_UNSELECTED);
 
                 chatnum++;
             }
@@ -2625,14 +2688,15 @@ struct monst* mtmp;
             {
                 Strcpy(available_chat_list[chatnum].name, "Ask about the Wizard of Yendor");
                 available_chat_list[chatnum].function_ptr = &do_chat_hermit_wizard_of_yendor;
-                available_chat_list[chatnum].charnum = 'a' + chatnum;
+                //available_chat_list[chatnum].charnum = 'a' + chatnum;
+                available_chat_list[chatnum].category = CHAT_CATEGORY_INFORMATION;
 
-                any = zeroany;
-                any.a_char = available_chat_list[chatnum].charnum;
+                //any = zeroany;
+                //any.a_char = available_chat_list[chatnum].charnum;
 
-                add_menu(win, NO_GLYPH, &any,
-                    any.a_char, 0, ATR_NONE, NO_COLOR,
-                    available_chat_list[chatnum].name, MENU_UNSELECTED);
+                //add_menu(win, NO_GLYPH, &any,
+                //    any.a_char, 0, ATR_NONE, NO_COLOR,
+                //    available_chat_list[chatnum].name, MENU_UNSELECTED);
 
                 chatnum++;
             }
@@ -2641,27 +2705,29 @@ struct monst* mtmp;
             {
                 Strcpy(available_chat_list[chatnum].name, "Ask about the Castle");
                 available_chat_list[chatnum].function_ptr = &do_chat_hermit_castle;
-                available_chat_list[chatnum].charnum = 'a' + chatnum;
+                //available_chat_list[chatnum].charnum = 'a' + chatnum;
+                available_chat_list[chatnum].category = CHAT_CATEGORY_INFORMATION;
 
-                any = zeroany;
-                any.a_char = available_chat_list[chatnum].charnum;
+                //any = zeroany;
+                //any.a_char = available_chat_list[chatnum].charnum;
 
-                add_menu(win, NO_GLYPH, &any,
-                    any.a_char, 0, ATR_NONE, NO_COLOR,
-                    available_chat_list[chatnum].name, MENU_UNSELECTED);
+                //add_menu(win, NO_GLYPH, &any,
+                //    any.a_char, 0, ATR_NONE, NO_COLOR,
+                //    available_chat_list[chatnum].name, MENU_UNSELECTED);
 
                 chatnum++;
 
                 Strcpy(available_chat_list[chatnum].name, "Ask about Under World");
                 available_chat_list[chatnum].function_ptr = &do_chat_hermit_gehennom;
-                available_chat_list[chatnum].charnum = 'a' + chatnum;
+                //available_chat_list[chatnum].charnum = 'a' + chatnum;
+                available_chat_list[chatnum].category = CHAT_CATEGORY_INFORMATION;
 
-                any = zeroany;
-                any.a_char = available_chat_list[chatnum].charnum;
+                //any = zeroany;
+                //any.a_char = available_chat_list[chatnum].charnum;
 
-                add_menu(win, NO_GLYPH, &any,
-                    any.a_char, 0, ATR_NONE, NO_COLOR,
-                    available_chat_list[chatnum].name, MENU_UNSELECTED);
+                //add_menu(win, NO_GLYPH, &any,
+                //    any.a_char, 0, ATR_NONE, NO_COLOR,
+                //    available_chat_list[chatnum].name, MENU_UNSELECTED);
 
                 chatnum++;
             }
@@ -2672,40 +2738,43 @@ struct monst* mtmp;
             /* Hermit - Advanced Quests */
             Strcpy(available_chat_list[chatnum].name, "Ask about the Castle");
             available_chat_list[chatnum].function_ptr = &do_chat_hermit2_castle;
-            available_chat_list[chatnum].charnum = 'a' + chatnum;
+            //available_chat_list[chatnum].charnum = 'a' + chatnum;
+            available_chat_list[chatnum].category = CHAT_CATEGORY_INFORMATION;
 
-            any = zeroany;
-            any.a_char = available_chat_list[chatnum].charnum;
+            //any = zeroany;
+            //any.a_char = available_chat_list[chatnum].charnum;
 
-            add_menu(win, NO_GLYPH, &any,
-                any.a_char, 0, ATR_NONE, NO_COLOR,
-                available_chat_list[chatnum].name, MENU_UNSELECTED);
+            //add_menu(win, NO_GLYPH, &any,
+            //    any.a_char, 0, ATR_NONE, NO_COLOR,
+            //    available_chat_list[chatnum].name, MENU_UNSELECTED);
 
             chatnum++;
 
             Strcpy(available_chat_list[chatnum].name, "Ask about Gehennom");
             available_chat_list[chatnum].function_ptr = &do_chat_hermit2_gehennom;
-            available_chat_list[chatnum].charnum = 'a' + chatnum;
+            //available_chat_list[chatnum].charnum = 'a' + chatnum;
+            available_chat_list[chatnum].category = CHAT_CATEGORY_INFORMATION;
 
-            any = zeroany;
-            any.a_char = available_chat_list[chatnum].charnum;
+            //any = zeroany;
+            //any.a_char = available_chat_list[chatnum].charnum;
 
-            add_menu(win, NO_GLYPH, &any,
-                any.a_char, 0, ATR_NONE, NO_COLOR,
-                available_chat_list[chatnum].name, MENU_UNSELECTED);
+            //add_menu(win, NO_GLYPH, &any,
+            //    any.a_char, 0, ATR_NONE, NO_COLOR,
+            //    available_chat_list[chatnum].name, MENU_UNSELECTED);
 
             chatnum++;
 
             Strcpy(available_chat_list[chatnum].name, "Ask about the Wizard of Yendor");
             available_chat_list[chatnum].function_ptr = &do_chat_hermit2_wizard_of_yendor;
-            available_chat_list[chatnum].charnum = 'a' + chatnum;
+            //available_chat_list[chatnum].charnum = 'a' + chatnum;
+            available_chat_list[chatnum].category = CHAT_CATEGORY_INFORMATION;
 
-            any = zeroany;
-            any.a_char = available_chat_list[chatnum].charnum;
+            //any = zeroany;
+            //any.a_char = available_chat_list[chatnum].charnum;
 
-            add_menu(win, NO_GLYPH, &any,
-                any.a_char, 0, ATR_NONE, NO_COLOR,
-                available_chat_list[chatnum].name, MENU_UNSELECTED);
+            //add_menu(win, NO_GLYPH, &any,
+            //    any.a_char, 0, ATR_NONE, NO_COLOR,
+            //    available_chat_list[chatnum].name, MENU_UNSELECTED);
 
             chatnum++;
 
@@ -2713,14 +2782,15 @@ struct monst* mtmp;
             {
                 Strcpy(available_chat_list[chatnum].name, "Ask about the Vampire Lord");
                 available_chat_list[chatnum].function_ptr = &do_chat_hermit2_vampire_lord;
-                available_chat_list[chatnum].charnum = 'a' + chatnum;
+                //available_chat_list[chatnum].charnum = 'a' + chatnum;
+                available_chat_list[chatnum].category = CHAT_CATEGORY_INFORMATION;
 
-                any = zeroany;
-                any.a_char = available_chat_list[chatnum].charnum;
+                //any = zeroany;
+                //any.a_char = available_chat_list[chatnum].charnum;
 
-                add_menu(win, NO_GLYPH, &any,
-                    any.a_char, 0, ATR_NONE, NO_COLOR,
-                    available_chat_list[chatnum].name, MENU_UNSELECTED);
+                //add_menu(win, NO_GLYPH, &any,
+                //    any.a_char, 0, ATR_NONE, NO_COLOR,
+                //    available_chat_list[chatnum].name, MENU_UNSELECTED);
 
                 chatnum++;
             }
@@ -2729,14 +2799,15 @@ struct monst* mtmp;
             {
                 Strcpy(available_chat_list[chatnum].name, "Ask about the Candelabrum of Invocation");
                 available_chat_list[chatnum].function_ptr = &do_chat_hermit2_candelabrum;
-                available_chat_list[chatnum].charnum = 'a' + chatnum;
+                //available_chat_list[chatnum].charnum = 'a' + chatnum;
+                available_chat_list[chatnum].category = CHAT_CATEGORY_INFORMATION;
 
-                any = zeroany;
-                any.a_char = available_chat_list[chatnum].charnum;
+                //any = zeroany;
+                //any.a_char = available_chat_list[chatnum].charnum;
 
-                add_menu(win, NO_GLYPH, &any,
-                    any.a_char, 0, ATR_NONE, NO_COLOR,
-                    available_chat_list[chatnum].name, MENU_UNSELECTED);
+                //add_menu(win, NO_GLYPH, &any,
+                //    any.a_char, 0, ATR_NONE, NO_COLOR,
+                //    available_chat_list[chatnum].name, MENU_UNSELECTED);
 
                 chatnum++;
             }
@@ -2745,14 +2816,15 @@ struct monst* mtmp;
             {
                 Strcpy(available_chat_list[chatnum].name, "Ask about the Book of the Dead");
                 available_chat_list[chatnum].function_ptr = &do_chat_hermit2_book_of_the_dead;
-                available_chat_list[chatnum].charnum = 'a' + chatnum;
+                //available_chat_list[chatnum].charnum = 'a' + chatnum;
+                available_chat_list[chatnum].category = CHAT_CATEGORY_INFORMATION;
 
-                any = zeroany;
-                any.a_char = available_chat_list[chatnum].charnum;
+                //any = zeroany;
+                //any.a_char = available_chat_list[chatnum].charnum;
 
-                add_menu(win, NO_GLYPH, &any,
-                    any.a_char, 0, ATR_NONE, NO_COLOR,
-                    available_chat_list[chatnum].name, MENU_UNSELECTED);
+                //add_menu(win, NO_GLYPH, &any,
+                //    any.a_char, 0, ATR_NONE, NO_COLOR,
+                //    available_chat_list[chatnum].name, MENU_UNSELECTED);
 
                 chatnum++;
             }
@@ -2761,14 +2833,15 @@ struct monst* mtmp;
             {
                 Strcpy(available_chat_list[chatnum].name, "Ask about the Silver Bell");
                 available_chat_list[chatnum].function_ptr = &do_chat_hermit2_silver_bell;
-                available_chat_list[chatnum].charnum = 'a' + chatnum;
+                //available_chat_list[chatnum].charnum = 'a' + chatnum;
+                available_chat_list[chatnum].category = CHAT_CATEGORY_INFORMATION;
 
-                any = zeroany;
-                any.a_char = available_chat_list[chatnum].charnum;
+                //any = zeroany;
+                //any.a_char = available_chat_list[chatnum].charnum;
 
-                add_menu(win, NO_GLYPH, &any,
-                    any.a_char, 0, ATR_NONE, NO_COLOR,
-                    available_chat_list[chatnum].name, MENU_UNSELECTED);
+                //add_menu(win, NO_GLYPH, &any,
+                //    any.a_char, 0, ATR_NONE, NO_COLOR,
+                //    available_chat_list[chatnum].name, MENU_UNSELECTED);
 
                 chatnum++;
             }
@@ -2777,14 +2850,15 @@ struct monst* mtmp;
             {
                 Strcpy(available_chat_list[chatnum].name, "Ask about the Passage to Amulet");
                 available_chat_list[chatnum].function_ptr = &do_chat_hermit2_ritual;
-                available_chat_list[chatnum].charnum = 'a' + chatnum;
+                //available_chat_list[chatnum].charnum = 'a' + chatnum;
+                available_chat_list[chatnum].category = CHAT_CATEGORY_INFORMATION;
 
-                any = zeroany;
-                any.a_char = available_chat_list[chatnum].charnum;
+                //any = zeroany;
+                //any.a_char = available_chat_list[chatnum].charnum;
 
-                add_menu(win, NO_GLYPH, &any,
-                    any.a_char, 0, ATR_NONE, NO_COLOR,
-                    available_chat_list[chatnum].name, MENU_UNSELECTED);
+                //add_menu(win, NO_GLYPH, &any,
+                //    any.a_char, 0, ATR_NONE, NO_COLOR,
+                //    available_chat_list[chatnum].name, MENU_UNSELECTED);
 
                 chatnum++;
             }
@@ -2796,14 +2870,15 @@ struct monst* mtmp;
             /* Hermit - Gnomish Quests */
             Strcpy(available_chat_list[chatnum].name, "Ask about the Gnomish Mines");
             available_chat_list[chatnum].function_ptr = &do_chat_hermit3_gnomish_mines;
-            available_chat_list[chatnum].charnum = 'a' + chatnum;
+            //available_chat_list[chatnum].charnum = 'a' + chatnum;
+            available_chat_list[chatnum].category = CHAT_CATEGORY_INFORMATION;
 
-            any = zeroany;
-            any.a_char = available_chat_list[chatnum].charnum;
+            //any = zeroany;
+            //any.a_char = available_chat_list[chatnum].charnum;
 
-            add_menu(win, NO_GLYPH, &any,
-                any.a_char, 0, ATR_NONE, NO_COLOR,
-                available_chat_list[chatnum].name, MENU_UNSELECTED);
+            //add_menu(win, NO_GLYPH, &any,
+            //    any.a_char, 0, ATR_NONE, NO_COLOR,
+            //    available_chat_list[chatnum].name, MENU_UNSELECTED);
 
             chatnum++;
 
@@ -2811,14 +2886,15 @@ struct monst* mtmp;
             {
                 Strcpy(available_chat_list[chatnum].name, "Ask about the Gladstone");
                 available_chat_list[chatnum].function_ptr = &do_chat_hermit3_luckstone;
-                available_chat_list[chatnum].charnum = 'a' + chatnum;
+                //available_chat_list[chatnum].charnum = 'a' + chatnum;
+                available_chat_list[chatnum].category = CHAT_CATEGORY_INFORMATION;
 
-                any = zeroany;
-                any.a_char = available_chat_list[chatnum].charnum;
+                //any = zeroany;
+                //any.a_char = available_chat_list[chatnum].charnum;
 
-                add_menu(win, NO_GLYPH, &any,
-                    any.a_char, 0, ATR_NONE, NO_COLOR,
-                    available_chat_list[chatnum].name, MENU_UNSELECTED);
+                //add_menu(win, NO_GLYPH, &any,
+                //    any.a_char, 0, ATR_NONE, NO_COLOR,
+                //    available_chat_list[chatnum].name, MENU_UNSELECTED);
 
                 chatnum++;
             }
@@ -2830,14 +2906,15 @@ struct monst* mtmp;
             /* Hermit - Orcish Quests */
             Strcpy(available_chat_list[chatnum].name, "Ask about the Gnomish Mines");
             available_chat_list[chatnum].function_ptr = &do_chat_orc_hermit3_gnomish_mines;
-            available_chat_list[chatnum].charnum = 'a' + chatnum;
+            //available_chat_list[chatnum].charnum = 'a' + chatnum;
+            available_chat_list[chatnum].category = CHAT_CATEGORY_INFORMATION;
 
-            any = zeroany;
-            any.a_char = available_chat_list[chatnum].charnum;
+            //any = zeroany;
+            //any.a_char = available_chat_list[chatnum].charnum;
 
-            add_menu(win, NO_GLYPH, &any,
-                any.a_char, 0, ATR_NONE, NO_COLOR,
-                available_chat_list[chatnum].name, MENU_UNSELECTED);
+            //add_menu(win, NO_GLYPH, &any,
+            //    any.a_char, 0, ATR_NONE, NO_COLOR,
+            //    available_chat_list[chatnum].name, MENU_UNSELECTED);
 
             chatnum++;
 
@@ -2845,14 +2922,15 @@ struct monst* mtmp;
             {
                 Strcpy(available_chat_list[chatnum].name, "Ask about the Gladstone");
                 available_chat_list[chatnum].function_ptr = &do_chat_orc_hermit3_luckstone;
-                available_chat_list[chatnum].charnum = 'a' + chatnum;
+                //available_chat_list[chatnum].charnum = 'a' + chatnum;
+                available_chat_list[chatnum].category = CHAT_CATEGORY_INFORMATION;
 
-                any = zeroany;
-                any.a_char = available_chat_list[chatnum].charnum;
+                //any = zeroany;
+                //any.a_char = available_chat_list[chatnum].charnum;
 
-                add_menu(win, NO_GLYPH, &any,
-                    any.a_char, 0, ATR_NONE, NO_COLOR,
-                    available_chat_list[chatnum].name, MENU_UNSELECTED);
+                //add_menu(win, NO_GLYPH, &any,
+                //    any.a_char, 0, ATR_NONE, NO_COLOR,
+                //    available_chat_list[chatnum].name, MENU_UNSELECTED);
 
                 chatnum++;
             }
@@ -2866,14 +2944,15 @@ struct monst* mtmp;
                 /* Special hints about game mechanics */
                 Strcpy(available_chat_list[chatnum].name, "Ask to sing a song");
                 available_chat_list[chatnum].function_ptr = &do_chat_npc_sing_song;
-                available_chat_list[chatnum].charnum = 'a' + chatnum;
+                //available_chat_list[chatnum].charnum = 'a' + chatnum;
+                available_chat_list[chatnum].category = CHAT_CATEGORY_SERVICE;
 
-                any = zeroany;
-                any.a_char = available_chat_list[chatnum].charnum;
+                //any = zeroany;
+                //any.a_char = available_chat_list[chatnum].charnum;
 
-                add_menu(win, NO_GLYPH, &any,
-                    any.a_char, 0, ATR_NONE, NO_COLOR,
-                    available_chat_list[chatnum].name, MENU_UNSELECTED);
+                //add_menu(win, NO_GLYPH, &any,
+                //    any.a_char, 0, ATR_NONE, NO_COLOR,
+                //    available_chat_list[chatnum].name, MENU_UNSELECTED);
 
                 chatnum++;
             }
@@ -2882,14 +2961,15 @@ struct monst* mtmp;
                 /* Special hints about game mechanics */
                 Strcpy(available_chat_list[chatnum].name, "Ask about advanced adventuring tactics");
                 available_chat_list[chatnum].function_ptr = &do_chat_npc_special_hints;
-                available_chat_list[chatnum].charnum = 'a' + chatnum;
+                //available_chat_list[chatnum].charnum = 'a' + chatnum;
+                available_chat_list[chatnum].category = CHAT_CATEGORY_INFORMATION;
 
-                any = zeroany;
-                any.a_char = available_chat_list[chatnum].charnum;
+                //any = zeroany;
+                //any.a_char = available_chat_list[chatnum].charnum;
 
-                add_menu(win, NO_GLYPH, &any,
-                    any.a_char, 0, ATR_NONE, NO_COLOR,
-                    available_chat_list[chatnum].name, MENU_UNSELECTED);
+                //add_menu(win, NO_GLYPH, &any,
+                //    any.a_char, 0, ATR_NONE, NO_COLOR,
+                //    available_chat_list[chatnum].name, MENU_UNSELECTED);
 
                 chatnum++;
             }
@@ -2902,15 +2982,16 @@ struct monst* mtmp;
             {
                 Sprintf(available_chat_list[chatnum].name, "\"Good %s!\"", mtmp->female ? "girl" : "boy");
                 available_chat_list[chatnum].function_ptr = &do_chat_pet_good_boy_girl;
-                available_chat_list[chatnum].charnum = 'a' + chatnum;
+                //available_chat_list[chatnum].charnum = 'a' + chatnum;
                 available_chat_list[chatnum].stops_dialogue = TRUE;
+                available_chat_list[chatnum].category = CHAT_CATEGORY_INTERACTION;
 
-                any = zeroany;
-                any.a_char = available_chat_list[chatnum].charnum;
+                //any = zeroany;
+                //any.a_char = available_chat_list[chatnum].charnum;
 
-                add_menu(win, NO_GLYPH, &any,
-                    any.a_char, 0, ATR_NONE, NO_COLOR,
-                    available_chat_list[chatnum].name, MENU_UNSELECTED);
+                //add_menu(win, NO_GLYPH, &any,
+                //    any.a_char, 0, ATR_NONE, NO_COLOR,
+                //    available_chat_list[chatnum].name, MENU_UNSELECTED);
 
                 chatnum++;
             }
@@ -2919,15 +3000,16 @@ struct monst* mtmp;
             {
                 Strcpy(available_chat_list[chatnum].name, "Command to sit down");
                 available_chat_list[chatnum].function_ptr = &do_chat_pet_sit;
-                available_chat_list[chatnum].charnum = 'a' + chatnum;
+                //available_chat_list[chatnum].charnum = 'a' + chatnum;
                 available_chat_list[chatnum].stops_dialogue = TRUE;
+                available_chat_list[chatnum].category = CHAT_CATEGORY_INTERACTION;
 
-                any = zeroany;
-                any.a_char = available_chat_list[chatnum].charnum;
+                //any = zeroany;
+                //any.a_char = available_chat_list[chatnum].charnum;
 
-                add_menu(win, NO_GLYPH, &any,
-                    any.a_char, 0, ATR_NONE, NO_COLOR,
-                    available_chat_list[chatnum].name, MENU_UNSELECTED);
+                //add_menu(win, NO_GLYPH, &any,
+                //    any.a_char, 0, ATR_NONE, NO_COLOR,
+                //    available_chat_list[chatnum].name, MENU_UNSELECTED);
 
                 chatnum++;
             }
@@ -2936,22 +3018,22 @@ struct monst* mtmp;
             {
                 Strcpy(available_chat_list[chatnum].name, "Command to give paw");
                 available_chat_list[chatnum].function_ptr = &do_chat_pet_givepaw;
-                available_chat_list[chatnum].charnum = 'a' + chatnum;
+                //available_chat_list[chatnum].charnum = 'a' + chatnum;
                 available_chat_list[chatnum].stops_dialogue = TRUE;
+                available_chat_list[chatnum].category = CHAT_CATEGORY_INTERACTION;
 
-                any = zeroany;
-                any.a_char = available_chat_list[chatnum].charnum;
+                //any = zeroany;
+                //any.a_char = available_chat_list[chatnum].charnum;
 
-                add_menu(win, NO_GLYPH, &any,
-                    any.a_char, 0, ATR_NONE, NO_COLOR,
-                    available_chat_list[chatnum].name, MENU_UNSELECTED);
+                //add_menu(win, NO_GLYPH, &any,
+                //    any.a_char, 0, ATR_NONE, NO_COLOR,
+                //    available_chat_list[chatnum].name, MENU_UNSELECTED);
 
                 chatnum++;
             }
 
             if (!mtmp->mstaying && mtmp->mwantstomove && mtmp != u.usteed)
             {
-
                 if (is_animal(mtmp->data))
                     Strcpy(available_chat_list[chatnum].name, "Command to stay put");
                 else if (is_speaking(mtmp->data))
@@ -2960,15 +3042,16 @@ struct monst* mtmp;
                     Strcpy(available_chat_list[chatnum].name, "Command to hold position");
 
                 available_chat_list[chatnum].function_ptr = &do_chat_pet_stay;
-                available_chat_list[chatnum].charnum = 'a' + chatnum;
+                //available_chat_list[chatnum].charnum = 'a' + chatnum;
                 available_chat_list[chatnum].stops_dialogue = TRUE;
+                available_chat_list[chatnum].category = CHAT_CATEGORY_INTERACTION;
 
-                any = zeroany;
-                any.a_char = available_chat_list[chatnum].charnum;
+                //any = zeroany;
+                //any.a_char = available_chat_list[chatnum].charnum;
 
-                add_menu(win, NO_GLYPH, &any,
-                    any.a_char, 0, ATR_NONE, NO_COLOR,
-                    available_chat_list[chatnum].name, MENU_UNSELECTED);
+                //add_menu(win, NO_GLYPH, &any,
+                //    any.a_char, 0, ATR_NONE, NO_COLOR,
+                //    available_chat_list[chatnum].name, MENU_UNSELECTED);
 
                 chatnum++;
             }
@@ -2983,15 +3066,16 @@ struct monst* mtmp;
                     Strcpy(available_chat_list[chatnum].name, "Command to stop holding position");
 
                 available_chat_list[chatnum].function_ptr = &do_chat_pet_standup;
-                available_chat_list[chatnum].charnum = 'a' + chatnum;
+                //available_chat_list[chatnum].charnum = 'a' + chatnum;
                 available_chat_list[chatnum].stops_dialogue = TRUE;
+                available_chat_list[chatnum].category = CHAT_CATEGORY_INTERACTION;
 
-                any = zeroany;
-                any.a_char = available_chat_list[chatnum].charnum;
+                //any = zeroany;
+                //any.a_char = available_chat_list[chatnum].charnum;
 
-                add_menu(win, NO_GLYPH, &any,
-                    any.a_char, 0, ATR_NONE, NO_COLOR,
-                    available_chat_list[chatnum].name, MENU_UNSELECTED);
+                //add_menu(win, NO_GLYPH, &any,
+                //    any.a_char, 0, ATR_NONE, NO_COLOR,
+                //    available_chat_list[chatnum].name, MENU_UNSELECTED);
 
                 chatnum++;
             }
@@ -3002,15 +3086,16 @@ struct monst* mtmp;
 
                 Strcpy(available_chat_list[chatnum].name, "Command to follow you");
                 available_chat_list[chatnum].function_ptr = &do_chat_pet_follow;
-                available_chat_list[chatnum].charnum = 'a' + chatnum;
+                //available_chat_list[chatnum].charnum = 'a' + chatnum;
                 available_chat_list[chatnum].stops_dialogue = TRUE;
+                available_chat_list[chatnum].category = CHAT_CATEGORY_INTERACTION;
 
-                any = zeroany;
-                any.a_char = available_chat_list[chatnum].charnum;
+                //any = zeroany;
+                //any.a_char = available_chat_list[chatnum].charnum;
 
-                add_menu(win, NO_GLYPH, &any,
-                    any.a_char, 0, ATR_NONE, NO_COLOR,
-                    available_chat_list[chatnum].name, MENU_UNSELECTED);
+                //add_menu(win, NO_GLYPH, &any,
+                //    any.a_char, 0, ATR_NONE, NO_COLOR,
+                //    available_chat_list[chatnum].name, MENU_UNSELECTED);
 
                 chatnum++;
             }
@@ -3019,15 +3104,16 @@ struct monst* mtmp;
             {
                 Strcpy(available_chat_list[chatnum].name, "Command to stop following you");
                 available_chat_list[chatnum].function_ptr = &do_chat_pet_unfollow;
-                available_chat_list[chatnum].charnum = 'a' + chatnum;
+                //available_chat_list[chatnum].charnum = 'a' + chatnum;
                 available_chat_list[chatnum].stops_dialogue = TRUE;
+                available_chat_list[chatnum].category = CHAT_CATEGORY_INTERACTION;
 
-                any = zeroany;
-                any.a_char = available_chat_list[chatnum].charnum;
+                //any = zeroany;
+                //any.a_char = available_chat_list[chatnum].charnum;
 
-                add_menu(win, NO_GLYPH, &any,
-                    any.a_char, 0, ATR_NONE, NO_COLOR,
-                    available_chat_list[chatnum].name, MENU_UNSELECTED);
+                //add_menu(win, NO_GLYPH, &any,
+                //    any.a_char, 0, ATR_NONE, NO_COLOR,
+                //    available_chat_list[chatnum].name, MENU_UNSELECTED);
 
                 chatnum++;
             }
@@ -3036,15 +3122,16 @@ struct monst* mtmp;
             {
                 Strcpy(available_chat_list[chatnum].name, "Command to drop items");
                 available_chat_list[chatnum].function_ptr = &do_chat_pet_dropitems;
-                available_chat_list[chatnum].charnum = 'a' + chatnum;
+                //available_chat_list[chatnum].charnum = 'a' + chatnum;
                 available_chat_list[chatnum].stops_dialogue = TRUE;
+                available_chat_list[chatnum].category = CHAT_CATEGORY_INTERACTION;
 
-                any = zeroany;
-                any.a_char = available_chat_list[chatnum].charnum;
+                //any = zeroany;
+                //any.a_char = available_chat_list[chatnum].charnum;
 
-                add_menu(win, NO_GLYPH, &any,
-                    any.a_char, 0, ATR_NONE, NO_COLOR,
-                    available_chat_list[chatnum].name, MENU_UNSELECTED);
+                //add_menu(win, NO_GLYPH, &any,
+                //    any.a_char, 0, ATR_NONE, NO_COLOR,
+                //    available_chat_list[chatnum].name, MENU_UNSELECTED);
 
                 chatnum++;
             }
@@ -3053,15 +3140,16 @@ struct monst* mtmp;
             {
                 Strcpy(available_chat_list[chatnum].name, "Command to pick the items on the ground");
                 available_chat_list[chatnum].function_ptr = &do_chat_pet_pickitems;
-                available_chat_list[chatnum].charnum = 'a' + chatnum;
+                //available_chat_list[chatnum].charnum = 'a' + chatnum;
                 available_chat_list[chatnum].stops_dialogue = TRUE;
+                available_chat_list[chatnum].category = CHAT_CATEGORY_INTERACTION;
 
-                any = zeroany;
-                any.a_char = available_chat_list[chatnum].charnum;
+                //any = zeroany;
+                //any.a_char = available_chat_list[chatnum].charnum;
 
-                add_menu(win, NO_GLYPH, &any,
-                    any.a_char, 0, ATR_NONE, NO_COLOR,
-                    available_chat_list[chatnum].name, MENU_UNSELECTED);
+                //add_menu(win, NO_GLYPH, &any,
+                //    any.a_char, 0, ATR_NONE, NO_COLOR,
+                //    available_chat_list[chatnum].name, MENU_UNSELECTED);
 
                 chatnum++;
             }
@@ -3071,15 +3159,19 @@ struct monst* mtmp;
             {
                 if (can_breathe(mtmp->data))
                 {
-                    int mcolor = NO_COLOR;
-                    any = zeroany;
+                    //int mcolor = NO_COLOR;
+                    //any = zeroany;
                     available_chat_list[chatnum].function_ptr = &dosteedbreathemon;
-                    available_chat_list[chatnum].charnum = 'a' + chatnum;
+                    //available_chat_list[chatnum].charnum = mtmp->mspec_used > 0 ? 0 : 'a' + chatnum;
+                    available_chat_list[chatnum].inactive = TRUE;
                     available_chat_list[chatnum].stops_dialogue = TRUE;
+                    available_chat_list[chatnum].using_special_symbols = TRUE;
+                    available_chat_list[chatnum].category = CHAT_CATEGORY_COMBAT;
                     if (mtmp->mspec_used > 0)
                     {
                         Sprintf(available_chat_list[chatnum].name, "Breath weapon cooling down (%u round%s left)", mtmp->mspec_used, plur(mtmp->mspec_used));
-                        mcolor = CLR_GRAY;
+                        available_chat_list[chatnum].using_menu_color = TRUE;
+                        available_chat_list[chatnum].color = CLR_GRAY;
                     }
                     else
                     {
@@ -3087,40 +3179,23 @@ struct monst* mtmp;
                         struct attack* mattk = attacktype_fordmg(mtmp->data, AT_BREA, AD_ANY);
                         int typ = get_ray_adtyp(mattk->adtyp);
                         if (typ == AD_SLEE)
-                            Sprintf(cooldownbuf, "%dd%d+%d", MONSTER_BREATH_WEAPON_SLEEP_COOLDOWN_DICE, MONSTER_BREATH_WEAPON_SLEEP_COOLDOWN_DIESIZE, MONSTER_BREATH_WEAPON_SLEEP_COOLDOWN_CONSTANT);
+                            printdice(cooldownbuf, MONSTER_BREATH_WEAPON_SLEEP_COOLDOWN_DICE, MONSTER_BREATH_WEAPON_SLEEP_COOLDOWN_DIESIZE, MONSTER_BREATH_WEAPON_SLEEP_COOLDOWN_CONSTANT);
                         else
-                            Sprintf(cooldownbuf, "%dd%d+%d", MONSTER_BREATH_WEAPON_NORMAL_COOLDOWN_DICE, MONSTER_BREATH_WEAPON_NORMAL_COOLDOWN_DIESIZE, MONSTER_BREATH_WEAPON_NORMAL_COOLDOWN_CONSTANT);
+                            printdice(cooldownbuf, MONSTER_BREATH_WEAPON_NORMAL_COOLDOWN_DICE, MONSTER_BREATH_WEAPON_NORMAL_COOLDOWN_DIESIZE, MONSTER_BREATH_WEAPON_NORMAL_COOLDOWN_CONSTANT);
                         const char* steedbreathefmt = ((windowprocs.wincap2 & WC2_SPECIAL_SYMBOLS) != 0) ?
                             "%s (&cool; %s after use)" : "%s (%s round cooldown after use)";
                         Sprintf(available_chat_list[chatnum].name, steedbreathefmt, "Command the steed to use breath weapon", cooldownbuf);
-                        any.a_char = available_chat_list[chatnum].charnum;
+                        //any.a_char = available_chat_list[chatnum].charnum;
                     }
 
-                    struct extended_menu_info minfo = zeroextendedmenuinfo;
-                    minfo.menu_flags |= MENU_FLAGS_USE_SPECIAL_SYMBOLS;
-                    add_extended_menu(win, NO_GLYPH, &any,
-                        any.a_char, 0, ATR_NONE, mcolor,
-                        available_chat_list[chatnum].name, MENU_UNSELECTED, minfo);
+                    //struct extended_menu_info minfo = zeroextendedmenuinfo;
+                    //minfo.menu_flags |= MENU_FLAGS_USE_SPECIAL_SYMBOLS;
+                    //add_extended_menu(win, NO_GLYPH, &any,
+                    //    any.a_char, 0, ATR_NONE, mcolor,
+                    //    available_chat_list[chatnum].name, MENU_UNSELECTED, minfo);
 
                     chatnum++;
                 }
-            }
-
-            /* Last, display inventory */
-            if (mtmp->minvent)
-            {
-                Strcpy(available_chat_list[chatnum].name, "Display inventory");
-                available_chat_list[chatnum].function_ptr = &do_chat_pet_display_inventory;
-                available_chat_list[chatnum].charnum = 'a' + chatnum;
-
-                any = zeroany;
-                any.a_char = available_chat_list[chatnum].charnum;
-
-                add_menu(win, NO_GLYPH, &any,
-                    any.a_char, 0, ATR_NONE, NO_COLOR,
-                    available_chat_list[chatnum].name, MENU_UNSELECTED);
-
-                chatnum++;
             }
         }
 
@@ -3130,15 +3205,16 @@ struct monst* mtmp;
             /* Petting */
             Sprintf(available_chat_list[chatnum].name, "Pet %s", noittame_mon_nam(mtmp));
             available_chat_list[chatnum].function_ptr = &do_chat_pet_pet;
-            available_chat_list[chatnum].charnum = 'a' + chatnum;
+            //available_chat_list[chatnum].charnum = 'a' + chatnum;
             available_chat_list[chatnum].stops_dialogue = TRUE;
+            available_chat_list[chatnum].category = CHAT_CATEGORY_INTERACTION;
 
-            any = zeroany;
-            any.a_char = available_chat_list[chatnum].charnum;
+            //any = zeroany;
+            //any.a_char = available_chat_list[chatnum].charnum;
 
-            add_menu(win, NO_GLYPH, &any,
-                any.a_char, 0, ATR_NONE, NO_COLOR,
-                available_chat_list[chatnum].name, MENU_UNSELECTED);
+            //add_menu(win, NO_GLYPH, &any,
+            //    any.a_char, 0, ATR_NONE, NO_COLOR,
+            //    available_chat_list[chatnum].name, MENU_UNSELECTED);
 
             chatnum++;
         }
@@ -3151,29 +3227,31 @@ struct monst* mtmp;
             else
                 Sprintf(available_chat_list[chatnum].name, "Feed %s", noittame_mon_nam(mtmp));
             available_chat_list[chatnum].function_ptr = &do_chat_feed;
-            available_chat_list[chatnum].charnum = 'a' + chatnum;
+            //available_chat_list[chatnum].charnum = 'a' + chatnum;
             available_chat_list[chatnum].stops_dialogue = TRUE;
+            available_chat_list[chatnum].category = CHAT_CATEGORY_INTERACTION;
 
-            any = zeroany;
-            any.a_char = available_chat_list[chatnum].charnum;
+            //any = zeroany;
+            //any.a_char = available_chat_list[chatnum].charnum;
 
-            add_menu(win, NO_GLYPH, &any,
-                any.a_char, 0, ATR_NONE, NO_COLOR,
-                available_chat_list[chatnum].name, MENU_UNSELECTED);
+            //add_menu(win, NO_GLYPH, &any,
+            //    any.a_char, 0, ATR_NONE, NO_COLOR,
+            //    available_chat_list[chatnum].name, MENU_UNSELECTED);
 
             chatnum++;
 
             Sprintf(available_chat_list[chatnum].name, "Give a potion to %s to drink", noittame_mon_nam(mtmp));
             available_chat_list[chatnum].function_ptr = &do_chat_quaff;
-            available_chat_list[chatnum].charnum = 'a' + chatnum;
+            //available_chat_list[chatnum].charnum = 'a' + chatnum;
             available_chat_list[chatnum].stops_dialogue = TRUE;
+            available_chat_list[chatnum].category = CHAT_CATEGORY_INTERACTION;
 
-            any = zeroany;
-            any.a_char = available_chat_list[chatnum].charnum;
+            //any = zeroany;
+            //any.a_char = available_chat_list[chatnum].charnum;
 
-            add_menu(win, NO_GLYPH, &any,
-                any.a_char, 0, ATR_NONE, NO_COLOR,
-                available_chat_list[chatnum].name, MENU_UNSELECTED);
+            //add_menu(win, NO_GLYPH, &any,
+            //    any.a_char, 0, ATR_NONE, NO_COLOR,
+            //    available_chat_list[chatnum].name, MENU_UNSELECTED);
 
             chatnum++;
         }
@@ -3182,15 +3260,16 @@ struct monst* mtmp;
         {
             Sprintf(available_chat_list[chatnum].name, "Give items to %s", noittame_mon_nam(mtmp));
             available_chat_list[chatnum].function_ptr = &do_chat_pet_giveitems;
-            available_chat_list[chatnum].charnum = 'a' + chatnum;
+            //available_chat_list[chatnum].charnum = 'a' + chatnum;
             available_chat_list[chatnum].stops_dialogue = FALSE;
+            available_chat_list[chatnum].category = CHAT_CATEGORY_INTERACTION;
 
-            any = zeroany;
-            any.a_char = available_chat_list[chatnum].charnum;
+            //any = zeroany;
+            //any.a_char = available_chat_list[chatnum].charnum;
 
-            add_menu(win, NO_GLYPH, &any,
-                any.a_char, 0, ATR_NONE, NO_COLOR,
-                available_chat_list[chatnum].name, MENU_UNSELECTED);
+            //add_menu(win, NO_GLYPH, &any,
+            //    any.a_char, 0, ATR_NONE, NO_COLOR,
+            //    available_chat_list[chatnum].name, MENU_UNSELECTED);
 
             chatnum++;
 
@@ -3198,15 +3277,16 @@ struct monst* mtmp;
             {
                 Sprintf(available_chat_list[chatnum].name, "Take items from %s", noittame_mon_nam(mtmp));
                 available_chat_list[chatnum].function_ptr = &do_chat_pet_takeitems;
-                available_chat_list[chatnum].charnum = 'a' + chatnum;
+                //available_chat_list[chatnum].charnum = 'a' + chatnum;
                 available_chat_list[chatnum].stops_dialogue = TRUE;
+                available_chat_list[chatnum].category = CHAT_CATEGORY_INTERACTION;
 
-                any = zeroany;
-                any.a_char = available_chat_list[chatnum].charnum;
+                //any = zeroany;
+                //any.a_char = available_chat_list[chatnum].charnum;
 
-                add_menu(win, NO_GLYPH, &any,
-                    any.a_char, 0, ATR_NONE, NO_COLOR,
-                    available_chat_list[chatnum].name, MENU_UNSELECTED);
+                //add_menu(win, NO_GLYPH, &any,
+                //    any.a_char, 0, ATR_NONE, NO_COLOR,
+                //    available_chat_list[chatnum].name, MENU_UNSELECTED);
 
                 chatnum++;
 
@@ -3217,15 +3297,16 @@ struct monst* mtmp;
         {
             Sprintf(available_chat_list[chatnum].name, "Uncurse or bless %s items", s_suffix(noittame_mon_nam(mtmp)));
             available_chat_list[chatnum].function_ptr = &do_chat_uncurse_items;
-            available_chat_list[chatnum].charnum = 'a' + chatnum;
+            //available_chat_list[chatnum].charnum = 'a' + chatnum;
             available_chat_list[chatnum].stops_dialogue = TRUE;
+            available_chat_list[chatnum].category = CHAT_CATEGORY_INTERACTION;
 
-            any = zeroany;
-            any.a_char = available_chat_list[chatnum].charnum;
+            //any = zeroany;
+            //any.a_char = available_chat_list[chatnum].charnum;
 
-            add_menu(win, NO_GLYPH, &any,
-                any.a_char, 0, ATR_NONE, NO_COLOR,
-                available_chat_list[chatnum].name, MENU_UNSELECTED);
+            //add_menu(win, NO_GLYPH, &any,
+            //    any.a_char, 0, ATR_NONE, NO_COLOR,
+            //    available_chat_list[chatnum].name, MENU_UNSELECTED);
 
             chatnum++;
 
@@ -3234,15 +3315,16 @@ struct monst* mtmp;
             {
                 Sprintf(available_chat_list[chatnum].name, "Ask to wear a piece of armor or accessory");
                 available_chat_list[chatnum].function_ptr = &do_chat_pet_dowear;
-                available_chat_list[chatnum].charnum = 'a' + chatnum;
+                //available_chat_list[chatnum].charnum = 'a' + chatnum;
                 available_chat_list[chatnum].stops_dialogue = TRUE;
+                available_chat_list[chatnum].category = CHAT_CATEGORY_INTERACTION;
 
-                any = zeroany;
-                any.a_char = available_chat_list[chatnum].charnum;
+                //any = zeroany;
+                //any.a_char = available_chat_list[chatnum].charnum;
 
-                add_menu(win, NO_GLYPH, &any,
-                    any.a_char, 0, ATR_NONE, NO_COLOR,
-                    available_chat_list[chatnum].name, MENU_UNSELECTED);
+                //add_menu(win, NO_GLYPH, &any,
+                //    any.a_char, 0, ATR_NONE, NO_COLOR,
+                //    available_chat_list[chatnum].name, MENU_UNSELECTED);
 
                 chatnum++;
             }
@@ -3251,14 +3333,16 @@ struct monst* mtmp;
             {
                 Sprintf(available_chat_list[chatnum].name, "Ask to take off a piece of armor or accessory");
                 available_chat_list[chatnum].function_ptr = &do_chat_pet_dotakeoff;
-                available_chat_list[chatnum].charnum = 'a' + chatnum;
+                //available_chat_list[chatnum].charnum = 'a' + chatnum;
                 available_chat_list[chatnum].stops_dialogue = TRUE;
-                any = zeroany;
-                any.a_char = available_chat_list[chatnum].charnum;
+                available_chat_list[chatnum].category = CHAT_CATEGORY_INTERACTION;
 
-                add_menu(win, NO_GLYPH, &any,
-                    any.a_char, 0, ATR_NONE, NO_COLOR,
-                    available_chat_list[chatnum].name, MENU_UNSELECTED);
+                //any = zeroany;
+                //any.a_char = available_chat_list[chatnum].charnum;
+
+                //add_menu(win, NO_GLYPH, &any,
+                //    any.a_char, 0, ATR_NONE, NO_COLOR,
+                //    available_chat_list[chatnum].name, MENU_UNSELECTED);
 
                 chatnum++;
             }
@@ -3270,15 +3354,16 @@ struct monst* mtmp;
             {
                 Sprintf(available_chat_list[chatnum].name, "Ask to wield a hand-to-hand weapon");
                 available_chat_list[chatnum].function_ptr = &do_chat_pet_dowield_hth;
-                available_chat_list[chatnum].charnum = 'a' + chatnum;
+                //available_chat_list[chatnum].charnum = 'a' + chatnum;
                 available_chat_list[chatnum].stops_dialogue = TRUE;
+                available_chat_list[chatnum].category = CHAT_CATEGORY_INTERACTION;
 
-                any = zeroany;
-                any.a_char = available_chat_list[chatnum].charnum;
+                //any = zeroany;
+                //any.a_char = available_chat_list[chatnum].charnum;
 
-                add_menu(win, NO_GLYPH, &any,
-                    any.a_char, 0, ATR_NONE, NO_COLOR,
-                    available_chat_list[chatnum].name, MENU_UNSELECTED);
+                //add_menu(win, NO_GLYPH, &any,
+                //    any.a_char, 0, ATR_NONE, NO_COLOR,
+                //    available_chat_list[chatnum].name, MENU_UNSELECTED);
 
                 chatnum++;
             }
@@ -3286,15 +3371,16 @@ struct monst* mtmp;
             {
                 Sprintf(available_chat_list[chatnum].name, "Ask to wield a ranged weapon");
                 available_chat_list[chatnum].function_ptr = &do_chat_pet_dowield_ranged;
-                available_chat_list[chatnum].charnum = 'a' + chatnum;
+                //available_chat_list[chatnum].charnum = 'a' + chatnum;
                 available_chat_list[chatnum].stops_dialogue = TRUE;
+                available_chat_list[chatnum].category = CHAT_CATEGORY_INTERACTION;
 
-                any = zeroany;
-                any.a_char = available_chat_list[chatnum].charnum;
+                //any = zeroany;
+                //any.a_char = available_chat_list[chatnum].charnum;
 
-                add_menu(win, NO_GLYPH, &any,
-                    any.a_char, 0, ATR_NONE, NO_COLOR,
-                    available_chat_list[chatnum].name, MENU_UNSELECTED);
+                //add_menu(win, NO_GLYPH, &any,
+                //    any.a_char, 0, ATR_NONE, NO_COLOR,
+                //    available_chat_list[chatnum].name, MENU_UNSELECTED);
 
                 chatnum++;
             }
@@ -3303,15 +3389,16 @@ struct monst* mtmp;
             {
                 Sprintf(available_chat_list[chatnum].name, "Ask to wield a pick axe");
                 available_chat_list[chatnum].function_ptr = &do_chat_pet_dowield_pickaxe;
-                available_chat_list[chatnum].charnum = 'a' + chatnum;
+                //available_chat_list[chatnum].charnum = 'a' + chatnum;
                 available_chat_list[chatnum].stops_dialogue = TRUE;
+                available_chat_list[chatnum].category = CHAT_CATEGORY_INTERACTION;
 
-                any = zeroany;
-                any.a_char = available_chat_list[chatnum].charnum;
+                //any = zeroany;
+                //any.a_char = available_chat_list[chatnum].charnum;
 
-                add_menu(win, NO_GLYPH, &any,
-                    any.a_char, 0, ATR_NONE, NO_COLOR,
-                    available_chat_list[chatnum].name, MENU_UNSELECTED);
+                //add_menu(win, NO_GLYPH, &any,
+                //    any.a_char, 0, ATR_NONE, NO_COLOR,
+                //    available_chat_list[chatnum].name, MENU_UNSELECTED);
 
                 chatnum++;
             }
@@ -3319,15 +3406,16 @@ struct monst* mtmp;
             {
                 Sprintf(available_chat_list[chatnum].name, "Ask to wield an axe");
                 available_chat_list[chatnum].function_ptr = &do_chat_pet_dowield_axe;
-                available_chat_list[chatnum].charnum = 'a' + chatnum;
+                //available_chat_list[chatnum].charnum = 'a' + chatnum;
                 available_chat_list[chatnum].stops_dialogue = TRUE;
+                available_chat_list[chatnum].category = CHAT_CATEGORY_INTERACTION;
 
-                any = zeroany;
-                any.a_char = available_chat_list[chatnum].charnum;
+                //any = zeroany;
+                //any.a_char = available_chat_list[chatnum].charnum;
 
-                add_menu(win, NO_GLYPH, &any,
-                    any.a_char, 0, ATR_NONE, NO_COLOR,
-                    available_chat_list[chatnum].name, MENU_UNSELECTED);
+                //add_menu(win, NO_GLYPH, &any,
+                //    any.a_char, 0, ATR_NONE, NO_COLOR,
+                //    available_chat_list[chatnum].name, MENU_UNSELECTED);
 
                 chatnum++;
             }
@@ -3335,15 +3423,16 @@ struct monst* mtmp;
             {
                 Sprintf(available_chat_list[chatnum].name, "Ask to unwield the current weapon");
                 available_chat_list[chatnum].function_ptr = &do_chat_pet_dounwield;
-                available_chat_list[chatnum].charnum = 'a' + chatnum;
+                //available_chat_list[chatnum].charnum = 'a' + chatnum;
                 available_chat_list[chatnum].stops_dialogue = TRUE;
+                available_chat_list[chatnum].category = CHAT_CATEGORY_INTERACTION;
 
-                any = zeroany;
-                any.a_char = available_chat_list[chatnum].charnum;
+                //any = zeroany;
+                //any.a_char = available_chat_list[chatnum].charnum;
 
-                add_menu(win, NO_GLYPH, &any,
-                    any.a_char, 0, ATR_NONE, NO_COLOR,
-                    available_chat_list[chatnum].name, MENU_UNSELECTED);
+                //add_menu(win, NO_GLYPH, &any,
+                //    any.a_char, 0, ATR_NONE, NO_COLOR,
+                //    available_chat_list[chatnum].name, MENU_UNSELECTED);
 
                 chatnum++;
             }
@@ -3362,14 +3451,15 @@ struct monst* mtmp;
         {
             Strcpy(available_chat_list[chatnum].name, "Check items for sale");
             available_chat_list[chatnum].function_ptr = &do_chat_buy_items;
-            available_chat_list[chatnum].charnum = 'a' + chatnum;
+            //available_chat_list[chatnum].charnum = 'a' + chatnum;
+            available_chat_list[chatnum].category = CHAT_CATEGORY_COMMERCE;
 
-            any = zeroany;
-            any.a_char = available_chat_list[chatnum].charnum;
+            //any = zeroany;
+            //any.a_char = available_chat_list[chatnum].charnum;
 
-            add_menu(win, NO_GLYPH, &any,
-                any.a_char, 0, ATR_NONE, NO_COLOR,
-                available_chat_list[chatnum].name, MENU_UNSELECTED);
+            //add_menu(win, NO_GLYPH, &any,
+            //    any.a_char, 0, ATR_NONE, NO_COLOR,
+            //    available_chat_list[chatnum].name, MENU_UNSELECTED);
 
             chatnum++;
 
@@ -3392,28 +3482,30 @@ struct monst* mtmp;
         {
             Strcpy(available_chat_list[chatnum].name, "Ask to join the party");
             available_chat_list[chatnum].function_ptr = &do_chat_join_party;
-            available_chat_list[chatnum].charnum = 'a' + chatnum;
+            //available_chat_list[chatnum].charnum = 'a' + chatnum;
             available_chat_list[chatnum].stops_dialogue = FALSE;
+            available_chat_list[chatnum].category = CHAT_CATEGORY_COMMERCE;
 
-            any = zeroany;
-            any.a_char = available_chat_list[chatnum].charnum;
+            //any = zeroany;
+            //any.a_char = available_chat_list[chatnum].charnum;
 
-            add_menu(win, NO_GLYPH, &any,
-                any.a_char, 0, ATR_NONE, NO_COLOR,
-                available_chat_list[chatnum].name, MENU_UNSELECTED);
+            //add_menu(win, NO_GLYPH, &any,
+            //    any.a_char, 0, ATR_NONE, NO_COLOR,
+            //    available_chat_list[chatnum].name, MENU_UNSELECTED);
 
             chatnum++;
 
             Strcpy(available_chat_list[chatnum].name, "Explain current statistics");
             available_chat_list[chatnum].function_ptr = &do_chat_explain_statistics;
-            available_chat_list[chatnum].charnum = 'a' + chatnum;
+            //available_chat_list[chatnum].charnum = 'a' + chatnum;
+            available_chat_list[chatnum].category = CHAT_CATEGORY_STATISTICS;
 
-            any = zeroany;
-            any.a_char = available_chat_list[chatnum].charnum;
+            //any = zeroany;
+            //any.a_char = available_chat_list[chatnum].charnum;
 
-            add_menu(win, NO_GLYPH, &any,
-                any.a_char, 0, ATR_NONE, NO_COLOR,
-                available_chat_list[chatnum].name, MENU_UNSELECTED);
+            //add_menu(win, NO_GLYPH, &any,
+            //    any.a_char, 0, ATR_NONE, NO_COLOR,
+            //    available_chat_list[chatnum].name, MENU_UNSELECTED);
 
             chatnum++;
         }
@@ -3424,40 +3516,43 @@ struct monst* mtmp;
         {
             Strcpy(available_chat_list[chatnum].name, "Consultation");
             available_chat_list[chatnum].function_ptr = &do_chat_oracle_consult;
-            available_chat_list[chatnum].charnum = 'a' + chatnum;
+            //available_chat_list[chatnum].charnum = 'a' + chatnum;
+            available_chat_list[chatnum].category = CHAT_CATEGORY_SERVICE;
 
-            any = zeroany;
-            any.a_char = available_chat_list[chatnum].charnum;
+            //any = zeroany;
+            //any.a_char = available_chat_list[chatnum].charnum;
 
-            add_menu(win, NO_GLYPH, &any,
-                any.a_char, 0, ATR_NONE, NO_COLOR,
-                available_chat_list[chatnum].name, MENU_UNSELECTED);
+            //add_menu(win, NO_GLYPH, &any,
+            //    any.a_char, 0, ATR_NONE, NO_COLOR,
+            //    available_chat_list[chatnum].name, MENU_UNSELECTED);
 
             chatnum++;
 
             Strcpy(available_chat_list[chatnum].name, "Identify items");
             available_chat_list[chatnum].function_ptr = &do_chat_oracle_identify;
-            available_chat_list[chatnum].charnum = 'a' + chatnum;
+            //available_chat_list[chatnum].charnum = 'a' + chatnum;
+            available_chat_list[chatnum].category = CHAT_CATEGORY_SERVICE;
 
-            any = zeroany;
-            any.a_char = available_chat_list[chatnum].charnum;
+            //any = zeroany;
+            //any.a_char = available_chat_list[chatnum].charnum;
 
-            add_menu(win, NO_GLYPH, &any,
-                any.a_char, 0, ATR_NONE, NO_COLOR,
-                available_chat_list[chatnum].name, MENU_UNSELECTED);
+            //add_menu(win, NO_GLYPH, &any,
+            //    any.a_char, 0, ATR_NONE, NO_COLOR,
+            //    available_chat_list[chatnum].name, MENU_UNSELECTED);
 
             chatnum++;
 
             Strcpy(available_chat_list[chatnum].name, "Enlightenment");
             available_chat_list[chatnum].function_ptr = &do_chat_oracle_enlightenment;
-            available_chat_list[chatnum].charnum = 'a' + chatnum;
+            //available_chat_list[chatnum].charnum = 'a' + chatnum;
+            available_chat_list[chatnum].category = CHAT_CATEGORY_SERVICE;
 
-            any = zeroany;
-            any.a_char = available_chat_list[chatnum].charnum;
+            //any = zeroany;
+            //any.a_char = available_chat_list[chatnum].charnum;
 
-            add_menu(win, NO_GLYPH, &any,
-                any.a_char, 0, ATR_NONE, NO_COLOR,
-                available_chat_list[chatnum].name, MENU_UNSELECTED);
+            //add_menu(win, NO_GLYPH, &any,
+            //    any.a_char, 0, ATR_NONE, NO_COLOR,
+            //    available_chat_list[chatnum].name, MENU_UNSELECTED);
 
             chatnum++;
         }
@@ -3467,98 +3562,105 @@ struct monst* mtmp;
         {
             Strcpy(available_chat_list[chatnum].name, "Standard healing");
             available_chat_list[chatnum].function_ptr = &do_chat_priest_normal_healing;
-            available_chat_list[chatnum].charnum = 'a' + chatnum;
+            //available_chat_list[chatnum].charnum = 'a' + chatnum;
             available_chat_list[chatnum].stops_dialogue = TRUE;
+            available_chat_list[chatnum].category = CHAT_CATEGORY_SERVICE;
 
-            any = zeroany;
-            any.a_char = available_chat_list[chatnum].charnum;
+            //any = zeroany;
+            //any.a_char = available_chat_list[chatnum].charnum;
 
-            add_menu(win, NO_GLYPH, &any,
-                any.a_char, 0, ATR_NONE, NO_COLOR,
-                available_chat_list[chatnum].name, MENU_UNSELECTED);
+            //add_menu(win, NO_GLYPH, &any,
+            //    any.a_char, 0, ATR_NONE, NO_COLOR,
+            //    available_chat_list[chatnum].name, MENU_UNSELECTED);
 
             chatnum++;
 
             Strcpy(available_chat_list[chatnum].name, "Full healing");
             available_chat_list[chatnum].function_ptr = &do_chat_priest_full_healing;
-            available_chat_list[chatnum].charnum = 'a' + chatnum;
+            //available_chat_list[chatnum].charnum = 'a' + chatnum;
             available_chat_list[chatnum].stops_dialogue = TRUE;
+            available_chat_list[chatnum].category = CHAT_CATEGORY_SERVICE;
 
-            any = zeroany;
-            any.a_char = available_chat_list[chatnum].charnum;
+            //any = zeroany;
+            //any.a_char = available_chat_list[chatnum].charnum;
 
-            add_menu(win, NO_GLYPH, &any,
-                any.a_char, 0, ATR_NONE, NO_COLOR,
-                available_chat_list[chatnum].name, MENU_UNSELECTED);
+            //add_menu(win, NO_GLYPH, &any,
+            //    any.a_char, 0, ATR_NONE, NO_COLOR,
+            //    available_chat_list[chatnum].name, MENU_UNSELECTED);
 
             chatnum++;
 
             Strcpy(available_chat_list[chatnum].name, "Cure sickness");
             available_chat_list[chatnum].function_ptr = &do_chat_priest_cure_sickness;
-            available_chat_list[chatnum].charnum = 'a' + chatnum;
+            //available_chat_list[chatnum].charnum = 'a' + chatnum;
             available_chat_list[chatnum].stops_dialogue = TRUE;
+            available_chat_list[chatnum].category = CHAT_CATEGORY_SERVICE;
 
-            any = zeroany;
-            any.a_char = available_chat_list[chatnum].charnum;
+            //any = zeroany;
+            //any.a_char = available_chat_list[chatnum].charnum;
 
-            add_menu(win, NO_GLYPH, &any,
-                any.a_char, 0, ATR_NONE, NO_COLOR,
-                available_chat_list[chatnum].name, MENU_UNSELECTED);
+            //add_menu(win, NO_GLYPH, &any,
+            //    any.a_char, 0, ATR_NONE, NO_COLOR,
+            //    available_chat_list[chatnum].name, MENU_UNSELECTED);
 
             chatnum++;
 
             Strcpy(available_chat_list[chatnum].name, "Bless or curse an item");
             available_chat_list[chatnum].function_ptr = &do_chat_priest_blesscurse;
-            available_chat_list[chatnum].charnum = 'a' + chatnum;
+            //available_chat_list[chatnum].charnum = 'a' + chatnum;
             available_chat_list[chatnum].stops_dialogue = FALSE;
+            available_chat_list[chatnum].category = CHAT_CATEGORY_SERVICE;
 
-            any = zeroany;
-            any.a_char = available_chat_list[chatnum].charnum;
+            //any = zeroany;
+            //any.a_char = available_chat_list[chatnum].charnum;
 
-            add_menu(win, NO_GLYPH, &any,
-                any.a_char, 0, ATR_NONE, NO_COLOR,
-                available_chat_list[chatnum].name, MENU_UNSELECTED);
+            //add_menu(win, NO_GLYPH, &any,
+            //    any.a_char, 0, ATR_NONE, NO_COLOR,
+            //    available_chat_list[chatnum].name, MENU_UNSELECTED);
 
             chatnum++;
 
             Strcpy(available_chat_list[chatnum].name, "Divination");
             available_chat_list[chatnum].function_ptr = &do_chat_priest_divination;
-            available_chat_list[chatnum].charnum = 'a' + chatnum;
+            //available_chat_list[chatnum].charnum = 'a' + chatnum;
+            available_chat_list[chatnum].category = CHAT_CATEGORY_SERVICE;
 
-            any = zeroany;
-            any.a_char = available_chat_list[chatnum].charnum;
+            //any = zeroany;
+            //any.a_char = available_chat_list[chatnum].charnum;
 
-            add_menu(win, NO_GLYPH, &any,
-                any.a_char, 0, ATR_NONE, NO_COLOR,
-                available_chat_list[chatnum].name, MENU_UNSELECTED);
+            //add_menu(win, NO_GLYPH, &any,
+            //    any.a_char, 0, ATR_NONE, NO_COLOR,
+            //    available_chat_list[chatnum].name, MENU_UNSELECTED);
 
             chatnum++;
 
             Strcpy(available_chat_list[chatnum].name, "Teach spells");
             available_chat_list[chatnum].function_ptr = &do_chat_priest_teach_spells;
-            available_chat_list[chatnum].charnum = 'a' + chatnum;
+            //available_chat_list[chatnum].charnum = 'a' + chatnum;
+            available_chat_list[chatnum].category = CHAT_CATEGORY_SERVICE;
 
-            any = zeroany;
-            any.a_char = available_chat_list[chatnum].charnum;
+            //any = zeroany;
+            //any.a_char = available_chat_list[chatnum].charnum;
 
-            add_menu(win, NO_GLYPH, &any,
-                any.a_char, 0, ATR_NONE, NO_COLOR,
-                available_chat_list[chatnum].name, MENU_UNSELECTED);
+            //add_menu(win, NO_GLYPH, &any,
+            //    any.a_char, 0, ATR_NONE, NO_COLOR,
+            //    available_chat_list[chatnum].name, MENU_UNSELECTED);
 
             chatnum++;
 
             if (mtmp->ispriest && inhistemple(mtmp))
             {
-                Strcpy(available_chat_list[chatnum].name, "Chat about a monetary contribution to the temple");
+                Strcpy(available_chat_list[chatnum].name, "Monetary contribution to the temple");
                 available_chat_list[chatnum].function_ptr = &do_chat_priest_chat;
-                available_chat_list[chatnum].charnum = 'a' + chatnum;
+                //available_chat_list[chatnum].charnum = 'a' + chatnum;
+                available_chat_list[chatnum].category = CHAT_CATEGORY_COMMERCE;
 
-                any = zeroany;
-                any.a_char = available_chat_list[chatnum].charnum;
+                //any = zeroany;
+                //any.a_char = available_chat_list[chatnum].charnum;
 
-                add_menu(win, NO_GLYPH, &any,
-                    any.a_char, 0, ATR_NONE, NO_COLOR,
-                    available_chat_list[chatnum].name, MENU_UNSELECTED);
+                //add_menu(win, NO_GLYPH, &any,
+                //    any.a_char, 0, ATR_NONE, NO_COLOR,
+                //    available_chat_list[chatnum].name, MENU_UNSELECTED);
 
                 chatnum++;
             }
@@ -3570,43 +3672,46 @@ struct monst* mtmp;
             /* Non-priest monster priests here */
             Strcpy(available_chat_list[chatnum].name, "Healing");
             available_chat_list[chatnum].function_ptr = &do_chat_priest_normal_healing;
-            available_chat_list[chatnum].charnum = 'a' + chatnum;
+            //available_chat_list[chatnum].charnum = 'a' + chatnum;
             available_chat_list[chatnum].stops_dialogue = TRUE;
+            available_chat_list[chatnum].category = CHAT_CATEGORY_SERVICE;
 
-            any = zeroany;
-            any.a_char = available_chat_list[chatnum].charnum;
+            //any = zeroany;
+            //any.a_char = available_chat_list[chatnum].charnum;
 
-            add_menu(win, NO_GLYPH, &any,
-                any.a_char, 0, ATR_NONE, NO_COLOR,
-                available_chat_list[chatnum].name, MENU_UNSELECTED);
+            //add_menu(win, NO_GLYPH, &any,
+            //    any.a_char, 0, ATR_NONE, NO_COLOR,
+            //    available_chat_list[chatnum].name, MENU_UNSELECTED);
 
             chatnum++;
 
             Strcpy(available_chat_list[chatnum].name, "Cure sickness");
             available_chat_list[chatnum].function_ptr = &do_chat_priest_cure_sickness;
-            available_chat_list[chatnum].charnum = 'a' + chatnum;
+            //available_chat_list[chatnum].charnum = 'a' + chatnum;
             available_chat_list[chatnum].stops_dialogue = TRUE;
+            available_chat_list[chatnum].category = CHAT_CATEGORY_SERVICE;
 
-            any = zeroany;
-            any.a_char = available_chat_list[chatnum].charnum;
+            //any = zeroany;
+            //any.a_char = available_chat_list[chatnum].charnum;
 
-            add_menu(win, NO_GLYPH, &any,
-                any.a_char, 0, ATR_NONE, NO_COLOR,
-                available_chat_list[chatnum].name, MENU_UNSELECTED);
+            //add_menu(win, NO_GLYPH, &any,
+            //    any.a_char, 0, ATR_NONE, NO_COLOR,
+            //    available_chat_list[chatnum].name, MENU_UNSELECTED);
 
             chatnum++;
 
 
             Strcpy(available_chat_list[chatnum].name, "Divination");
             available_chat_list[chatnum].function_ptr = &do_chat_priest_divination;
-            available_chat_list[chatnum].charnum = 'a' + chatnum;
+            //available_chat_list[chatnum].charnum = 'a' + chatnum;
+            available_chat_list[chatnum].category = CHAT_CATEGORY_SERVICE;
 
-            any = zeroany;
-            any.a_char = available_chat_list[chatnum].charnum;
+            //any = zeroany;
+            //any.a_char = available_chat_list[chatnum].charnum;
 
-            add_menu(win, NO_GLYPH, &any,
-                any.a_char, 0, ATR_NONE, NO_COLOR,
-                available_chat_list[chatnum].name, MENU_UNSELECTED);
+            //add_menu(win, NO_GLYPH, &any,
+            //    any.a_char, 0, ATR_NONE, NO_COLOR,
+            //    available_chat_list[chatnum].name, MENU_UNSELECTED);
 
             chatnum++;
         }
@@ -3616,37 +3721,38 @@ struct monst* mtmp;
         {
             Strcpy(available_chat_list[chatnum].name, "Talk about your quest");
             available_chat_list[chatnum].function_ptr = &do_chat_quest_chat;
-            available_chat_list[chatnum].charnum = 'a' + chatnum;
+            //available_chat_list[chatnum].charnum = 'a' + chatnum;
+            available_chat_list[chatnum].category = CHAT_CATEGORY_INFORMATION;
 
-            any = zeroany;
-            any.a_char = available_chat_list[chatnum].charnum;
+            //any = zeroany;
+            //any.a_char = available_chat_list[chatnum].charnum;
 
-            add_menu(win, NO_GLYPH, &any,
-                any.a_char, 0, ATR_NONE, NO_COLOR,
-                available_chat_list[chatnum].name, MENU_UNSELECTED);
+            //add_menu(win, NO_GLYPH, &any,
+            //    any.a_char, 0, ATR_NONE, NO_COLOR,
+            //    available_chat_list[chatnum].name, MENU_UNSELECTED);
 
             chatnum++;
-
         }
 
         /* Shopkeeper */
         if (msound == MS_SELL || mtmp->isshk)
         {
-            if(1)
+            //if(1)
             {
                 if(is_peaceful(mtmp))
                     Strcpy(available_chat_list[chatnum].name, "Ask about the state of business");
                 else
                     Sprintf(available_chat_list[chatnum].name, "Ask about what's getting on %s nerves", mhis(mtmp));
                 available_chat_list[chatnum].function_ptr = &do_chat_shk_chat;
-                available_chat_list[chatnum].charnum = 'a' + chatnum;
+                //available_chat_list[chatnum].charnum = 'a' + chatnum;
+                available_chat_list[chatnum].category = CHAT_CATEGORY_INFORMATION;
 
-                any = zeroany;
-                any.a_char = available_chat_list[chatnum].charnum;
+                //any = zeroany;
+                //any.a_char = available_chat_list[chatnum].charnum;
 
-                add_menu(win, NO_GLYPH, &any,
-                    any.a_char, 0, ATR_NONE, NO_COLOR,
-                    available_chat_list[chatnum].name, MENU_UNSELECTED);
+                //add_menu(win, NO_GLYPH, &any,
+                //    any.a_char, 0, ATR_NONE, NO_COLOR,
+                //    available_chat_list[chatnum].name, MENU_UNSELECTED);
 
                 chatnum++;
             }
@@ -3654,15 +3760,16 @@ struct monst* mtmp;
             {
                 Strcpy(available_chat_list[chatnum].name, "Ask for reconciliation");
                 available_chat_list[chatnum].function_ptr = &do_chat_shk_reconciliation;
-                available_chat_list[chatnum].charnum = 'a' + chatnum;
+                //available_chat_list[chatnum].charnum = 'a' + chatnum;
                 available_chat_list[chatnum].stops_dialogue = TRUE;
+                available_chat_list[chatnum].category = CHAT_CATEGORY_COMMERCE;
 
-                any = zeroany;
-                any.a_char = available_chat_list[chatnum].charnum;
+                //any = zeroany;
+                //any.a_char = available_chat_list[chatnum].charnum;
 
-                add_menu(win, NO_GLYPH, &any,
-                    any.a_char, 0, ATR_NONE, NO_COLOR,
-                    available_chat_list[chatnum].name, MENU_UNSELECTED);
+                //add_menu(win, NO_GLYPH, &any,
+                //    any.a_char, 0, ATR_NONE, NO_COLOR,
+                //    available_chat_list[chatnum].name, MENU_UNSELECTED);
 
                 chatnum++;
             }
@@ -3670,15 +3777,16 @@ struct monst* mtmp;
             {
                 Strcpy(available_chat_list[chatnum].name, "Pay items");
                 available_chat_list[chatnum].function_ptr = &do_chat_shk_payitems;
-                available_chat_list[chatnum].charnum = 'a' + chatnum;
+                //available_chat_list[chatnum].charnum = 'a' + chatnum;
                 available_chat_list[chatnum].stops_dialogue = TRUE;
+                available_chat_list[chatnum].category = CHAT_CATEGORY_COMMERCE;
 
-                any = zeroany;
-                any.a_char = available_chat_list[chatnum].charnum;
+                //any = zeroany;
+                //any.a_char = available_chat_list[chatnum].charnum;
 
-                add_menu(win, NO_GLYPH, &any,
-                    any.a_char, 0, ATR_NONE, NO_COLOR,
-                    available_chat_list[chatnum].name, MENU_UNSELECTED);
+                //add_menu(win, NO_GLYPH, &any,
+                //    any.a_char, 0, ATR_NONE, NO_COLOR,
+                //    available_chat_list[chatnum].name, MENU_UNSELECTED);
 
                 chatnum++;
             }
@@ -3689,20 +3797,26 @@ struct monst* mtmp;
             {
                 shp_indx = ESHK(mtmp)->shoptype - SHOPBASE;
                 const struct shclass* shp = &shtypes[shp_indx];
-                char itembuf[BUFSZ * 2] = "";
+                char itembuf[BUFSZ] = "";
                 Strcpy(itembuf, shp->identified_item_description_plural);
             
                 Sprintf(available_chat_list[chatnum].name, "Identify %s", itembuf);
                 available_chat_list[chatnum].function_ptr = &do_chat_shk_identify;
-                available_chat_list[chatnum].charnum = 'a' + chatnum;
+                //available_chat_list[chatnum].charnum = 'a' + chatnum;
+                available_chat_list[chatnum].category = CHAT_CATEGORY_SERVICE;
 
-                any = zeroany;
-                any.a_char = available_chat_list[chatnum].charnum;
+                //any = zeroany;
+                //any.a_char = available_chat_list[chatnum].charnum;
 
-                add_menu(win, NO_GLYPH, &any,
-                    any.a_char, 0, ATR_NONE, NO_COLOR,
-                    available_chat_list[chatnum].name, MENU_UNSELECTED);
+                //add_menu(win, NO_GLYPH, &any,
+                //    any.a_char, 0, ATR_NONE, NO_COLOR,
+                //    available_chat_list[chatnum].name, MENU_UNSELECTED);
 
+                chatnum++;
+
+                Strcpy(available_chat_list[chatnum].name, "Check your credit and debit");
+                available_chat_list[chatnum].function_ptr = &do_chat_shk_credit;
+                available_chat_list[chatnum].category = CHAT_CATEGORY_INFORMATION;
                 chatnum++;
             }
 
@@ -3718,14 +3832,15 @@ struct monst* mtmp;
                 */
                 Strcpy(available_chat_list[chatnum].name, "Quote items");
                 available_chat_list[chatnum].function_ptr = &do_chat_shk_pricequote;
-                available_chat_list[chatnum].charnum = 'a' + chatnum;
+                //available_chat_list[chatnum].charnum = 'a' + chatnum;
+                available_chat_list[chatnum].category = CHAT_CATEGORY_COMMERCE;
 
-                any = zeroany;
-                any.a_char = available_chat_list[chatnum].charnum;
+                //any = zeroany;
+                //any.a_char = available_chat_list[chatnum].charnum;
 
-                add_menu(win, NO_GLYPH, &any,
-                    any.a_char, 0, ATR_NONE, NO_COLOR,
-                    available_chat_list[chatnum].name, MENU_UNSELECTED);
+                //add_menu(win, NO_GLYPH, &any,
+                //    any.a_char, 0, ATR_NONE, NO_COLOR,
+                //    available_chat_list[chatnum].name, MENU_UNSELECTED);
 
                 chatnum++;
             }
@@ -3738,15 +3853,16 @@ struct monst* mtmp;
             {
                 Strcpy(available_chat_list[chatnum].name, "Ask for reconciliation");
                 available_chat_list[chatnum].function_ptr = &do_chat_smith_reconciliation;
-                available_chat_list[chatnum].charnum = 'a' + chatnum;
+                //available_chat_list[chatnum].charnum = 'a' + chatnum;
                 available_chat_list[chatnum].stops_dialogue = TRUE;
+                available_chat_list[chatnum].category = CHAT_CATEGORY_COMMERCE;
 
-                any = zeroany;
-                any.a_char = available_chat_list[chatnum].charnum;
+                //any = zeroany;
+                //any.a_char = available_chat_list[chatnum].charnum;
 
-                add_menu(win, NO_GLYPH, &any,
-                    any.a_char, 0, ATR_NONE, NO_COLOR,
-                    available_chat_list[chatnum].name, MENU_UNSELECTED);
+                //add_menu(win, NO_GLYPH, &any,
+                //    any.a_char, 0, ATR_NONE, NO_COLOR,
+                //    available_chat_list[chatnum].name, MENU_UNSELECTED);
 
                 chatnum++;
             }
@@ -3755,43 +3871,46 @@ struct monst* mtmp;
             {
                 Sprintf(available_chat_list[chatnum].name, "Forge a plate armor");
                 available_chat_list[chatnum].function_ptr = &do_chat_smith_forge_standard_armor;
-                available_chat_list[chatnum].charnum = 'a' + chatnum;
+                //available_chat_list[chatnum].charnum = 'a' + chatnum;
                 available_chat_list[chatnum].stops_dialogue = FALSE;
+                available_chat_list[chatnum].category = CHAT_CATEGORY_SERVICE;
 
-                any = zeroany;
-                any.a_char = available_chat_list[chatnum].charnum;
+                //any = zeroany;
+                //any.a_char = available_chat_list[chatnum].charnum;
 
-                add_menu(win, NO_GLYPH, &any,
-                    any.a_char, 0, ATR_NONE, NO_COLOR,
-                    available_chat_list[chatnum].name, MENU_UNSELECTED);
+                //add_menu(win, NO_GLYPH, &any,
+                //    any.a_char, 0, ATR_NONE, NO_COLOR,
+                //    available_chat_list[chatnum].name, MENU_UNSELECTED);
 
                 chatnum++;
 
                 Sprintf(available_chat_list[chatnum].name, "Forge a special armor");
                 available_chat_list[chatnum].function_ptr = &do_chat_smith_forge_special_armor;
-                available_chat_list[chatnum].charnum = 'a' + chatnum;
+                //available_chat_list[chatnum].charnum = 'a' + chatnum;
                 available_chat_list[chatnum].stops_dialogue = FALSE;
+                available_chat_list[chatnum].category = CHAT_CATEGORY_SERVICE;
 
-                any = zeroany;
-                any.a_char = available_chat_list[chatnum].charnum;
+                //any = zeroany;
+                //any.a_char = available_chat_list[chatnum].charnum;
 
-                add_menu(win, NO_GLYPH, &any,
-                    any.a_char, 0, ATR_NONE, NO_COLOR,
-                    available_chat_list[chatnum].name, MENU_UNSELECTED);
+                //add_menu(win, NO_GLYPH, &any,
+                //    any.a_char, 0, ATR_NONE, NO_COLOR,
+                //    available_chat_list[chatnum].name, MENU_UNSELECTED);
 
                 chatnum++;
 
                 Strcpy(available_chat_list[chatnum].name, "Identify weapons and armor");
                 available_chat_list[chatnum].function_ptr = &do_chat_smith_identify;
-                available_chat_list[chatnum].charnum = 'a' + chatnum;
+                //available_chat_list[chatnum].charnum = 'a' + chatnum;
                 available_chat_list[chatnum].stops_dialogue = FALSE;
+                available_chat_list[chatnum].category = CHAT_CATEGORY_SERVICE;
 
-                any = zeroany;
-                any.a_char = available_chat_list[chatnum].charnum;
+                //any = zeroany;
+                //any.a_char = available_chat_list[chatnum].charnum;
 
-                add_menu(win, NO_GLYPH, &any,
-                    any.a_char, 0, ATR_NONE, NO_COLOR,
-                    available_chat_list[chatnum].name, MENU_UNSELECTED);
+                //add_menu(win, NO_GLYPH, &any,
+                //    any.a_char, 0, ATR_NONE, NO_COLOR,
+                //    available_chat_list[chatnum].name, MENU_UNSELECTED);
 
                 chatnum++;
 
@@ -3799,114 +3918,122 @@ struct monst* mtmp;
                 Sprintf(sbuf, "Sell nuggets of armor ore to %s", noittame_mon_nam(mtmp));
                 Strcpy(available_chat_list[chatnum].name, sbuf);
                 available_chat_list[chatnum].function_ptr = &do_chat_smith_sell_ore;
-                available_chat_list[chatnum].charnum = 'a' + chatnum;
+                //available_chat_list[chatnum].charnum = 'a' + chatnum;
                 available_chat_list[chatnum].stops_dialogue = FALSE;
+                available_chat_list[chatnum].category = CHAT_CATEGORY_COMMERCE;
 
-                any = zeroany;
-                any.a_char = available_chat_list[chatnum].charnum;
+                //any = zeroany;
+                //any.a_char = available_chat_list[chatnum].charnum;
 
-                add_menu(win, NO_GLYPH, &any,
-                    any.a_char, 0, ATR_NONE, NO_COLOR,
-                    available_chat_list[chatnum].name, MENU_UNSELECTED);
+                //add_menu(win, NO_GLYPH, &any,
+                //    any.a_char, 0, ATR_NONE, NO_COLOR,
+                //    available_chat_list[chatnum].name, MENU_UNSELECTED);
 
                 chatnum++;
 
                 Sprintf(available_chat_list[chatnum].name, "Enchant a piece of armor");
                 available_chat_list[chatnum].function_ptr = &do_chat_smith_enchant_armor;
-                available_chat_list[chatnum].charnum = 'a' + chatnum;
+                //available_chat_list[chatnum].charnum = 'a' + chatnum;
                 available_chat_list[chatnum].stops_dialogue = FALSE;
+                available_chat_list[chatnum].category = CHAT_CATEGORY_SERVICE;
 
-                any = zeroany;
-                any.a_char = available_chat_list[chatnum].charnum;
+                //any = zeroany;
+                //any.a_char = available_chat_list[chatnum].charnum;
 
-                add_menu(win, NO_GLYPH, &any,
-                    any.a_char, 0, ATR_NONE, NO_COLOR,
-                    available_chat_list[chatnum].name, MENU_UNSELECTED);
+                //add_menu(win, NO_GLYPH, &any,
+                //    any.a_char, 0, ATR_NONE, NO_COLOR,
+                //    available_chat_list[chatnum].name, MENU_UNSELECTED);
 
                 chatnum++;
 
                 Sprintf(available_chat_list[chatnum].name, "Enchant a weapon");
                 available_chat_list[chatnum].function_ptr = &do_chat_smith_enchant_weapon;
-                available_chat_list[chatnum].charnum = 'a' + chatnum;
+                //available_chat_list[chatnum].charnum = 'a' + chatnum;
                 available_chat_list[chatnum].stops_dialogue = FALSE;
+                available_chat_list[chatnum].category = CHAT_CATEGORY_SERVICE;
 
-                any = zeroany;
-                any.a_char = available_chat_list[chatnum].charnum;
+                //any = zeroany;
+                //any.a_char = available_chat_list[chatnum].charnum;
 
-                add_menu(win, NO_GLYPH, &any,
-                    any.a_char, 0, ATR_NONE, NO_COLOR,
-                    available_chat_list[chatnum].name, MENU_UNSELECTED);
+                //add_menu(win, NO_GLYPH, &any,
+                //    any.a_char, 0, ATR_NONE, NO_COLOR,
+                //    available_chat_list[chatnum].name, MENU_UNSELECTED);
 
                 chatnum++;
 
                 Sprintf(available_chat_list[chatnum].name, "Repair a piece of armor");
                 available_chat_list[chatnum].function_ptr = &do_chat_smith_repair_armor;
-                available_chat_list[chatnum].charnum = 'a' + chatnum;
+                //available_chat_list[chatnum].charnum = 'a' + chatnum;
                 available_chat_list[chatnum].stops_dialogue = FALSE;
+                available_chat_list[chatnum].category = CHAT_CATEGORY_SERVICE;
 
-                any = zeroany;
-                any.a_char = available_chat_list[chatnum].charnum;
+                //any = zeroany;
+                //any.a_char = available_chat_list[chatnum].charnum;
 
-                add_menu(win, NO_GLYPH, &any,
-                    any.a_char, 0, ATR_NONE, NO_COLOR,
-                    available_chat_list[chatnum].name, MENU_UNSELECTED);
+                //add_menu(win, NO_GLYPH, &any,
+                //    any.a_char, 0, ATR_NONE, NO_COLOR,
+                //    available_chat_list[chatnum].name, MENU_UNSELECTED);
 
                 chatnum++;
 
                 Sprintf(available_chat_list[chatnum].name, "Repair a weapon");
                 available_chat_list[chatnum].function_ptr = &do_chat_smith_repair_weapon;
-                available_chat_list[chatnum].charnum = 'a' + chatnum;
+                //available_chat_list[chatnum].charnum = 'a' + chatnum;
                 available_chat_list[chatnum].stops_dialogue = FALSE;
+                available_chat_list[chatnum].category = CHAT_CATEGORY_SERVICE;
 
-                any = zeroany;
-                any.a_char = available_chat_list[chatnum].charnum;
+                //any = zeroany;
+                //any.a_char = available_chat_list[chatnum].charnum;
 
-                add_menu(win, NO_GLYPH, &any,
-                    any.a_char, 0, ATR_NONE, NO_COLOR,
-                    available_chat_list[chatnum].name, MENU_UNSELECTED);
+                //add_menu(win, NO_GLYPH, &any,
+                //    any.a_char, 0, ATR_NONE, NO_COLOR,
+                //    available_chat_list[chatnum].name, MENU_UNSELECTED);
 
                 chatnum++;
 
                 Sprintf(available_chat_list[chatnum].name, "Protect a piece of armor");
                 available_chat_list[chatnum].function_ptr = &do_chat_smith_protect_armor;
-                available_chat_list[chatnum].charnum = 'a' + chatnum;
+                //available_chat_list[chatnum].charnum = 'a' + chatnum;
                 available_chat_list[chatnum].stops_dialogue = FALSE;
+                available_chat_list[chatnum].category = CHAT_CATEGORY_SERVICE;
 
-                any = zeroany;
-                any.a_char = available_chat_list[chatnum].charnum;
+                //any = zeroany;
+                //any.a_char = available_chat_list[chatnum].charnum;
 
-                add_menu(win, NO_GLYPH, &any,
-                    any.a_char, 0, ATR_NONE, NO_COLOR,
-                    available_chat_list[chatnum].name, MENU_UNSELECTED);
+                //add_menu(win, NO_GLYPH, &any,
+                //    any.a_char, 0, ATR_NONE, NO_COLOR,
+                //    available_chat_list[chatnum].name, MENU_UNSELECTED);
 
                 chatnum++;
 
                 Sprintf(available_chat_list[chatnum].name, "Protect a weapon");
                 available_chat_list[chatnum].function_ptr = &do_chat_smith_protect_weapon;
-                available_chat_list[chatnum].charnum = 'a' + chatnum;
+                //available_chat_list[chatnum].charnum = 'a' + chatnum;
                 available_chat_list[chatnum].stops_dialogue = FALSE;
+                available_chat_list[chatnum].category = CHAT_CATEGORY_SERVICE;
 
-                any = zeroany;
-                any.a_char = available_chat_list[chatnum].charnum;
+                //any = zeroany;
+                //any.a_char = available_chat_list[chatnum].charnum;
 
-                add_menu(win, NO_GLYPH, &any,
-                    any.a_char, 0, ATR_NONE, NO_COLOR,
-                    available_chat_list[chatnum].name, MENU_UNSELECTED);
+                //add_menu(win, NO_GLYPH, &any,
+                //    any.a_char, 0, ATR_NONE, NO_COLOR,
+                //    available_chat_list[chatnum].name, MENU_UNSELECTED);
 
                 chatnum++;
 
 
                 Sprintf(available_chat_list[chatnum].name, "Refill oil for a lamp or lantern");
                 available_chat_list[chatnum].function_ptr = &do_chat_smith_refill_lantern;
-                available_chat_list[chatnum].charnum = 'a' + chatnum;
+                //available_chat_list[chatnum].charnum = 'a' + chatnum;
                 available_chat_list[chatnum].stops_dialogue = FALSE;
+                available_chat_list[chatnum].category = CHAT_CATEGORY_SERVICE;
 
-                any = zeroany;
-                any.a_char = available_chat_list[chatnum].charnum;
+                //any = zeroany;
+                //any.a_char = available_chat_list[chatnum].charnum;
 
-                add_menu(win, NO_GLYPH, &any,
-                    any.a_char, 0, ATR_NONE, NO_COLOR,
-                    available_chat_list[chatnum].name, MENU_UNSELECTED);
+                //add_menu(win, NO_GLYPH, &any,
+                //    any.a_char, 0, ATR_NONE, NO_COLOR,
+                //    available_chat_list[chatnum].name, MENU_UNSELECTED);
 
                 chatnum++;
 
@@ -3920,15 +4047,16 @@ struct monst* mtmp;
             {
                 Strcpy(available_chat_list[chatnum].name, "Offer research support");
                 available_chat_list[chatnum].function_ptr = &do_chat_quantum_mechanic_research_support;
-                available_chat_list[chatnum].charnum = 'a' + chatnum;
+                //available_chat_list[chatnum].charnum = 'a' + chatnum;
                 available_chat_list[chatnum].stops_dialogue = FALSE;
+                available_chat_list[chatnum].category = CHAT_CATEGORY_COMMERCE;
 
-                any = zeroany;
-                any.a_char = available_chat_list[chatnum].charnum;
+                //any = zeroany;
+                //any.a_char = available_chat_list[chatnum].charnum;
 
-                add_menu(win, NO_GLYPH, &any,
-                    any.a_char, 0, ATR_NONE, NO_COLOR,
-                    available_chat_list[chatnum].name, MENU_UNSELECTED);
+                //add_menu(win, NO_GLYPH, &any,
+                //    any.a_char, 0, ATR_NONE, NO_COLOR,
+                //    available_chat_list[chatnum].name, MENU_UNSELECTED);
 
                 chatnum++;
             }
@@ -3936,29 +4064,31 @@ struct monst* mtmp;
             {
                 Strcpy(available_chat_list[chatnum].name, "Ask to observe your position");
                 available_chat_list[chatnum].function_ptr = &do_chat_quantum_observe_position;
-                available_chat_list[chatnum].charnum = 'a' + chatnum;
+                //available_chat_list[chatnum].charnum = 'a' + chatnum;
                 available_chat_list[chatnum].stops_dialogue = TRUE;
+                available_chat_list[chatnum].category = CHAT_CATEGORY_SERVICE;
 
-                any = zeroany;
-                any.a_char = available_chat_list[chatnum].charnum;
+                //any = zeroany;
+                //any.a_char = available_chat_list[chatnum].charnum;
 
-                add_menu(win, NO_GLYPH, &any,
-                    any.a_char, 0, ATR_NONE, NO_COLOR,
-                    available_chat_list[chatnum].name, MENU_UNSELECTED);
+                //add_menu(win, NO_GLYPH, &any,
+                //    any.a_char, 0, ATR_NONE, NO_COLOR,
+                //    available_chat_list[chatnum].name, MENU_UNSELECTED);
 
                 chatnum++;
 
                 Strcpy(available_chat_list[chatnum].name, "Ask to observe your speed");
                 available_chat_list[chatnum].function_ptr = &do_chat_quantum_observe_speed;
-                available_chat_list[chatnum].charnum = 'a' + chatnum;
+                //available_chat_list[chatnum].charnum = 'a' + chatnum;
                 available_chat_list[chatnum].stops_dialogue = TRUE;
+                available_chat_list[chatnum].category = CHAT_CATEGORY_SERVICE;
 
-                any = zeroany;
-                any.a_char = available_chat_list[chatnum].charnum;
+                //any = zeroany;
+                //any.a_char = available_chat_list[chatnum].charnum;
 
-                add_menu(win, NO_GLYPH, &any,
-                    any.a_char, 0, ATR_NONE, NO_COLOR,
-                    available_chat_list[chatnum].name, MENU_UNSELECTED);
+                //add_menu(win, NO_GLYPH, &any,
+                //    any.a_char, 0, ATR_NONE, NO_COLOR,
+                //    available_chat_list[chatnum].name, MENU_UNSELECTED);
 
                 chatnum++;
             }
@@ -3971,15 +4101,16 @@ struct monst* mtmp;
             {
                 Strcpy(available_chat_list[chatnum].name, "Ask for reconciliation");
                 available_chat_list[chatnum].function_ptr = &do_chat_npc_reconciliation;
-                available_chat_list[chatnum].charnum = 'a' + chatnum;
+                //available_chat_list[chatnum].charnum = 'a' + chatnum;
                 available_chat_list[chatnum].stops_dialogue = TRUE;
+                available_chat_list[chatnum].category = CHAT_CATEGORY_COMMERCE;
 
-                any = zeroany;
-                any.a_char = available_chat_list[chatnum].charnum;
+                //any = zeroany;
+                //any.a_char = available_chat_list[chatnum].charnum;
 
-                add_menu(win, NO_GLYPH, &any,
-                    any.a_char, 0, ATR_NONE, NO_COLOR,
-                    available_chat_list[chatnum].name, MENU_UNSELECTED);
+                //add_menu(win, NO_GLYPH, &any,
+                //    any.a_char, 0, ATR_NONE, NO_COLOR,
+                //    available_chat_list[chatnum].name, MENU_UNSELECTED);
 
                 chatnum++;
             }
@@ -3990,15 +4121,16 @@ struct monst* mtmp;
                 {
                     Sprintf(available_chat_list[chatnum].name, "Enchant an accessory");
                     available_chat_list[chatnum].function_ptr = &do_chat_npc_enchant_accessory;
-                    available_chat_list[chatnum].charnum = 'a' + chatnum;
+                    //available_chat_list[chatnum].charnum = 'a' + chatnum;
                     available_chat_list[chatnum].stops_dialogue = FALSE;
+                    available_chat_list[chatnum].category = CHAT_CATEGORY_SERVICE;
 
-                    any = zeroany;
-                    any.a_char = available_chat_list[chatnum].charnum;
+                    //any = zeroany;
+                    //any.a_char = available_chat_list[chatnum].charnum;
 
-                    add_menu(win, NO_GLYPH, &any,
-                        any.a_char, 0, ATR_NONE, NO_COLOR,
-                        available_chat_list[chatnum].name, MENU_UNSELECTED);
+                    //add_menu(win, NO_GLYPH, &any,
+                    //    any.a_char, 0, ATR_NONE, NO_COLOR,
+                    //    available_chat_list[chatnum].name, MENU_UNSELECTED);
 
                     chatnum++;
 
@@ -4008,15 +4140,16 @@ struct monst* mtmp;
                 {
                     Sprintf(available_chat_list[chatnum].name, "Recharge an item");
                     available_chat_list[chatnum].function_ptr = &do_chat_npc_recharge;
-                    available_chat_list[chatnum].charnum = 'a' + chatnum;
+                    //available_chat_list[chatnum].charnum = 'a' + chatnum;
                     available_chat_list[chatnum].stops_dialogue = FALSE;
+                    available_chat_list[chatnum].category = CHAT_CATEGORY_SERVICE;
 
-                    any = zeroany;
-                    any.a_char = available_chat_list[chatnum].charnum;
+                    //any = zeroany;
+                    //any.a_char = available_chat_list[chatnum].charnum;
 
-                    add_menu(win, NO_GLYPH, &any,
-                        any.a_char, 0, ATR_NONE, NO_COLOR,
-                        available_chat_list[chatnum].name, MENU_UNSELECTED);
+                    //add_menu(win, NO_GLYPH, &any,
+                    //    any.a_char, 0, ATR_NONE, NO_COLOR,
+                    //    available_chat_list[chatnum].name, MENU_UNSELECTED);
 
                     chatnum++;
                 }
@@ -4025,34 +4158,36 @@ struct monst* mtmp;
                 {
                     Sprintf(available_chat_list[chatnum].name, "Fully recharge an item");
                     available_chat_list[chatnum].function_ptr = &do_chat_npc_blessed_recharge;
-                    available_chat_list[chatnum].charnum = 'a' + chatnum;
+                    //available_chat_list[chatnum].charnum = 'a' + chatnum;
                     available_chat_list[chatnum].stops_dialogue = FALSE;
+                    available_chat_list[chatnum].category = CHAT_CATEGORY_SERVICE;
 
-                    any = zeroany;
-                    any.a_char = available_chat_list[chatnum].charnum;
+                    //any = zeroany;
+                    //any.a_char = available_chat_list[chatnum].charnum;
 
-                    add_menu(win, NO_GLYPH, &any,
-                        any.a_char, 0, ATR_NONE, NO_COLOR,
-                        available_chat_list[chatnum].name, MENU_UNSELECTED);
+                    //add_menu(win, NO_GLYPH, &any,
+                    //    any.a_char, 0, ATR_NONE, NO_COLOR,
+                    //    available_chat_list[chatnum].name, MENU_UNSELECTED);
 
                     chatnum++;
                 }
 
                 if (npc_subtype_definitions[ENPC(mtmp)->npc_typ].service_flags & NPC_SERVICE_IDENTIFY_GEMS_AND_STONES)
                 {
-                    char sbuf[BUFSZ * 2];
+                    char sbuf[BUFSZ];
                     Sprintf(sbuf, "Identify gems and stones");
                     Strcpy(available_chat_list[chatnum].name, sbuf);
                     available_chat_list[chatnum].function_ptr = &do_chat_npc_identify_gems_and_stones;
-                    available_chat_list[chatnum].charnum = 'a' + chatnum;
+                    //available_chat_list[chatnum].charnum = 'a' + chatnum;
                     available_chat_list[chatnum].stops_dialogue = FALSE;
+                    available_chat_list[chatnum].category = CHAT_CATEGORY_SERVICE;
 
-                    any = zeroany;
-                    any.a_char = available_chat_list[chatnum].charnum;
+                    //any = zeroany;
+                    //any.a_char = available_chat_list[chatnum].charnum;
 
-                    add_menu(win, NO_GLYPH, &any,
-                        any.a_char, 0, ATR_NONE, NO_COLOR,
-                        available_chat_list[chatnum].name, MENU_UNSELECTED);
+                    //add_menu(win, NO_GLYPH, &any,
+                    //    any.a_char, 0, ATR_NONE, NO_COLOR,
+                    //    available_chat_list[chatnum].name, MENU_UNSELECTED);
 
                     chatnum++;
                 }
@@ -4063,15 +4198,16 @@ struct monst* mtmp;
                     Sprintf(sbuf, "Sell gems and stones to %s", noittame_mon_nam(mtmp));
                     Strcpy(available_chat_list[chatnum].name, sbuf);
                     available_chat_list[chatnum].function_ptr = &do_chat_npc_sell_gems_and_stones;
-                    available_chat_list[chatnum].charnum = 'a' + chatnum;
+                    //available_chat_list[chatnum].charnum = 'a' + chatnum;
                     available_chat_list[chatnum].stops_dialogue = FALSE;
+                    available_chat_list[chatnum].category = CHAT_CATEGORY_COMMERCE;
 
-                    any = zeroany;
-                    any.a_char = available_chat_list[chatnum].charnum;
+                    //any = zeroany;
+                    //any.a_char = available_chat_list[chatnum].charnum;
 
-                    add_menu(win, NO_GLYPH, &any,
-                        any.a_char, 0, ATR_NONE, NO_COLOR,
-                        available_chat_list[chatnum].name, MENU_UNSELECTED);
+                    //add_menu(win, NO_GLYPH, &any,
+                    //    any.a_char, 0, ATR_NONE, NO_COLOR,
+                    //    available_chat_list[chatnum].name, MENU_UNSELECTED);
 
                     chatnum++;
                 }
@@ -4080,15 +4216,16 @@ struct monst* mtmp;
                 {
                     Sprintf(available_chat_list[chatnum].name, "Forge sling-bullets");
                     available_chat_list[chatnum].function_ptr = &do_chat_npc_forge_sling_bullets;
-                    available_chat_list[chatnum].charnum = 'a' + chatnum;
+                    //available_chat_list[chatnum].charnum = 'a' + chatnum;
                     available_chat_list[chatnum].stops_dialogue = FALSE;
+                    available_chat_list[chatnum].category = CHAT_CATEGORY_SERVICE;
 
-                    any = zeroany;
-                    any.a_char = available_chat_list[chatnum].charnum;
+                    //any = zeroany;
+                    //any.a_char = available_chat_list[chatnum].charnum;
 
-                    add_menu(win, NO_GLYPH, &any,
-                        any.a_char, 0, ATR_NONE, NO_COLOR,
-                        available_chat_list[chatnum].name, MENU_UNSELECTED);
+                    //add_menu(win, NO_GLYPH, &any,
+                    //    any.a_char, 0, ATR_NONE, NO_COLOR,
+                    //    available_chat_list[chatnum].name, MENU_UNSELECTED);
 
                     chatnum++;
                 }
@@ -4097,15 +4234,16 @@ struct monst* mtmp;
                 {
                     Sprintf(available_chat_list[chatnum].name, "Forge a cubic gate");
                     available_chat_list[chatnum].function_ptr = &do_chat_npc_forge_cubic_gate;
-                    available_chat_list[chatnum].charnum = 'a' + chatnum;
+                    //available_chat_list[chatnum].charnum = 'a' + chatnum;
                     available_chat_list[chatnum].stops_dialogue = FALSE;
+                    available_chat_list[chatnum].category = CHAT_CATEGORY_SERVICE;
 
-                    any = zeroany;
-                    any.a_char = available_chat_list[chatnum].charnum;
+                    //any = zeroany;
+                    //any.a_char = available_chat_list[chatnum].charnum;
 
-                    add_menu(win, NO_GLYPH, &any,
-                        any.a_char, 0, ATR_NONE, NO_COLOR,
-                        available_chat_list[chatnum].name, MENU_UNSELECTED);
+                    //add_menu(win, NO_GLYPH, &any,
+                    //    any.a_char, 0, ATR_NONE, NO_COLOR,
+                    //    available_chat_list[chatnum].name, MENU_UNSELECTED);
 
                     chatnum++;
                 }
@@ -4114,15 +4252,16 @@ struct monst* mtmp;
                 {
                     Sprintf(available_chat_list[chatnum].name, "Forge a pair of artificial wings");
                     available_chat_list[chatnum].function_ptr = &do_chat_npc_forge_artificial_wings;
-                    available_chat_list[chatnum].charnum = 'a' + chatnum;
+                    //available_chat_list[chatnum].charnum = 'a' + chatnum;
                     available_chat_list[chatnum].stops_dialogue = FALSE;
+                    available_chat_list[chatnum].category = CHAT_CATEGORY_SERVICE;
 
-                    any = zeroany;
-                    any.a_char = available_chat_list[chatnum].charnum;
+                    //any = zeroany;
+                    //any.a_char = available_chat_list[chatnum].charnum;
 
-                    add_menu(win, NO_GLYPH, &any,
-                        any.a_char, 0, ATR_NONE, NO_COLOR,
-                        available_chat_list[chatnum].name, MENU_UNSELECTED);
+                    //add_menu(win, NO_GLYPH, &any,
+                    //    any.a_char, 0, ATR_NONE, NO_COLOR,
+                    //    available_chat_list[chatnum].name, MENU_UNSELECTED);
 
                     chatnum++;
                 }
@@ -4133,15 +4272,16 @@ struct monst* mtmp;
                     Sprintf(sbuf, "Sell dilithium crystals and other gems to %s", noittame_mon_nam(mtmp));
                     Strcpy(available_chat_list[chatnum].name, sbuf);
                     available_chat_list[chatnum].function_ptr = &do_chat_npc_sell_dilithium_crystals;
-                    available_chat_list[chatnum].charnum = 'a' + chatnum;
+                    //available_chat_list[chatnum].charnum = 'a' + chatnum;
                     available_chat_list[chatnum].stops_dialogue = FALSE;
+                    available_chat_list[chatnum].category = CHAT_CATEGORY_COMMERCE;
 
-                    any = zeroany;
-                    any.a_char = available_chat_list[chatnum].charnum;
+                    //any = zeroany;
+                    //any.a_char = available_chat_list[chatnum].charnum;
 
-                    add_menu(win, NO_GLYPH, &any,
-                        any.a_char, 0, ATR_NONE, NO_COLOR,
-                        available_chat_list[chatnum].name, MENU_UNSELECTED);
+                    //add_menu(win, NO_GLYPH, &any,
+                    //    any.a_char, 0, ATR_NONE, NO_COLOR,
+                    //    available_chat_list[chatnum].name, MENU_UNSELECTED);
 
                     chatnum++;
                 }
@@ -4152,53 +4292,56 @@ struct monst* mtmp;
                     Sprintf(sbuf, "Sell spellbooks to %s", noittame_mon_nam(mtmp));
                     Strcpy(available_chat_list[chatnum].name, sbuf);
                     available_chat_list[chatnum].function_ptr = &do_chat_npc_sell_spellbooks;
-                    available_chat_list[chatnum].charnum = 'a' + chatnum;
+                    //available_chat_list[chatnum].charnum = 'a' + chatnum;
                     available_chat_list[chatnum].stops_dialogue = FALSE;
+                    available_chat_list[chatnum].category = CHAT_CATEGORY_COMMERCE;
 
-                    any = zeroany;
-                    any.a_char = available_chat_list[chatnum].charnum;
+                    //any = zeroany;
+                    //any.a_char = available_chat_list[chatnum].charnum;
 
-                    add_menu(win, NO_GLYPH, &any,
-                        any.a_char, 0, ATR_NONE, NO_COLOR,
-                        available_chat_list[chatnum].name, MENU_UNSELECTED);
+                    //add_menu(win, NO_GLYPH, &any,
+                    //    any.a_char, 0, ATR_NONE, NO_COLOR,
+                    //    available_chat_list[chatnum].name, MENU_UNSELECTED);
 
                     chatnum++;
                 }
 
                 if (npc_subtype_definitions[ENPC(mtmp)->npc_typ].service_flags & NPC_SERVICE_IDENTIFY_ACCESSORIES_AND_CHARGED_ITEMS)
                 {
-                    char sbuf[BUFSZ * 2];
+                    char sbuf[BUFSZ];
                     Sprintf(sbuf, "Identify accessories and charged items");
                     Strcpy(available_chat_list[chatnum].name, sbuf);
                     available_chat_list[chatnum].function_ptr = &do_chat_npc_identify_accessories_and_charged_items;
-                    available_chat_list[chatnum].charnum = 'a' + chatnum;
+                    //available_chat_list[chatnum].charnum = 'a' + chatnum;
                     available_chat_list[chatnum].stops_dialogue = FALSE;
+                    available_chat_list[chatnum].category = CHAT_CATEGORY_SERVICE;
 
-                    any = zeroany;
-                    any.a_char = available_chat_list[chatnum].charnum;
+                    //any = zeroany;
+                    //any.a_char = available_chat_list[chatnum].charnum;
 
-                    add_menu(win, NO_GLYPH, &any,
-                        any.a_char, 0, ATR_NONE, NO_COLOR,
-                        available_chat_list[chatnum].name, MENU_UNSELECTED);
+                    //add_menu(win, NO_GLYPH, &any,
+                    //    any.a_char, 0, ATR_NONE, NO_COLOR,
+                    //    available_chat_list[chatnum].name, MENU_UNSELECTED);
 
                     chatnum++;
                 }
 
                 if (npc_subtype_definitions[ENPC(mtmp)->npc_typ].service_flags & NPC_SERVICE_IDENTIFY_GEMS_STONES_AND_CHARGED_ITEMS)
                 {
-                    char sbuf[BUFSZ * 2];
+                    char sbuf[BUFSZ];
                     Sprintf(sbuf, "Identify gems, stones and charged items");
                     Strcpy(available_chat_list[chatnum].name, sbuf);
                     available_chat_list[chatnum].function_ptr = &do_chat_npc_identify_gems_stones_and_charged_items;
-                    available_chat_list[chatnum].charnum = 'a' + chatnum;
+                    //available_chat_list[chatnum].charnum = 'a' + chatnum;
                     available_chat_list[chatnum].stops_dialogue = FALSE;
+                    available_chat_list[chatnum].category = CHAT_CATEGORY_SERVICE;
 
-                    any = zeroany;
-                    any.a_char = available_chat_list[chatnum].charnum;
+                    //any = zeroany;
+                    //any.a_char = available_chat_list[chatnum].charnum;
 
-                    add_menu(win, NO_GLYPH, &any,
-                        any.a_char, 0, ATR_NONE, NO_COLOR,
-                        available_chat_list[chatnum].name, MENU_UNSELECTED);
+                    //add_menu(win, NO_GLYPH, &any,
+                    //    any.a_char, 0, ATR_NONE, NO_COLOR,
+                    //    available_chat_list[chatnum].name, MENU_UNSELECTED);
 
                     chatnum++;
                 }
@@ -4207,33 +4350,35 @@ struct monst* mtmp;
                 {
                     Sprintf(available_chat_list[chatnum].name, "Open a branch portal");
                     available_chat_list[chatnum].function_ptr = &do_chat_npc_branch_portal;
-                    available_chat_list[chatnum].charnum = 'a' + chatnum;
+                    //available_chat_list[chatnum].charnum = 'a' + chatnum;
                     available_chat_list[chatnum].stops_dialogue = TRUE;
+                    available_chat_list[chatnum].category = CHAT_CATEGORY_SERVICE;
 
-                    any = zeroany;
-                    any.a_char = available_chat_list[chatnum].charnum;
+                    //any = zeroany;
+                    //any.a_char = available_chat_list[chatnum].charnum;
 
-                    add_menu(win, NO_GLYPH, &any,
-                        any.a_char, 0, ATR_NONE, NO_COLOR,
-                        available_chat_list[chatnum].name, MENU_UNSELECTED);
+                    //add_menu(win, NO_GLYPH, &any,
+                    //    any.a_char, 0, ATR_NONE, NO_COLOR,
+                    //    available_chat_list[chatnum].name, MENU_UNSELECTED);
 
                     chatnum++;
                 }
 
                 if (npc_subtype_definitions[ENPC(mtmp)->npc_typ].service_flags & NPC_SERVICE_TEACH_SPELLS_MASK)
                 {
-                    char sbuf[BUFSZ * 2];
+                    char sbuf[BUFSZ];
                     Sprintf(sbuf, "Teach spells");
                     Strcpy(available_chat_list[chatnum].name, sbuf);
                     available_chat_list[chatnum].function_ptr = &do_chat_npc_teach_spells;
-                    available_chat_list[chatnum].charnum = 'a' + chatnum;
+                    //available_chat_list[chatnum].charnum = 'a' + chatnum;
+                    available_chat_list[chatnum].category = CHAT_CATEGORY_SERVICE;
 
-                    any = zeroany;
-                    any.a_char = available_chat_list[chatnum].charnum;
+                    //any = zeroany;
+                    //any.a_char = available_chat_list[chatnum].charnum;
 
-                    add_menu(win, NO_GLYPH, &any,
-                        any.a_char, 0, ATR_NONE, NO_COLOR,
-                        available_chat_list[chatnum].name, MENU_UNSELECTED);
+                    //add_menu(win, NO_GLYPH, &any,
+                    //    any.a_char, 0, ATR_NONE, NO_COLOR,
+                    //    available_chat_list[chatnum].name, MENU_UNSELECTED);
 
                     chatnum++;
                 }
@@ -4250,15 +4395,16 @@ struct monst* mtmp;
             {
                 Strcpy(available_chat_list[chatnum].name, "Ask for reconciliation");
                 available_chat_list[chatnum].function_ptr = &do_chat_watchman_reconciliation;
-                available_chat_list[chatnum].charnum = 'a' + chatnum;
+                //available_chat_list[chatnum].charnum = 'a' + chatnum;
                 available_chat_list[chatnum].stops_dialogue = TRUE;
+                available_chat_list[chatnum].category = CHAT_CATEGORY_COMMERCE;
 
-                any = zeroany;
-                any.a_char = available_chat_list[chatnum].charnum;
+                //any = zeroany;
+                //any.a_char = available_chat_list[chatnum].charnum;
 
-                add_menu(win, NO_GLYPH, &any,
-                    any.a_char, 0, ATR_NONE, NO_COLOR,
-                    available_chat_list[chatnum].name, MENU_UNSELECTED);
+                //add_menu(win, NO_GLYPH, &any,
+                //    any.a_char, 0, ATR_NONE, NO_COLOR,
+                //    available_chat_list[chatnum].name, MENU_UNSELECTED);
 
                 chatnum++;
             }
@@ -4268,16 +4414,73 @@ struct monst* mtmp;
         {
             Strcpy(available_chat_list[chatnum].name, "Display statistics");
             available_chat_list[chatnum].function_ptr = &monsterdescription;
-            available_chat_list[chatnum].charnum = 'a' + chatnum;
+            //available_chat_list[chatnum].charnum = 'a' + chatnum;
+            available_chat_list[chatnum].category = CHAT_CATEGORY_STATISTICS;
 
-            any = zeroany;
-            any.a_char = available_chat_list[chatnum].charnum;
+            //any = zeroany;
+            //any.a_char = available_chat_list[chatnum].charnum;
 
-            add_menu(win, NO_GLYPH, &any,
-                any.a_char, 0, ATR_NONE, NO_COLOR,
-                available_chat_list[chatnum].name, MENU_UNSELECTED);
+            //add_menu(win, NO_GLYPH, &any,
+            //    any.a_char, 0, ATR_NONE, NO_COLOR,
+            //    available_chat_list[chatnum].name, MENU_UNSELECTED);
 
             chatnum++;
+
+            /* Last, display inventory */
+            if (mtmp->minvent)
+            {
+                Strcpy(available_chat_list[chatnum].name, "Display inventory");
+                available_chat_list[chatnum].function_ptr = &do_chat_pet_display_inventory;
+                //available_chat_list[chatnum].charnum = 'a' + chatnum;
+                available_chat_list[chatnum].category = CHAT_CATEGORY_STATISTICS;
+
+                //any = zeroany;
+                //any.a_char = available_chat_list[chatnum].charnum;
+
+                //add_menu(win, NO_GLYPH, &any,
+                //    any.a_char, 0, ATR_NONE, NO_COLOR,
+                //    available_chat_list[chatnum].name, MENU_UNSELECTED);
+
+                chatnum++;
+            }
+        }
+
+        if (chatnum > 0)
+        {
+            qsort(available_chat_list, chatnum, sizeof(struct available_chat_item), available_chat_cmp);
+
+            int j;
+            schar prev_category = -1;
+            for (j = 0; j < chatnum; j++)
+            {
+                if (available_chat_list[j].category != prev_category && available_chat_list[j].category >= 0 && available_chat_list[j].category < NUM_CHAT_CATEGORIES && available_chat_category_titles[available_chat_list[j].category] != 0)
+                {
+                    any = zeroany;
+                    add_extended_menu(win, NO_GLYPH, &any,
+                        0, 0, iflags.menu_headings | ATR_HEADING, NO_COLOR,
+                        available_chat_category_titles[available_chat_list[j].category], MENU_UNSELECTED, menu_heading_info());
+                }
+
+                any = zeroany;
+                any.a_char = available_chat_list[j].charnum = 'a' + j;
+                if (available_chat_list[j].using_menu_color || available_chat_list[j].using_special_symbols)
+                {
+                    int mcolor = available_chat_list[j].using_menu_color ? available_chat_list[j].color : NO_COLOR;
+                    struct extended_menu_info minfo = zeroextendedmenuinfo;
+                    if (available_chat_list[j].using_special_symbols)
+                        minfo.menu_flags |= MENU_FLAGS_USE_SPECIAL_SYMBOLS;
+                    add_extended_menu(win, NO_GLYPH, &any,
+                        any.a_char, 0, ATR_NONE, mcolor,
+                        available_chat_list[j].name, MENU_UNSELECTED, minfo);
+                }
+                else
+                {
+                    add_menu(win, NO_GLYPH, &any,
+                        any.a_char, 0, ATR_NONE, NO_COLOR,
+                        available_chat_list[j].name, MENU_UNSELECTED);
+                }
+                prev_category = available_chat_list[j].category;
+            }
         }
 
         /* Finish the menu */
@@ -5337,7 +5540,7 @@ struct monst* mtmp;
     /* should coordinate with perm invent, maybe not show worn items */
     n = query_objlist(qbuf, &invent,
         (USE_INVLET | INVORDER_SORT | OBJECT_COMPARISON), &pick_list, PICK_ANY,
-        allow_all, 3);
+        allow_all, SHOWWEIGHTS_DROP);
     if (n > 0) 
     {
         bypass_objlist(invent, TRUE);
@@ -5478,7 +5681,7 @@ struct monst* mtmp;
 
     n = query_objlist(qbuf, &invent,
         (USE_INVLET | INVORDER_SORT), &pick_list, PICK_ONE,
-        allow_category, 3);
+        allow_category, SHOWWEIGHTS_DROP);
 
     if (n > 0)
     {
@@ -5742,7 +5945,7 @@ struct monst* mtmp;
     case 1:
         Strcpy(qbuf, "Which potion would you like to dip items into?");
         n = query_objlist(qbuf, &invent, (SIGNAL_NOMENU | SIGNAL_ESCAPE | USE_INVLET | INVORDER_SORT),
-            &pick_list, PICK_ONE, is_potion_of_water, 0);
+            &pick_list, PICK_ONE, is_potion_of_water, SHOWWEIGHTS_NONE);
         if (n && pick_list && pick_list[0].item.a_obj)
         {
             otmp = pick_list[0].item.a_obj;
@@ -5750,7 +5953,7 @@ struct monst* mtmp;
             pick_list = 0;
             Sprintf(qbuf, "What would you like to dip into %s?", the(cxname(otmp)));
             n = query_objlist(qbuf, &mtmp->minvent, (SIGNAL_NOMENU | SIGNAL_ESCAPE | USE_INVLET | INVORDER_SORT),
-                &pick_list, PICK_ONE, allow_all, 0);
+                &pick_list, PICK_ONE, allow_all, SHOWWEIGHTS_NONE);
             if (n && pick_list && pick_list[0].item.a_obj)
             {
                 struct obj* obj = pick_list[0].item.a_obj;
@@ -5759,6 +5962,7 @@ struct monst* mtmp;
                 const char* obj_glows = Yobjnam2(obj, "glow");
                 if (H2Opotion_dip(otmp, obj, TRUE, obj_glows))
                 {
+                    Sprintf(priority_debug_buf_2, "do_chat_uncurse_items: %d", otmp->otyp);
                     useup(otmp);
                     return 1;
                 }
@@ -5768,7 +5972,7 @@ struct monst* mtmp;
     case 2:
         Sprintf(qbuf, "Which scroll would you like to have %s read?", mon_nam(mtmp));
         n = query_objlist(qbuf, &invent, (SIGNAL_NOMENU | SIGNAL_ESCAPE | USE_INVLET | INVORDER_SORT),
-            &pick_list, PICK_ONE, is_scroll_of_remove_curse, 0);
+            &pick_list, PICK_ONE, is_scroll_of_remove_curse, SHOWWEIGHTS_NONE);
         if (n && pick_list && pick_list[0].item.a_obj)
         {
             otmp = pick_list[0].item.a_obj;
@@ -5777,6 +5981,7 @@ struct monst* mtmp;
             if (otmp->otyp == SCR_REMOVE_CURSE)
             {
                 (void)remove_curse(otmp, mtmp, !!mtmp->mprops[CONFUSION]);
+                Sprintf(priority_debug_buf_2, "do_chat_uncurse_items2: %d", otmp->otyp);
                 useup(otmp);
                 otmp = 0;
             }
@@ -5838,7 +6043,7 @@ struct monst* mtmp;
 
     n = query_objlist(qbuf, &invent,
         (USE_INVLET | INVORDER_SORT), &pick_list, PICK_ONE,
-        allow_category, 3);
+        allow_category, SHOWWEIGHTS_DROP);
 
     boolean res = 0;
     if (n > 0)
@@ -6234,8 +6439,10 @@ struct monst* mtmp;
         play_monster_standard_dialogue_line(mtmp, MONSTER_STANDARD_DIALOGUE_LINE_I_CAN_JOIN_YOU);
         Sprintf(qbuf, "\"I can join you for a fee of %lld %s. Is this acceptable?\"", (long long)join_cost, currency(join_cost));
     }
+
     switch (yn_query_mon(mtmp, qbuf)) {
     default:
+        stop_all_dialogue_of_mon_on_mobile(mtmp);
         return 0;
     case 'y':
         if (join_cost > 0)
@@ -6244,6 +6451,7 @@ struct monst* mtmp;
             {
                 play_sfx_sound(SFX_NOT_ENOUGH_MONEY);
                 You_ex1_popup("don't have enough money for that!", "Not Enough Money", ATR_NONE, CLR_MSG_FAIL, NO_GLYPH, POPUP_FLAGS_NONE);
+                stop_all_dialogue_of_mon_on_mobile(mtmp);
                 return 0;
             }
             u_pay = join_cost;
@@ -6268,12 +6476,10 @@ struct monst* mtmp;
             Sprintf(jbuf, "%s takes your money but refuses join your party after all!", noittame_Monnam(mtmp));
             popup_talk_line_ex(mtmp, jbuf, ATR_NONE, NO_COLOR, TRUE, FALSE);
         }
-        return 1;
-
         break;
     }
-
-    return 0; 
+    stop_all_dialogue_of_mon_on_mobile(mtmp);
+    return 1;
 }
 
 STATIC_OVL int
@@ -6323,9 +6529,11 @@ struct monst* mtmp;
         play_monster_standard_dialogue_line(mtmp, MONSTER_STANDARD_DIALOGUE_LINE_I_CAN_EXPLAIN_MY_STATISTICS);
         Sprintf(qbuf, "\"I can explain my statistics to you for a fee of %lld %s.\" Do you accept?", (long long)explain_cost, currency(explain_cost));
     }
+
     switch (yn_query_mon(mtmp, qbuf))
     {
     default:
+        stop_all_dialogue_of_mon_on_mobile(mtmp);
         return 0;
     case 'y':
         if (umoney < explain_cost)
@@ -6339,9 +6547,10 @@ struct monst* mtmp;
         money2mon(mtmp, u_pay);
         bot();
         monsterdescription(mtmp);
+        stop_all_dialogue_of_mon_on_mobile(mtmp);
         return 1;
     }
-
+    //stop_all_dialogue_of_mon_on_mobile(mtmp);
     return 0;
 }
 
@@ -6594,15 +6803,17 @@ struct monst* mtmp;
                 //pline("%s nods appreciatively at you for the purchase!", Monnam(mtmp));
             }
         }
-
+        stop_all_dialogue_of_mon_on_mobile(mtmp);
         if (buy_count > 0)
             return 1;
         else
             return 0;
     }
     else
+    {
+        stop_all_dialogue_of_mon_on_mobile(mtmp);
         return 0;
-
+    }
 }
 
 
@@ -6914,11 +7125,13 @@ struct monst* mtmp;
     switch (ynq_mon(mtmp, qbuf)) {
     default:
     case 'q':
+        stop_all_dialogue_of_mon_on_mobile(mtmp);
         return 0;
     case 'y':
             if (umoney < bless_cost) {
                 play_sfx_sound(SFX_NOT_ENOUGH_MONEY);
                 You_ex1_popup("don't have enough money for that!", "Not Enough Money", ATR_NONE, CLR_MSG_FAIL, NO_GLYPH, POPUP_FLAGS_NONE);
+                stop_all_dialogue_of_mon_on_mobile(mtmp);
                 return 0;
             }
             u_pay = bless_cost;
@@ -6930,11 +7143,15 @@ struct monst* mtmp;
         Sprintf(qbuf, "Then would you like to curse one? (%lld %s)",
             (long long)curse_cost, currency(curse_cost));
         if (yn_query_mon(mtmp, qbuf) != 'y')
+        {
+            stop_all_dialogue_of_mon_on_mobile(mtmp);
             return 0;
+        }
         if (umoney < curse_cost)
         {
             play_sfx_sound(SFX_NOT_ENOUGH_MONEY);
             You_ex1_popup("don't have enough money for that!", "Not Enough Money", ATR_NONE, CLR_MSG_FAIL, NO_GLYPH, POPUP_FLAGS_NONE);
+            stop_all_dialogue_of_mon_on_mobile(mtmp);
             return 0;
         }
         u_pay = curse_cost;
@@ -6971,7 +7188,7 @@ struct monst* mtmp;
     }
 
     /* gnostic handled in seffects */
-
+    stop_all_dialogue_of_mon_on_mobile(mtmp);
     return 1;
 }
 
@@ -7002,11 +7219,13 @@ struct monst* mtmp;
     Sprintf(qbuf, "Would you like to have a standard healing? (%lld %s)", (long long)extrahealing_cost, currency(extrahealing_cost));
     switch (yn_query_mon(mtmp, qbuf)) {
     default:
+        stop_all_dialogue_of_mon_on_mobile(mtmp);
         return 0;
     case 'y':
         if (umoney < extrahealing_cost) {
             play_sfx_sound(SFX_NOT_ENOUGH_MONEY);
             You_ex(ATR_NONE, CLR_MSG_FAIL, "don't have enough money for that!");
+            stop_all_dialogue_of_mon_on_mobile(mtmp);
             return 0;
         }
         u_pay = extrahealing_cost;
@@ -7027,6 +7246,7 @@ struct monst* mtmp;
     else
         bhitm(targetmonst, &pseudo, mtmp);
 
+    stop_all_dialogue_of_mon_on_mobile(mtmp);
     return 1;
 }
 
@@ -7056,11 +7276,13 @@ struct monst* mtmp;
     Sprintf(qbuf, "Would you like to have a full healing? (%lld %s)", (long long)fullhealing_cost, currency(fullhealing_cost));
     switch (yn_query_mon(mtmp, qbuf)) {
     default:
+        stop_all_dialogue_of_mon_on_mobile(mtmp);
         return 0;
     case 'y':
         if (umoney < fullhealing_cost) {
             play_sfx_sound(SFX_NOT_ENOUGH_MONEY);
             You_ex1_popup("don't have enough money for that!", "Not Enough Money", ATR_NONE, CLR_MSG_FAIL, NO_GLYPH, POPUP_FLAGS_NONE);
+            stop_all_dialogue_of_mon_on_mobile(mtmp);
             return 0;
         }
         u_pay = fullhealing_cost;
@@ -7081,6 +7303,7 @@ struct monst* mtmp;
     else
         bhitm(targetmonst, &pseudo, mtmp);
 
+    stop_all_dialogue_of_mon_on_mobile(mtmp);
     return 1;
 }
 
@@ -7110,11 +7333,13 @@ struct monst* mtmp;
     Sprintf(qbuf, "Would you like to have your sickness cured? (%lld %s)", (long long)cure_sickness_cost, currency(cure_sickness_cost));
     switch (yn_query_mon(mtmp, qbuf)) {
     default:
+        stop_all_dialogue_of_mon_on_mobile(mtmp);
         return 0;
     case 'y':
         if (umoney < cure_sickness_cost) {
             play_sfx_sound(SFX_NOT_ENOUGH_MONEY);
             You_ex1_popup("don't have enough money for that!", "Not Enough Money", ATR_NONE, CLR_MSG_FAIL, NO_GLYPH, POPUP_FLAGS_NONE);
+            stop_all_dialogue_of_mon_on_mobile(mtmp);
             return 0;
         }
         u_pay = cure_sickness_cost;
@@ -7135,6 +7360,7 @@ struct monst* mtmp;
     else
         bhitm(targetmonst, &pseudo, mtmp);
 
+    stop_all_dialogue_of_mon_on_mobile(mtmp);
     return 1;
 }
 
@@ -7168,11 +7394,13 @@ struct monst* mtmp;
     switch (ynq_mon(mtmp, qbuf)) {
     default:
     case 'q':
+        stop_all_dialogue_of_mon_on_mobile(mtmp);
         return 0;
     case 'y':
         if (umoney < major_cost) {
             play_sfx_sound(SFX_NOT_ENOUGH_MONEY);
             You_ex1_popup("don't have enough money for that!", "Not Enough Money", ATR_NONE, CLR_MSG_FAIL, NO_GLYPH, POPUP_FLAGS_NONE);
+            stop_all_dialogue_of_mon_on_mobile(mtmp);
             return 0;
         }
         u_pay = major_cost;
@@ -7184,11 +7412,15 @@ struct monst* mtmp;
         Sprintf(qbuf, "Then would you like to make a minor donation instead? (%lld %s)",
             (long long)minor_cost, currency(minor_cost));
         if (yn_query_mon(mtmp, qbuf) != 'y')
+        {
+            stop_all_dialogue_of_mon_on_mobile(mtmp);
             return 0;
+        }
         if (umoney < minor_cost)
         {
             play_sfx_sound(SFX_NOT_ENOUGH_MONEY);
             You_ex1_popup("don't have enough money for that!", "Not Enough Money", ATR_NONE, CLR_MSG_FAIL, NO_GLYPH, POPUP_FLAGS_NONE);
+            stop_all_dialogue_of_mon_on_mobile(mtmp);
             return 0;
         }
         u_pay = minor_cost;
@@ -7206,7 +7438,8 @@ struct monst* mtmp;
     if (priest_action == 2)
     {
         play_monster_special_dialogue_line(mtmp, PRIEST_SPECIAL_DIALOGUE_PIOUS_INDIVIDUAL);
-        verbalize_ex(ATR_NONE, CLR_MSG_TALK_HAPPY, "Thou art indeed a pious individual.");
+        popup_talk_line_ex(mtmp, "Thou art indeed a pious individual.", ATR_NONE, CLR_MSG_TALK_HAPPY, TRUE, TRUE);
+        //verbalize_ex(ATR_NONE, CLR_MSG_TALK_HAPPY, "Thou art indeed a pious individual.");
         if (coaligned && u.ualign.record <= ALGN_SINNED)
         {
             play_sfx_sound(SFX_ALTAR_ADD_ALIGNMENT);
@@ -7214,7 +7447,8 @@ struct monst* mtmp;
         }
         play_sfx_sound(SFX_PRAY_BLESS_WATER);
         play_monster_special_dialogue_line(mtmp, PRIEST_SPECIAL_DIALOGUE_BESTOW_BLESSING);
-        verbalize_ex(ATR_NONE, CLR_MSG_TALK_HAPPY, "I bestow upon thee a blessing.");
+        popup_talk_line_ex(mtmp, "I bestow upon thee a blessing.", ATR_NONE, CLR_MSG_TALK_HAPPY, TRUE, TRUE);
+        //verbalize_ex(ATR_NONE, CLR_MSG_TALK_HAPPY, "I bestow upon thee a blessing.");
         incr_itimeout(&HClairvoyant, rn1(500, 500));
         refresh_u_tile_gui_info(TRUE);
     }
@@ -7229,7 +7463,8 @@ struct monst* mtmp;
     {
         play_sfx_sound(SFX_ALTAR_GIFT);
         play_monster_special_dialogue_line(mtmp, PRIEST_SPECIAL_DIALOGUE_DEVOTION_REWARDED);
-        verbalize_ex(ATR_NONE, CLR_MSG_TALK_HAPPY, "Thy devotion has been rewarded.");
+        popup_talk_line_ex(mtmp, "Thy devotion has been rewarded.", ATR_NONE, CLR_MSG_TALK_HAPPY, TRUE, TRUE);
+        //verbalize_ex(ATR_NONE, CLR_MSG_TALK_HAPPY, "Thy devotion has been rewarded.");
         if (u.ublessed == 0)
             u.ublessed = rnd(3);
         else
@@ -7238,7 +7473,8 @@ struct monst* mtmp;
     else
     {
         play_monster_special_dialogue_line(mtmp, PRIEST_SPECIAL_DIALOGUE_GENEROSITY_APPRECIATED);
-        verbalize_ex(ATR_NONE, CLR_MSG_TALK_HAPPY, "Thy selfless generosity is deeply appreciated.");
+        popup_talk_line_ex(mtmp, "Thy selfless generosity is deeply appreciated.", ATR_NONE, CLR_MSG_TALK_HAPPY, TRUE, TRUE);
+        //verbalize_ex(ATR_NONE, CLR_MSG_TALK_HAPPY, "Thy selfless generosity is deeply appreciated.");
         if (coaligned)
         {
             if (strayed && (moves - u.ucleansed) > 5000L)
@@ -7258,6 +7494,7 @@ struct monst* mtmp;
     find_ac();
     find_mc();
 
+    stop_all_dialogue_of_mon_on_mobile(mtmp);
     return 1;
 }
 
@@ -7282,11 +7519,13 @@ struct monst* mtmp;
     Sprintf(qbuf, "Would you like to see your fortune? (%lld %s)", (long long)divination_cost, currency(divination_cost));
     switch (yn_query_mon(mtmp, qbuf)) {
     default:
+        stop_all_dialogue_of_mon_on_mobile(mtmp);
         return 0;
     case 'y':
         if (umoney < divination_cost) {
             play_sfx_sound(SFX_NOT_ENOUGH_MONEY);
             You_ex1_popup("don't have enough money for that!", "Not Enough Money", ATR_NONE, CLR_MSG_FAIL, NO_GLYPH, POPUP_FLAGS_NONE);
+            stop_all_dialogue_of_mon_on_mobile(mtmp);
             return 0;
         }
         u_pay = divination_cost;
@@ -7386,6 +7625,7 @@ struct monst* mtmp;
     play_monster_special_dialogue_line(mtmp, PRIEST_SPECIAL_DIALOGUE_THANK_YOU_FOR_YOUR_INTEREST);
     popup_talk_line(mtmp, "That's all for now. Thank you for your interest in divine matters.");
 
+    stop_all_dialogue_of_mon_on_mobile(mtmp);
     return 1;
 }
 
@@ -7472,11 +7712,13 @@ struct monst* mtmp;
     switch (yn_query_mon(mtmp, qbuf)) 
     {
     default:
+        stop_all_dialogue_of_mon_on_mobile(mtmp);
         return 0;
     case 'y':
         if (umoney < minor_id_cost) {
             play_sfx_sound(SFX_NOT_ENOUGH_MONEY);
             You_ex1_popup("don't have enough money for that!", "Not Enough Money", ATR_NONE, CLR_MSG_FAIL, NO_GLYPH, POPUP_FLAGS_NONE);
+            stop_all_dialogue_of_mon_on_mobile(mtmp);
             return 0;
         }
         break;
@@ -7524,7 +7766,36 @@ struct monst* mtmp;
     //    }
     //} while (res > 0 && unided > 0 && umoney >= (int64_t)minor_id_cost && cnt < 100); /* Paranoid limit */
 
+    stop_all_dialogue_of_mon_on_mobile(mtmp);
     return (res > 0);
+}
+
+STATIC_OVL int
+do_chat_shk_credit(mtmp)
+struct monst* mtmp;
+{
+    if (!mtmp || !has_eshk(mtmp))
+        return 0;
+
+    multi = 0;
+    if (!m_general_talk_check(mtmp, "checking your credit or debit") || !m_speak_check(mtmp))
+        return 0;
+
+    int64_t credit = ESHK(mtmp)->credit;
+    int64_t debit = ESHK(mtmp)->debit;
+    int64_t loan = ESHK(mtmp)->loan;
+
+    char buf[BUFSZ];
+    if(!credit && !debit && !loan)
+        Strcpy(buf, "You have no credit, debit, or debt with me.");
+    else if (credit && !debit && !loan)
+        Sprintf(buf, "You have %lld %s in credit, and no debit or debt with me.", (long long)credit, currency(credit));
+    else if (!credit && (debit || loan))
+        Sprintf(buf, "You have no credit, but %lld %s in debit and %lld %s in debt with me.", (long long)debit, currency(debit), (long long)loan, currency(loan));
+    else
+        Sprintf(buf, "You have %lld %s in credit, %lld %s in debit, and %lld %s in debt with me.", (long long)credit, currency(credit), (long long)debit, currency(debit), (long long)loan, currency(loan));
+    popup_talk_line(mtmp, buf);
+    return 0;
 }
 
 boolean
@@ -7596,11 +7867,13 @@ struct monst* mtmp;
 
     switch (yn_query_mon(mtmp, qbuf)) {
     default:
+        stop_all_dialogue_of_mon_on_mobile(mtmp);
         return 0;
     case 'y':
         if (umoney < reconcile_cost) {
             play_sfx_sound(SFX_NOT_ENOUGH_MONEY);
             You_ex1_popup("don't have enough money for that!", "Not Enough Money", ATR_NONE, CLR_MSG_FAIL, NO_GLYPH, POPUP_FLAGS_NONE);
+            stop_all_dialogue_of_mon_on_mobile(mtmp);
             return 0;
         }
         u_pay = reconcile_cost;
@@ -7625,6 +7898,7 @@ struct monst* mtmp;
         popup_talk_line(mtmp, "On second thought, maybe you should hang for your crimes anyway.");
     }
 
+    stop_all_dialogue_of_mon_on_mobile(mtmp);
     return 1;
 }
 
@@ -7660,11 +7934,13 @@ struct monst* mtmp;
 
     switch (yn_query_mon(mtmp, qbuf)) {
     default:
+        stop_all_dialogue_of_mon_on_mobile(mtmp);
         return 0;
     case 'y':
         if (umoney < reconcile_cost) {
             play_sfx_sound(SFX_NOT_ENOUGH_MONEY);
             You_ex1_popup("don't have enough money for that!", "Not Enough Money", ATR_NONE, CLR_MSG_FAIL, NO_GLYPH, POPUP_FLAGS_NONE);
+            stop_all_dialogue_of_mon_on_mobile(mtmp);
             return 0;
         }
         u_pay = reconcile_cost;
@@ -7688,6 +7964,7 @@ struct monst* mtmp;
         popup_talk_line(mtmp, "On second thought, maybe you should hang for your crimes anyway.");
     }
 
+    stop_all_dialogue_of_mon_on_mobile(mtmp);
     return 1;
 }
 
@@ -8031,7 +8308,7 @@ struct monst* mtmp;
         "Forge 10 elite silver sling-bullets", MENU_UNSELECTED);
 
     /* Finish the menu */
-    end_menu(win, "Which type of armor do you want to forge?");
+    end_menu(win, "Which type of sling-bullets do you want to forge?");
 
     int i = 0;
     /* Now generate the menu */
@@ -8177,7 +8454,7 @@ boolean FDECL((*allow), (OBJ_P)); /* allow function */
 
     /* should coordinate with perm invent, maybe not show worn items */
     n = query_objlist("What would you like to sell?", &invent,
-        (USE_INVLET | INVORDER_SORT | OBJECT_COMPARISON), &pick_list, PICK_ANY, allow, 3);
+        (USE_INVLET | INVORDER_SORT | OBJECT_COMPARISON), &pick_list, PICK_ANY, allow, SHOWWEIGHTS_DROP);
 
     if (n > 0 && pick_list)
     {
@@ -8279,12 +8556,14 @@ struct monst* mtmp;
     switch (yn_query_mon(mtmp, qbuf))
     {
     default:
+        stop_all_dialogue_of_mon_on_mobile(mtmp);
         return 0;
     case 'y':
         if (umoney < service_cost)
         {
             play_sfx_sound(SFX_NOT_ENOUGH_MONEY);
             You_ex1_popup("don't have enough money for that!", "Not Enough Money", ATR_NONE, CLR_MSG_FAIL, NO_GLYPH, POPUP_FLAGS_NONE);
+            stop_all_dialogue_of_mon_on_mobile(mtmp);
             return 0;
         }
         u_pay = service_cost;
@@ -8306,7 +8585,8 @@ struct monst* mtmp;
     bot();
 
     /* Make sure mtmp is not used anywhere anymore; it is not invalid */
-    return 2; 
+    stop_all_dialogue_of_mon_on_mobile(mtmp);
+    return 2;
 }
 
 boolean
@@ -8497,11 +8777,13 @@ struct monst* mtmp;
 
     switch (yn_query(qbuf)) {
     default:
+        stop_all_dialogue_of_mon_on_mobile(mtmp);
         return 0;
     case 'y':
         if (umoney < reconcile_cost) {
             play_sfx_sound(SFX_NOT_ENOUGH_MONEY);
             You_ex1_popup("don't have enough money for that!", "Not Enough Money", ATR_NONE, CLR_MSG_FAIL, NO_GLYPH, POPUP_FLAGS_NONE);
+            stop_all_dialogue_of_mon_on_mobile(mtmp);
             return 0;
         }
         u_pay = reconcile_cost;
@@ -8518,15 +8800,17 @@ struct monst* mtmp;
     if (is_peaceful(mtmp))
     {
         play_monster_special_dialogue_line(mtmp, QUANTUM_MECHANIC_LINE_THANK_YOU_FOR_YOUR_SUPPOORT);
-        pline("%s thanks you for your support.", noittame_Monnam(mtmp));
-
+        popup_talk_line(mtmp, "Thank you for your support.");
+        //pline("%s thanks you for your support.", noittame_Monnam(mtmp));
     }
     else
     {
         play_monster_special_dialogue_line(mtmp, QUANTUM_MECHANIC_LINE_THATS_NOT_WHAT_I_WAS_EXPECTING);
         pline("%s seems mysteriously disappointed.", noittame_Monnam(mtmp));
+        popup_talk_line(mtmp, "That's not what I was expecting.");
     }
 
+    stop_all_dialogue_of_mon_on_mobile(mtmp);
     return 1;
 }
 
@@ -8558,8 +8842,9 @@ struct monst* mtmp;
     if (mtmp->mspec_used)
     {
         play_monster_special_dialogue_line(mtmp, QUANTUM_MECHANIC_LINE_WAVE_FUNCTION_ALREADY_COLLAPSED);
-        pline("%s explains something about your wave function having already collapsed.", noittame_Monnam(mtmp));
-        pline1("It all sounds pretty serious!");
+        popup_talk_line(mtmp, "Unfortunately, it looks like your wave function has already collapsed."); // , noittame_Monnam(mtmp));
+        pline_ex1(ATR_NONE, CLR_MSG_HINT, "It all sounds pretty serious!");
+        stop_all_dialogue_of_mon_on_mobile(mtmp);
         return 0;
     }
 
@@ -8570,11 +8855,13 @@ struct monst* mtmp;
 
         switch (yn_query(qbuf)) {
         default:
+            stop_all_dialogue_of_mon_on_mobile(mtmp);
             return 0;
         case 'y':
             if (umoney < observe_cost) {
                 play_sfx_sound(SFX_NOT_ENOUGH_MONEY);
                 You_ex1_popup("don't have enough money for that!", "Not Enough Money", ATR_NONE, CLR_MSG_FAIL, NO_GLYPH, POPUP_FLAGS_NONE);
+                stop_all_dialogue_of_mon_on_mobile(mtmp);
                 return 0;
             }
             u_pay = observe_cost;
@@ -8609,8 +8896,9 @@ struct monst* mtmp;
         play_sfx_sound(SFX_BUY_FROM_NPC);
     }
     play_monster_special_dialogue_line(mtmp, QUANTUM_MECHANIC_LINE_POSITION_EXACTLY_WHERE_YOU_ARE);
-    pline("%s tells that your position was observed to be exactly where you are.", noittame_Monnam(mtmp));
+    popup_talk_line(mtmp, "Your position is exactly where you are.");
 
+    stop_all_dialogue_of_mon_on_mobile(mtmp);
     return 1;
 }
 
@@ -8641,8 +8929,10 @@ struct monst* mtmp;
     if (mtmp->mspec_used)
     {
         play_monster_special_dialogue_line(mtmp, QUANTUM_MECHANIC_LINE_WAVE_FUNCTION_ALREADY_COLLAPSED);
-        pline("%s explains something about your wave function having already collapsed.", noittame_Monnam(mtmp));
-        pline1("It all sounds pretty serious!");
+        //pline("%s explains something about your wave function having already collapsed.", noittame_Monnam(mtmp));
+        //pline1("It all sounds pretty serious!");
+        popup_talk_line(mtmp, "Unfortunately, it looks like your wave function has already collapsed."); // , noittame_Monnam(mtmp));
+        pline_ex1(ATR_NONE, CLR_MSG_HINT, "It all sounds pretty serious!");
         return 0;
     }
 
@@ -8653,11 +8943,13 @@ struct monst* mtmp;
 
         switch (yn_query(qbuf)) {
         default:
+            stop_all_dialogue_of_mon_on_mobile(mtmp);
             return 0;
         case 'y':
             if (umoney < observe_cost) {
                 play_sfx_sound(SFX_NOT_ENOUGH_MONEY);
                 You_ex1_popup("don't have enough money for that!", "Not Enough Money", ATR_NONE, CLR_MSG_FAIL, NO_GLYPH, POPUP_FLAGS_NONE);
+                stop_all_dialogue_of_mon_on_mobile(mtmp);
                 return 0;
             }
             u_pay = observe_cost;
@@ -8683,9 +8975,11 @@ struct monst* mtmp;
     if (canspotmon(mtmp) && m_canseeu(mtmp))
     {
         play_monster_special_dialogue_line(mtmp, QUANTUM_MECHANIC_LINE_SPEED_IS_ZERO);
-        pline("%s tells that your speed was observed to be zero.", noittame_Monnam(mtmp));
+        //pline("%s tells that your speed was observed to be zero.", noittame_Monnam(mtmp));
+        popup_talk_line(mtmp, "Your speed is exactly zero.");
     }
 
+    stop_all_dialogue_of_mon_on_mobile(mtmp);
     return 1;
 }
 
@@ -8724,11 +9018,13 @@ struct monst* mtmp;
 
     switch (yn_query_mon(mtmp, qbuf)) {
     default:
+        stop_all_dialogue_of_mon_on_mobile(mtmp);
         return 0;
     case 'y':
         if (umoney < reconcile_cost) {
             play_sfx_sound(SFX_NOT_ENOUGH_MONEY);
             You_ex1_popup("don't have enough money for that!", "Not Enough Money", ATR_NONE, CLR_MSG_FAIL, NO_GLYPH, POPUP_FLAGS_NONE);
+            stop_all_dialogue_of_mon_on_mobile(mtmp);
             return 0;
         }
         u_pay = reconcile_cost;
@@ -8754,6 +9050,7 @@ struct monst* mtmp;
         verbalize_ex(ATR_NONE, CLR_MSG_TALK_ANGRY, "On second thought, maybe you should hang for your crimes anyway.");
     }
 
+    stop_all_dialogue_of_mon_on_mobile(mtmp);
     return 1;
 }
 
@@ -8927,7 +9224,7 @@ struct monst* mtmp;
         return 0;
     else if (mvitals[PM_WATCHMAN].died > 0 || mvitals[PM_WATCH_CAPTAIN].died > 0) {
         play_monster_special_dialogue_line(mtmp, WATCHMAN_LINE_YOU_WILL_HANG_FOR_YOUR_CRIMES_SCUM);
-        verbalize_ex(ATR_NONE, CLR_MSG_TALK_ANGRY, "You will hang for your crimes, scum!");
+        popup_talk_line_ex(mtmp, "You will hang for your crimes, scum!", ATR_NONE, CLR_MSG_TALK_ANGRY, TRUE, TRUE);
         return 0;
     }
     else if (mtmp->mhp < (3 * mtmp->mhpmax) / 4) {
@@ -8946,11 +9243,13 @@ struct monst* mtmp;
     }
     switch (yn_query_mon(mtmp, qbuf)) {
     default:
+        stop_all_dialogue_of_mon_on_mobile(mtmp);
         return 0;
     case 'y':
         if (umoney < reconcile_cost) {
             play_sfx_sound(SFX_NOT_ENOUGH_MONEY);
             You_ex1_popup("don't have enough money for that!", "Not Enough Money", ATR_NONE, CLR_MSG_FAIL, NO_GLYPH, POPUP_FLAGS_NONE);
+            stop_all_dialogue_of_mon_on_mobile(mtmp);
             return 0;
         }
         u_pay = reconcile_cost;
@@ -8966,15 +9265,16 @@ struct monst* mtmp;
     if (is_peaceful(mtmp))
     {
         play_monster_special_dialogue_line(mtmp, WATCHMAN_LINE_FINE_ITS_ALRIGHT_NOW_BE_MORE_CAREFUL_NEXT_TIME);
-        verbalize_ex(ATR_NONE, CLR_MSG_TALK_HAPPY, "Fine, it's alright now. Be more careful next time.");
+        popup_talk_line_ex(mtmp,"Fine, it's alright now. Be more careful next time.", ATR_NONE, CLR_MSG_TALK_HAPPY, TRUE, TRUE);
     }
     else
     {
         play_monster_special_dialogue_line(mtmp, WATCHMAN_LINE_ON_SECOND_THOUGHT_MAYBE_ILL_HANG_YOU_ANYWAY);
-        verbalize_ex(ATR_NONE, CLR_MSG_TALK_ANGRY, "On second thought, maybe I'll hang you anyway.");
+        popup_talk_line_ex(mtmp, "On second thought, maybe I'll hang you anyway.", ATR_NONE, CLR_MSG_TALK_ANGRY, TRUE, TRUE);
     }
 
-    return 1; 
+    stop_all_dialogue_of_mon_on_mobile(mtmp);
+    return 1;
 }
 
 STATIC_OVL int
@@ -9101,11 +9401,13 @@ int64_t minor_id_cost;
 
     switch (yn_query_mon(mtmp, qbuf)) {
     default:
+        stop_all_dialogue_of_mon_on_mobile(mtmp);
         return 0;
     case 'y':
         if (umoney < minor_id_cost) {
             play_sfx_sound(SFX_NOT_ENOUGH_MONEY);
             You_ex1_popup("don't have enough money for that!", "Not Enough Money", ATR_NONE, CLR_MSG_FAIL, NO_GLYPH, POPUP_FLAGS_NONE);
+            stop_all_dialogue_of_mon_on_mobile(mtmp);
             return 0;
         }
         break;
@@ -9115,6 +9417,7 @@ int64_t minor_id_cost;
     res = service_identify(mtmp, minor_id_cost);
     context.npc_identify_type = 0;
 
+    stop_all_dialogue_of_mon_on_mobile(mtmp);
     return (res > 0);
 }
 
@@ -9138,7 +9441,7 @@ int64_t id_cost;
 
     n = query_objlist(buf, &invent, (SIGNAL_NOMENU | SIGNAL_ESCAPE
         | USE_INVLET | INVORDER_SORT | OBJECT_COMPARISON),
-        &pick_list, PICK_ANY, not_fully_identified, 0);
+        &pick_list, PICK_ANY, not_fully_identified, SHOWWEIGHTS_NONE);
 
     if (n > 0)
     {
@@ -9414,6 +9717,7 @@ boolean auto_yes;
 merge_obj_back:
     if (obj->where == OBJ_INVENT)
     {
+        Sprintf(priority_debug_buf_3, "sell_to_npc: %d", obj->otyp);
         for (otmp = invent; otmp; otmp = otmp->nobj)
             if (merged(&otmp, &obj)) 
             {
@@ -9559,6 +9863,7 @@ boolean addquotes;
                     pline_ex1(attr, color, hermit_txt);
             }
             display_popup_text(hermit_txt, namebuf, POPUP_TEXT_DIALOGUE, attr, color, glyph, addquotes ? POPUP_FLAGS_ADD_QUOTES : 0);
+            stop_all_dialogue_of_mon_on_mobile(mtmp);
         }
         idx++;
     }
@@ -10146,12 +10451,14 @@ int special_dialogue_sound_id;
     switch (yn_query_mon(mtmp, qbuf))
     {
     default:
+        stop_all_dialogue_of_mon_on_mobile(mtmp);
         return 0;
     case 'y':
         if (umoney < service_cost) 
         {
             play_sfx_sound(SFX_NOT_ENOUGH_MONEY);
             You_ex1_popup("don't have enough money for that!", "Not Enough Money", ATR_NONE, CLR_MSG_FAIL, NO_GLYPH, POPUP_FLAGS_NONE);
+            stop_all_dialogue_of_mon_on_mobile(mtmp);
             return 0;
         }
         u_pay = service_cost;
@@ -10176,9 +10483,11 @@ int special_dialogue_sound_id;
         money2mon(mtmp, u_pay);
         bot();
     }
+    Sprintf(priority_debug_buf_4, "spell_service_query: %d", pseudo->otyp);
     obfree(pseudo, (struct obj*)0);
     /* gnostic handled in seffects */
 
+    stop_all_dialogue_of_mon_on_mobile(mtmp);
     return 1;
 }
 
@@ -10241,12 +10550,14 @@ int special_dialogue_sound_id;
     switch (yn_query_mon(mtmp, qbuf))
     {
     default:
+        stop_all_dialogue_of_mon_on_mobile(mtmp);
         return 0;
     case 'y':
         if (umoney < service_cost)
         {
             play_sfx_sound(SFX_NOT_ENOUGH_MONEY);
             You_ex(ATR_NONE, CLR_MSG_FAIL, "don't have enough money for that!");
+            stop_all_dialogue_of_mon_on_mobile(mtmp);
             return 0;
         }
         u_pay = service_cost;
@@ -10260,6 +10571,7 @@ int special_dialogue_sound_id;
         bot();
     }
 
+    stop_all_dialogue_of_mon_on_mobile(mtmp);
     return 1;
 }
 
@@ -10311,12 +10623,14 @@ int special_dialogue_sound_id;
     switch (yn_query_mon(mtmp, qbuf))
     {
     default:
+        stop_all_dialogue_of_mon_on_mobile(mtmp);
         return 0;
     case 'y':
         if (umoney < service_cost)
         {
             play_sfx_sound(SFX_NOT_ENOUGH_MONEY);
             You_ex(ATR_NONE, CLR_MSG_FAIL, "don't have enough money for that!");
+            stop_all_dialogue_of_mon_on_mobile(mtmp);
             return 0;
         }
         u_pay = service_cost;
@@ -10330,6 +10644,7 @@ int special_dialogue_sound_id;
         bot();
     }
 
+    stop_all_dialogue_of_mon_on_mobile(mtmp);
     return 1;
 }
 
@@ -10800,6 +11115,7 @@ boolean initialize;
     }
     else
     {
+        Sprintf(priority_debug_buf_3, "forge_special_func: %d", otmp->otyp);
         useupall(otmp);
         otmp = 0;
     }

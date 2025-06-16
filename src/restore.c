@@ -23,6 +23,7 @@ STATIC_DCL int NDECL(zerocomp_mgetc);
 STATIC_DCL void NDECL(def_minit);
 STATIC_DCL void FDECL(def_mread, (int, genericptr_t, size_t));
 
+STATIC_DCL int FDECL(check_save_file_tracking, (int64_t));
 STATIC_DCL void NDECL(find_lev_obj);
 STATIC_DCL void NDECL(find_memory_obj);
 STATIC_DCL void FDECL(restlevchn, (int));
@@ -165,12 +166,36 @@ boolean quietly;
 {
     register struct obj *otmp, *otmp2;
 
-    for (otmp = invent; otmp; otmp = otmp2) {
+    for (otmp = invent; otmp; otmp = otmp2) 
+    {
         otmp2 = otmp->nobj;
-        if (otmp->in_use) {
-            if (!quietly)
-                pline("Finishing off %s...", xname(otmp));
-            useup(otmp);
+        if (otmp->in_use) 
+        {
+            if (otmp->otyp == AMULET_OF_YENDOR
+                || otmp->otyp == CANDELABRUM_OF_INVOCATION
+                || otmp->otyp == BELL_OF_OPENING
+                || otmp->otyp == SPE_BOOK_OF_THE_DEAD
+                || is_quest_artifact(otmp)
+                || otmp->oartifact > 0
+                || Is_proper_container(otmp)
+                )
+            {
+                otmp->in_use = 0; /* Likely memory corruption; prevent destruction of any critical items */
+                char dbuf[BUFSZ * 2];
+                Sprintf(dbuf, "Mysterious force prevents finishing off %s...", xname(otmp));
+                if (!quietly)
+                    impossible("%s", dbuf);
+                issue_debuglog_priority(0, dbuf);
+            }
+            else
+            {
+                if (!quietly)
+                    pline("Finishing off %s...", xname(otmp));
+                Sprintf(priority_debug_buf_2, "inven_inuse: %d", otmp->otyp);
+                Strcpy(priority_debug_buf_3, "inven_inuse");
+                Strcpy(priority_debug_buf_4, "inven_inuse");
+                useup(otmp);
+            }
         }
     }
 }
@@ -375,6 +400,7 @@ boolean ghostly, frozen;
              */
             if ((catcorpse = mksobj(CORPSE, TRUE, FALSE, FALSE)) != 0) {
                 otmp->speflags |= SPEFLAGS_SCHROEDINGERS_BOX;  //otmp->enchantment = 1; /* flag for special SchroedingersBox */
+                catcorpse->speflags |= SPEFLAGS_SCHROEDINGERS_BOX; /* Schroedinger's cat in fact */
                 set_corpsenm(catcorpse, PM_HOUSECAT);
                 (void) stop_timer(ROT_CORPSE, obj_to_any(catcorpse));
                 add_to_container(otmp, catcorpse);
@@ -973,6 +999,7 @@ register int fd;
     xchar ltmp;
     int rtmp;
     struct obj *otmp;
+    struct save_game_stats game_stats = { 0 };
     struct save_game_stats dummy_stats = { 0 };
     boolean was_corrupted = FALSE;
     Strcpy(debug_buf_1, "dorestore0");
@@ -982,7 +1009,7 @@ register int fd;
 
     restoring = TRUE;
     get_plname_from_file(fd, plname);
-    get_save_game_stats_from_file(fd, &dummy_stats);
+    get_save_game_stats_from_file(fd, &game_stats);
     getlev(fd, 0, (xchar) 0, FALSE);
     if (!restgamestate(fd, &stuckid, &steedid)) {
         display_nhwindow(WIN_MESSAGE, TRUE);
@@ -992,7 +1019,18 @@ register int fd;
         restoring = FALSE;
         return 0;
     }
+    if (!check_save_file_tracking(game_stats.time_stamp)) /* Needs to be here so wizard and other modes have been set */
+    {
+        savelev(-1, 0, FREE_SAVE); /* discard current level */
+        (void)nhclose(fd);
+        restoring = FALSE;
+        const char* fq_save = fqname(SAVEF, SAVEPREFIX, 1);
+        nh_compress(fq_save);
+        nh_bail(EXIT_SUCCESS, "Aborting loading the save file due to save file tracking...", TRUE);
+        return 0;
+    }
     restlevelstate(stuckid, steedid);
+
     struct u_realtime restored_realtime = urealtime;
 #ifdef INSURANCE
     savestateinlock();
@@ -1107,7 +1145,6 @@ register int fd;
             setwornquietly(otmp, otmp->owornmask);
 
     update_all_character_properties((struct obj*)0, FALSE);
-    update_inventory();
 
     /* in_use processing must be after:
      *    + The inventory has been read so that freeinv() works.
@@ -1115,6 +1152,7 @@ register int fd;
      *      is available.
      */
     inven_inuse(FALSE);
+    update_inventory();
 
     load_qtlist(); /* re-load the quest text info */
     /* Set up the vision internals, after levl[] data is loaded
@@ -1139,6 +1177,74 @@ register int fd;
         (void)delete_tmp_backup_savefile();
 
     post_restore_to_forum(restored_realtime);
+    return 1;
+}
+
+STATIC_OVL int
+check_save_file_tracking(time_stamp)
+int64_t time_stamp;
+{
+    if (wizard || discover || CasualMode || iflags.save_file_secure)
+        return 1;
+
+    if (!iflags.save_file_tracking_supported)
+    {
+        if (flags.save_file_tracking_value == SAVEFILETRACK_VALID)
+        {
+            char ans = yn_query("Save file tracking is not supported. Do you want to mark this save file unsuccessfully tracked?");
+            if (ans == 'y')
+            {
+                flags.save_file_tracking_migrated = TRUE;
+                flags.save_file_tracking_value = SAVEFILETRACK_INVALID;
+                const char* fq_save = fqname(SAVEF, SAVEPREFIX, 0);
+                issue_gui_command(GUI_CMD_DELETE_TRACKING_FILE, 0, 0, fq_save);
+            }
+            else
+                return 0; // Return to main menu
+        }
+    }
+    else if (!flags.save_file_tracking_migrated)
+    {
+        flags.save_file_tracking_migrated = TRUE;
+        flags.save_file_tracking_value = SAVEFILETRACK_VALID;
+    }
+    else if (iflags.save_file_tracking_needed && flags.save_file_tracking_value == SAVEFILETRACK_VALID)
+    {
+        const char* fq_save = fqname(SAVEF, SAVEPREFIX, 0);
+        if (iflags.save_file_tracking_on)
+        {
+            struct special_view_info info = { 0 };
+            info.viewtype = SPECIAL_VIEW_SAVE_FILE_TRACKING_LOAD;
+            info.text = fq_save;
+            info.time_stamp = time_stamp;
+            int errorcode = open_special_view(info);
+            if (errorcode > 0)
+            {
+                //Query if save file tracking should be turned off, turn save file tracking on in settings, or return to main menu
+                char ans = yn_query("Save file tracking validation failed. Do you want to mark this save file unsuccessfully tracked?");
+                if (ans == 'y')
+                {
+                    flags.save_file_tracking_value = SAVEFILETRACK_INVALID;
+                    issue_gui_command(GUI_CMD_DELETE_TRACKING_FILE, 0, 0, fq_save);
+                }
+                else
+                    return 0; // Return to main menu
+            }
+        }
+        else
+        {
+            //Save game tracking is needed but is going to be switched off in the save game
+            //Query if save file tracking should be turned off, turn save file tracking on in settings, or return to main menu
+            char ans = yn_query("Save file tracking is turned off. Do you want to mark this save file unsuccessfully tracked?");
+            if (ans == 'y')
+            {
+                flags.save_file_tracking_value = SAVEFILETRACK_INVALID;
+                issue_gui_command(GUI_CMD_DELETE_TRACKING_FILE, 0, 0, fq_save);
+            }
+            else
+                return 0; // Return to main menu
+        }
+    }
     return 1;
 }
 
@@ -2443,7 +2549,9 @@ register size_t len;
             restoreprocs.mread_flags = -2;
             return;
         } else {
-            pline("Read %d instead of %zu bytes.", rlen, len);
+            char errorbuf[BUFSZ];
+            Sprintf(errorbuf, "Read %d instead of %zu bytes.", rlen, len);
+            raw_print(errorbuf);
             if (restoring) {
                 (void) nhclose(fd);
                 (void) delete_tmp_backup_savefile();

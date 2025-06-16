@@ -186,7 +186,7 @@ static struct Bool_Opt {
     { "implicit_uncursed", "omit \"uncursed\" from inventory", &iflags.implicit_uncursed, TRUE, SET_IN_GAME },
     { "inventory_obj_cmd", "display a command menu upon selecting an object in inventory", &flags.inventory_obj_cmd, TRUE, SET_IN_GAME},
     { "inventory_weights_last", "display object weights in parentheses after object name", &flags.inventory_weights_last, FALSE, SET_IN_GAME},
-    { "knapsack_prompt", "prompt for an action when knapsack is full", &flags.knapsack_prompt, TRUE, SET_IN_GAME},
+    { "knapsack_prompt", "prompt for an action when inventory is full", &flags.knapsack_prompt, TRUE, SET_IN_GAME},
     { "large_font", "obsolete: use large font", &iflags.obsolete, FALSE, SET_IN_FILE}, /* OBSOLETE */
     { "legacy", "show introductory message", &flags.legacy, TRUE, DISP_IN_GAME },
     { "lit_corridor", "show dark corridors as lit if in sight", &flags.lit_corridor, FALSE, SET_IN_GAME },
@@ -251,7 +251,13 @@ static struct Bool_Opt {
       DISP_IN_GAME },
 #endif
     { "safe_pet", "prevent you from hitting pets", &flags.safe_dog, TRUE, SET_IN_GAME },
-    { "sanity_check", "perform data sanity checks", &iflags.sanity_check, FALSE, SET_IN_WIZGAME },
+    { "sanity_check", "perform data sanity checks", &iflags.sanity_check, 
+#ifdef DEBUG
+        TRUE,  /* Set to false in set_playmode if not in wizard mode */
+#else
+        FALSE,
+#endif
+        SET_IN_WIZGAME },
     { "search_box_traps", "search command searches boxes for traps first", &flags.search_box_traps, TRUE, SET_IN_GAME },
     { "selectsaved", "select a saved game at program start", &iflags.wc2_selectsaved, TRUE, DISP_IN_GAME}, /*WC*/
     { "self_click_action", "clicking the player character executes an action", &flags.self_click_action, TRUE, SET_IN_GAME},
@@ -263,6 +269,13 @@ static struct Bool_Opt {
     { "show_buff_timer", "show buff timer on tiles", &flags.show_buff_timer, FALSE, SET_IN_GAME},
     { "show_comparison_stats", "show comparison statistics for items when picking them up", &iflags.show_comparison_stats, TRUE, SET_IN_GAME },
     { "show_decorations", "show decorations via colors in ASCII mode", &flags.show_decorations, TRUE, SET_IN_GAME },
+    { "show_dice_as_ranges", "show dice as ranges (e.g., 2-12 instead of 2d6)", &iflags.show_dice_as_ranges,
+#ifdef GNH_MOBILE
+        TRUE,
+#else
+        FALSE,
+#endif
+        SET_IN_GAME },
     { "show_grid", "show grid between tiles", &flags.show_grid, FALSE, SET_IN_GAME},
     { "show_tile_mon_hp_bar", "show monster hit points on tiles", &flags.show_tile_mon_hp_bar, FALSE, SET_IN_GAME},
     { "show_tile_pet_hp_bar", "show pet hit points on tiles", &flags.show_tile_pet_hp_bar, FALSE, SET_IN_GAME },
@@ -277,6 +290,7 @@ static struct Bool_Opt {
     { "spell_table_format", "show spells in a table format rather than a list", &iflags.spell_table_format, TRUE, SET_IN_GAME },
     { "splash_screen", "show splash screen", &iflags.wc_splash_screen, TRUE, DISP_IN_GAME}, /*WC*/
     { "standout", "use standout for --more--", &flags.standout, FALSE, SET_IN_GAME },
+    { "stash_on_autopickup", "stash items into a container on autopickup (but no thrown if pick_thrown is on)", &flags.stash_on_autopickup, FALSE, SET_IN_GAME },
     { "status_updates", "allow the status lines to update", &iflags.status_updates, TRUE, DISP_IN_GAME },
     { "swap_rhand_only", "swap right hand weapon only rather than objects in both hands", &flags.swap_rhand_only, FALSE, SET_IN_GAME},
     { "takeoff_uses_all", "takeoff command uses takeoffall command rather than normal implementation", &iflags.takeoff_uses_all, TRUE, SET_IN_GAME},
@@ -963,6 +977,43 @@ init_options()
     flags.force_hint = (CasualMode || ModernMode);
     flags.max_hint_difficulty = DEFAULT_MAX_HINT_DIFFICULTY;
     iflags.run_spot_distance = DEFAULT_RUN_SPOT_DISTANCE;
+
+    if (initial_flags.click_action_set)
+        flags.self_click_action = initial_flags.click_action_value;
+
+    if (initial_flags.dice_as_ranges_set)
+        iflags.show_dice_as_ranges = initial_flags.dice_as_ranges_value;
+
+    if (initial_flags.getpos_arrows_set)
+        iflags.getpos_arrows = initial_flags.getpos_arrows_value;
+
+    if (initial_flags.save_file_tracking_supported_set)
+        iflags.save_file_tracking_supported = initial_flags.save_file_tracking_supported_value;
+
+    if (initial_flags.save_file_tracking_needed_set)
+        iflags.save_file_tracking_needed = initial_flags.save_file_tracking_needed_value;
+
+    if (initial_flags.save_file_tracking_on_set)
+        iflags.save_file_tracking_on = initial_flags.save_file_tracking_on_value;
+
+#if defined(DGAMELAUNCH) // Unix server
+    iflags.save_file_secure = TRUE;
+#endif
+
+    flags.save_file_tracking_migrated = TRUE; /* Always set by this new version for migration (old version has it at 0) */
+    flags.save_file_tracking_value = iflags.save_file_secure ? SAVEFILETRACK_VALID : SAVEFILETRACK_INVALID;
+    if (iflags.save_file_tracking_supported)
+    {
+        if (iflags.save_file_tracking_needed)
+        {
+            if (iflags.save_file_tracking_on)
+                flags.save_file_tracking_value = SAVEFILETRACK_VALID;
+        }
+        else
+        {
+            flags.save_file_tracking_value = SAVEFILETRACK_VALID;
+        }
+    }
 
     /* since this is done before init_objects(), do partial init here */
     objects[SLIME_MOLD].oc_name_idx = SLIME_MOLD;
@@ -5339,6 +5390,10 @@ boolean tinitial, tfrom_file;
             {
                 issue_boolean_gui_command(GUI_CMD_TOGGLE_CHARACTER_CLICK_ACTION, flags.self_click_action);
             }
+            else if (boolopt[i].addr == &iflags.show_dice_as_ranges)
+            {
+                issue_boolean_gui_command(GUI_CMD_TOGGLE_DICE_AS_RANGES, iflags.show_dice_as_ranges);
+            }
             else if (boolopt[i].addr == &flags.classic_statue_symbol || boolopt[i].addr == &flags.classic_colors || boolopt[i].addr == &flags.show_decorations)
             {
                 need_redraw = TRUE;
@@ -8586,6 +8641,10 @@ set_playmode()
     }
     /* don't need to do anything special for explore mode or normal play */
 #endif
+
+    /* Turn off sanity_check if not in wizard mode */
+    if (!wizard)
+        iflags.sanity_check = FALSE;
 }
 
 #endif /* OPTION_LISTS_ONLY */

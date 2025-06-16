@@ -382,7 +382,7 @@
 #define GLYPH_COMMAND_TILE_OFF  (P_NUM_SKILLS + GLYPH_SKILL_TILE_OFF)
 #define GLYPH_BUFF_OFF  (MAX_COMMAND_TILES + GLYPH_COMMAND_TILE_OFF)
 #define GLYPH_REPLACEMENT_OFF  (MAX_BUFF_TILES + GLYPH_BUFF_OFF)
-#define GLYPH_ANIMATION_OFF  (TOTAL_NUM_REPLACEMENT_TILES + GLYPH_REPLACEMENT_OFF)
+#define GLYPH_ANIMATION_OFF  (TOTAL_NUM_REPLACEMENT_GLYPHS + GLYPH_REPLACEMENT_OFF)
 #define GLYPH_ENLARGEMENT_OFF  (TOTAL_NUM_ANIMATION_FRAMES + GLYPH_ANIMATION_OFF)
 #define MAX_GLYPH         (TOTAL_NUM_ENLARGEMENT_TILES + GLYPH_ENLARGEMENT_OFF)
 
@@ -725,6 +725,9 @@
 
 #define glyph_is_missile(glyph) \
      (glyph_is_object_missile(glyph) || glyph_is_artifact_missile(glyph))
+
+#define glyph_missile_direction(glyph) \
+     (!glyph_is_missile(glyph) ? -1 : glyph_is_object_missile(glyph) ? (abs(glyph) - GLYPH_OBJ_MISSILE_OFF) % NUM_MISSILE_DIRS : (abs(glyph) - GLYPH_ARTIFACT_MISSILE_OFF) % NUM_MISSILE_DIRS)
 
 #define glyph_is_player(glyph) \
     ((abs(glyph)) >= GLYPH_PLAYER_OFF && (abs(glyph)) < (GLYPH_PLAYER_OFF + NUM_PLAYER_CHARACTERS))

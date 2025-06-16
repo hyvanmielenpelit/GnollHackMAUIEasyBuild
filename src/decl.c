@@ -77,6 +77,8 @@ NEARDATA boolean ransacked = 0;
 NEARDATA uint64_t n_game_recoveries = 0;
 
 const char *occtxt = DUMMY;
+int occattr = ATR_NONE;
+int occclr = NO_COLOR;
 enum object_soundset_types occsoundset = OBJECT_SOUNDSET_NONE; /* defined when occupation != NULL */
 enum object_occupation_types occtyp = OCCUPATION_NONE; /* defined when occupation != NULL */
 
@@ -583,6 +585,11 @@ NEARDATA char debug_buf_1[BUFSZ * 2] = "";
 NEARDATA char debug_buf_2[BUFSZ * 2] = "";
 NEARDATA char debug_buf_3[BUFSZ * 2] = "";
 NEARDATA char debug_buf_4[BUFSZ * 2] = "";
+
+NEARDATA char priority_debug_buf_1[BUFSZ * 2] = "";
+NEARDATA char priority_debug_buf_2[BUFSZ * 2] = "";
+NEARDATA char priority_debug_buf_3[BUFSZ * 2] = "";
+NEARDATA char priority_debug_buf_4[BUFSZ * 2] = "";
 
 /* dummy routine used to force linkage */
 void

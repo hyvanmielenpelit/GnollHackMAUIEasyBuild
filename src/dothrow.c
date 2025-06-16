@@ -581,7 +581,7 @@ dofire()
         if (uquiver) 
         {
             uquiver->owornmask &= ~W_QUIVER; /* less verbose */
-            prinv("You ready:", uquiver, 0L);
+            prinvc("You ready:", uquiver, 0L);
             uquiver->owornmask |= W_QUIVER;
         }
     }
@@ -1096,6 +1096,8 @@ boolean verbose;
     nomul(-range);
     multi_reason = "moving through the air";
     nomovemsg = ""; /* it just happens */
+    nomovemsg_attr = ATR_NONE;
+    nomovemsg_color = NO_COLOR;
     if (verbose)
         You_ex(ATR_NONE, CLR_MSG_ATTENTION, "%s in the opposite direction.", range > 1 ? "hurtle" : "float");
     /* if we're in the midst of shooting multiple projectiles, stop */
@@ -2103,6 +2105,7 @@ uchar* hitres_ptr;
 
             //DAMAGE IS DONE HERE
             boolean obj_destroyed = FALSE;
+            struct permonst* mondata = mon->data;
             if (hmon(mon, obj, hmode, dieroll, &obj_destroyed)) 
             { /* mon still alive */
                 if (mon->wormno)
@@ -2126,27 +2129,31 @@ uchar* hitres_ptr;
                that hmon() might have destroyed so obj is intact */
             if (objects[otyp].oc_skill < P_NONE
                 && objects[otyp].oc_skill >= -P_THROWN_WEAPON
-                && !objects[otyp].oc_magic) 
+                && !objects[otyp].oc_magic && !is_obj_indestructible(obj)) 
             {
                 /* we were breaking 2/3 of everything unconditionally.
                  * we still don't want anything to survive unconditionally,
                  * but we need ammo to stay around longer on average.
                  */
                 int broken, chance;
+                int pasdmg = does_passive_impact_obj(mondata, obj);
 
-                chance = 0 + greatest_erosion(obj) - obj->enchantment;
-                if (chance > 1)
+                chance = 0 + greatest_erosion(obj) + ((pasdmg & 2) ? abs(obj->enchantment) : -obj->enchantment) + ((pasdmg & 1) ? 3 : 0);
+                if (pasdmg & 1)
+                    broken = rn2(max(3, chance));
+                else if (chance > 1)
                     broken = rn2(chance);
                 else
-                    broken = !rn2(20);
+                    broken = !rn2(max(2, 20 - 2 * chance));
 
-                if (obj->blessed)
+                if (obj->blessed && !(pasdmg & 2) && (!(pasdmg & 1) || !rn2(2)))
                     broken = 0;
 
                 if (broken) 
                 {
                     if (*u.ushops || obj->unpaid)
                         check_shop_obj(obj, bhitpos.x, bhitpos.y, TRUE, FALSE);
+                    Sprintf(priority_debug_buf_4, "thitmonst: %d", obj->otyp);
                     obfree(obj, (struct obj *) 0);
                     return 1;
                 }

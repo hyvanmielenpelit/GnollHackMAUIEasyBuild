@@ -338,6 +338,7 @@ int ef_flags;
             costly_alteration(otmp, cost_type);
 
         setnotworn(otmp);
+        Sprintf(priority_debug_buf_3, "erode_obj: %d", otmp->otyp);
         delobj(otmp);
         return ER_DESTROYED;
     } 
@@ -1147,8 +1148,13 @@ unsigned short trflags;
         else if (thitu(8, weapon_total_dmg_value(otmp, &youmonst, (struct monst*)0, 1), &otmp, (const char*)0, (struct monst*)0, (char*)0))
         {
             if (otmp)
-                obfree(otmp, (struct obj *) 0);
-        } else {
+            {
+                Sprintf(priority_debug_buf_4, "dotrap: %d", otmp->otyp);
+                obfree(otmp, (struct obj*)0);
+            }
+        } 
+        else 
+        {
             place_object(otmp, u.ux, u.uy);
             if (!Blind)
                 otmp->dknown = 1;
@@ -1187,6 +1193,7 @@ unsigned short trflags;
                              /* if damage triggered life-saving,
                                 poison is limited to attrib loss */
                              0, TRUE, 2);
+                Sprintf(priority_debug_buf_4, "dotrap2: %d", otmp->otyp);
                 obfree(otmp, (struct obj *) 0);
             }
         } 
@@ -1851,7 +1858,7 @@ unsigned short trflags;
                     Levitation ? (const char *) "float"
                                : locomotion(youmonst.data, "step"));
         You_ex(ATR_NONE, CLR_MSG_NEGATIVE, "%s a polymorph trap!", verbbuf);
-        if (Antimagic_or_resistance || Unchanging) {
+        if (Antimagic_or_resistance || Polymorph_resistance || Unchanging) {
             play_sfx_sound(SFX_POLYMORPH_FAIL);
             u_shieldeff();
             You_feel("momentarily different.");
@@ -2103,7 +2110,7 @@ struct obj *otmp;
         steedhit = TRUE;
         break;
     case POLY_TRAP:
-        if (!resists_magic(steed) && !has_unchanging(steed) && !check_magic_resistance_and_inflict_damage(steed, (struct obj*)0, (struct monst*)0, FALSE, 0, 0, NOTELL)) {
+        if (!resists_magic(steed) && !resists_polymorph(steed) && !has_unchanging(steed) && !check_magic_resistance_and_inflict_damage(steed, (struct obj*)0, (struct monst*)0, FALSE, 0, 0, NOTELL)) {
             (void) newcham(steed, (struct permonst *) 0, 0, FALSE, FALSE);
             if (!can_saddle(steed) || !can_ride(steed))
                 dismount_steed(DISMOUNT_POLY);
@@ -3490,6 +3497,8 @@ register struct monst *mtmp;
             {
                 multi = -1;
                 nomovemsg = "The explosion awakens you!";
+                nomovemsg_attr = ATR_NONE;
+                nomovemsg_color = NO_COLOR;
             }
             if (spef_on)
             {
@@ -3507,7 +3516,7 @@ register struct monst *mtmp;
                 special_effect_wait_until_action(0);
             }
 
-            if (resists_magic(mtmp) || has_unchanging(mtmp))
+            if (resists_magic(mtmp) || resists_polymorph(mtmp) || has_unchanging(mtmp))
             {
                 play_sfx_sound_at_location(SFX_POLYMORPH_FAIL, mtmp->mx, mtmp->my);
                 m_shieldeff(mtmp);
@@ -4344,7 +4353,8 @@ xchar x, y;
     if (catch_lit(obj))
         return FALSE;
 
-    if (Is_container(obj))
+    Sprintf(priority_debug_buf_2, "fire_damage: %d", obj->otyp);
+    if (Is_container(obj) && !oresist_fire(obj))
     {
         switch (obj->otyp) 
         {
@@ -4384,6 +4394,7 @@ xchar x, y;
             }
         }
         setnotworn(obj);
+        Sprintf(priority_debug_buf_3, "fire_damage: %d", obj->otyp);
         delobj(obj);
         return TRUE;
     } 
@@ -4502,9 +4513,14 @@ xchar x, y;
         }
         if (carried(obj)) { /* shouldn't happen */
             remove_worn_item(obj, TRUE);
+            Sprintf(priority_debug_buf_3, "lava_damage: %d", obj->otyp);
             useupall(obj);
-        } else
+        }
+        else
+        {
+            Sprintf(priority_debug_buf_3, "lava_damage2: %d", obj->otyp);
             delobj(obj);
+        }
         return TRUE;
     }
     return fire_damage(obj, TRUE, x, y);
@@ -4668,19 +4684,24 @@ boolean force;
             play_sfx_sound_at_location(SFX_SCROLL_FADES, x, y);
             pline_ex(ATR_NONE, CLR_MSG_NEGATIVE, "Your %s %s.", ostr, vtense(ostr, "fade"));
         }
-        if (objects[obj->otyp].oc_subtyp == BOOKTYPE_NOVEL) 
+        if (obj->otyp == SPE_NOVEL || objects[obj->otyp].oc_subtyp == BOOKTYPE_NOVEL)
         {
-            obj->novelidx = 0;
-            free_oname(obj);
+            obj->novelidx = -1; /* Blank */
+            if (has_oname(obj))
+                free_oname(obj);
         }
-        else if (objects[obj->otyp].oc_subtyp == BOOKTYPE_MANUAL)
+        else if (obj->otyp == SPE_MANUAL || objects[obj->otyp].oc_subtyp == BOOKTYPE_MANUAL)
         {
-            obj->manualidx = 0;
-            free_oname(obj);
+            obj->manualidx = -1; /* Blank */
+            if(has_oname(obj))
+                free_oname(obj);
         }
-
-        obj->otyp = SPE_BLANK_PAPER;
-        obj->material = objects[obj->otyp].oc_material;
+        else
+        {
+            obj->otyp = SPE_BLANK_PAPER;
+            obj->material = objects[obj->otyp].oc_material;
+            obj->owt = weight(obj);
+        }
         obj->dknown = 0;
         if (carried(obj))
             update_inventory();
@@ -4956,7 +4977,7 @@ drown()
        while still asleep; we can't do that the same way that waking
        due to combat is handled; note unmul() clears u.usleep */
     if (u.usleep)
-        unmul("Suddenly you wake up!");
+        unmul_ex(ATR_NONE, CLR_MSG_ATTENTION, "Suddenly you wake up!");
     /* being doused will revive from fainting */
     if (is_fainted())
         reset_faint();
@@ -7034,6 +7055,7 @@ boolean disarm;
                 exercise(A_DEX, FALSE);
 #endif
                 nomovemsg = You_can_move_again;
+                nomovemsg_attr = ATR_NONE;
                 nomovemsg_color = CLR_MSG_SUCCESS;
             }
             else
@@ -7386,7 +7408,10 @@ boolean nocorpse;
         stackobj(obj);
     }
     else if (obj)
+    {
+        Sprintf(priority_debug_buf_4, "thitm: %d", obj->otyp);
         obfree(obj, (struct obj*)0);
+    }
 
     return trapkilled;
 }
@@ -7411,62 +7436,57 @@ lava_effects()
 {
     register struct obj *obj, *obj2;
     int dmg = d(6, 6); /* only applicable for water walking */
-    boolean usurvive, boil_away;
+    double damage = adjust_damage(dmg, (struct monst*)0, &youmonst, AD_FIRE, ADFLAGS_NONE);
+    boolean usurvive, boil_away, marked_in_use = FALSE;
 
     burn_away_slime();
     if (likes_lava(youmonst.data))
         return FALSE;
 
-    usurvive = Fire_immunity || (Walks_on_water && dmg < u.uhp);
-    /*
-     * A timely interrupt might manage to salvage your life
-     * but not your gear.  For scrolls and potions this
-     * will destroy whole stacks, where fire resistant hero
-     * survivor only loses partial stacks via destroy_item().
-     *
-     * Flag items to be destroyed before any messages so
-     * that player causing hangup at --More-- won't get an
-     * emergency save file created before item destruction.
-     */
-    if (!usurvive)
-        for (obj = invent; obj; obj = obj->nobj)
-            if ((melts_in_lava(obj) || obj->oclass == POTION_CLASS)
-                && !obj->oerodeproof
-                && !oresist_fire(obj)
-                ) /* for invocation items */
-                obj->in_use = 1;
-
-    /* Check whether we should burn away boots *first* so we know whether to
-     * make the player sink into the lava. Assumption: water walking only
-     * comes from boots.
-     */
-    if (uarmf && melts_in_lava(uarmf) && !uarmf->oerodeproof)
-    {
-        obj = uarmf;
-        pline_ex(ATR_NONE, CLR_MSG_NEGATIVE, "%s into flame!", Yobjnam2(obj, "burst"));
-        iflags.in_lava_effects++; /* (see above) */
-        (void) Boots_off();
-        useup(obj);
-        iflags.in_lava_effects--;
-    }
-
     if (!Fire_immunity)
     {
+        /*
+         * A timely interrupt might manage to salvage your life
+         * but not your gear.  For scrolls and potions this
+         * will destroy whole stacks, where fire resistant hero
+         * survivor only loses partial stacks via destroy_item().
+         *
+         * Flag items to be destroyed before any messages so
+         * that player causing hangup at --More-- won't get an
+         * emergency save file created before item destruction.
+         */
+        marked_in_use = TRUE;
+        for (obj = invent; obj; obj = obj->nobj)
+            if (obj_destroyed_in_lava_effects(obj))
+                obj->in_use = 1;
+
+        /* Check whether we should burn away boots *first* so we know whether to
+         * make the player sink into the lava. Assumption: water walking only
+         * comes from boots.
+         */
+        if (uarmf && melts_in_lava(uarmf) && !uarmf->oerodeproof)
+        {
+            obj = uarmf;
+            pline_ex(ATR_NONE, CLR_MSG_NEGATIVE, "%s into flame!", Yobjnam2(obj, "burst"));
+            iflags.in_lava_effects++; /* (see above) */
+            (void)Boots_off();
+            Sprintf(priority_debug_buf_2, "lava_effects: %d", obj->otyp);
+            Strcpy(priority_debug_buf_3, "lava_effects");
+            Strcpy(priority_debug_buf_4, "lava_effects");
+            useup(obj);
+            iflags.in_lava_effects--;
+        }
+
         if (Walks_on_water)
         {
             pline_The("%s here burns you!", hliquid("lava"));
-            if (usurvive) 
-            {
-                losehp(adjust_damage(dmg, (struct monst*)0, &youmonst, AD_FIRE, ADFLAGS_NONE), lava_killer, KILLED_BY); /* lava damage */
-                goto burn_stuff;
-            }
+            losehp(damage, lava_killer, KILLED_BY); /* lava damage */
+            goto burn_stuff; /* Clears off in_use */
         }
         else
             You("fall into the %s!", hliquid("lava"));
 
-        usurvive = Lifesaved || discover;
-        if (wizard)
-            usurvive = TRUE;
+        usurvive = Lifesaved || discover || wizard;
 
         /* prevent remove_worn_item() -> Boots_off(WATER_WALKING_BOOTS) ->
            spoteffects() -> lava_effects() recursion which would
@@ -7501,6 +7521,8 @@ lava_effects()
                         pline_ex(ATR_NONE, CLR_MSG_NEGATIVE, "%s into flame!", Yobjnam2(obj, "burst"));
                     remove_worn_item(obj, TRUE);
                 }
+                Sprintf(priority_debug_buf_3, "lava_effects2: %d", obj->otyp);
+                Strcpy(priority_debug_buf_4, "lava_effects2");
                 useupall(obj);
             }
         }
@@ -7526,6 +7548,12 @@ lava_effects()
             pline_ex(ATR_NONE, CLR_MSG_NEGATIVE, "You're still burning.");
         }
         You_ex(ATR_NONE, CLR_MSG_SUCCESS, "find yourself back on solid %s.", surface(u.ux, u.uy));
+        
+        /* Set in_use to zero in the case something did not get destroyed and you survived */
+        for (obj = invent; obj; obj = obj->nobj)
+            if (obj_destroyed_in_lava_effects(obj))
+                obj->in_use = 0;
+
         return TRUE;
     } 
     else if (!Walks_on_water && (!u.utrap || u.utraptype != TT_LAVA))
@@ -7538,16 +7566,24 @@ lava_effects()
         You_ex(ATR_NONE, !boil_away ? CLR_ORANGE : CLR_RED, "sink into the %s%s!", hliquid("lava"),
             !boil_away ? ", but it only burns slightly"
                        : " and are about to be immolated");
-        if (u.uhp > 1)
-            losehp(adjust_damage(!boil_away ? 1 : (u.uhp / 2), (struct monst*)0, &youmonst, AD_FIRE, ADFLAGS_NONE), lava_killer,
+        if ((Upolyd ? u.mh : u.uhp) > 1)
+            losehp(adjust_damage(!boil_away ? 1 : ((Upolyd? u.mh : u.uhp) / 2), (struct monst*)0, &youmonst, AD_FIRE, ADFLAGS_NONE), lava_killer,
                    KILLED_BY); /* lava damage */
     }
 
 burn_stuff:
+    /* Set in_use to zero in the case something did not get destroyed and you survived */
+    /* This first, since the player may die to destroy_item */
+    if (marked_in_use)
+        for (obj = invent; obj; obj = obj->nobj)
+            if (obj_destroyed_in_lava_effects(obj))
+                obj->in_use = 0;
+
     destroy_item(SCROLL_CLASS, AD_FIRE);
     destroy_item(SPBOOK_CLASS, AD_FIRE);
     destroy_item(POTION_CLASS, AD_FIRE);
     item_destruction_hint(AD_FIRE, FALSE);
+
     return FALSE;
 }
 

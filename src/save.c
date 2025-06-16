@@ -24,6 +24,8 @@ STATIC_VAR int count_only;
 int dotcnt, dotrow; /* also used in restore */
 #endif
 
+STATIC_DCL boolean FDECL(precheck_save_file_tracking, (const char*));
+
 STATIC_DCL void FDECL(savelevchn, (int, int));
 STATIC_DCL void FDECL(savedamage, (int, int));
 STATIC_DCL void FDECL(saveobj, (int, struct obj *));
@@ -31,7 +33,7 @@ STATIC_DCL void FDECL(saveobjchn, (int, struct obj *, int));
 STATIC_DCL void FDECL(savemon, (int, struct monst *));
 STATIC_DCL void FDECL(savemonchn, (int, struct monst *, int));
 STATIC_DCL void FDECL(savetrapchn, (int, struct trap *, int));
-STATIC_DCL void FDECL(savegamestate, (int, int));
+STATIC_DCL void FDECL(savegamestate, (int, int, int64_t));
 STATIC_OVL void FDECL(save_msghistory, (int, int));
 STATIC_OVL void FDECL(save_gamelog, (int, int));
 #ifdef MFLOPPY
@@ -183,6 +185,8 @@ boolean quietly;
     if (!program_state.something_worth_saving || !SAVEF[0])
         return 0;
     fq_save = fqname(SAVEF, SAVEPREFIX, 1); /* level files take 0 */
+    if (!precheck_save_file_tracking(fq_save))
+        return 0;
 
 #if !defined(ANDROID) && !defined(GNH_MOBILE)
 #if defined(UNIX) || defined(VMS)
@@ -246,6 +250,7 @@ boolean quietly;
     if (iflags.window_inited)
         HUP clear_nhwindow(WIN_MESSAGE);
 
+    int64_t time_stamp = (int64_t)getnow();
 #ifdef MICRO
     dotcnt = 0;
     dotrow = 2;
@@ -259,7 +264,7 @@ boolean quietly;
         int64_t fds, needed;
 
         savelev(fd, ledger_no(&u.uz), COUNT_SAVE);
-        savegamestate(fd, COUNT_SAVE);
+        savegamestate(fd, COUNT_SAVE, time_stamp);
         needed = bytes_counted;
 
         for (ltmp = 1; ltmp <= maxledgerno(); ltmp++)
@@ -286,11 +291,11 @@ boolean quietly;
     store_version(fd);
     store_savefileinfo(fd);
     store_plname_in_file(fd);
-    store_save_game_stats_in_file(fd);
+    store_save_game_stats_in_file(fd, time_stamp);
     ustuck_id = (u.ustuck ? u.ustuck->m_id : 0);
     usteed_id = (u.usteed ? u.usteed->m_id : 0);
     savelev(fd, ledger_no(&u.uz), WRITE_SAVE | FREE_SAVE);
-    savegamestate(fd, WRITE_SAVE | FREE_SAVE);
+    savegamestate(fd, WRITE_SAVE | FREE_SAVE, time_stamp);
 
     /* While copying level files around, zero out u.uz to keep
      * parts of the restore code from completely initializing all
@@ -339,6 +344,7 @@ boolean quietly;
         savelev(fd, ltmp, WRITE_SAVE | FREE_SAVE);     /* actual level*/
     }
     bclose(fd);
+    track_new_save_file(fq_save, time_stamp);
     nh_compress(fq_save);
 
     u.uz = uz_save;
@@ -361,6 +367,59 @@ boolean quietly;
     post_to_forum_printf(LL_GAME_SAVE, "saved %s game %s", uhis(), saved_dgnlvl_name_buf);
     Strcpy(saved_dgnlvl_name_buf, "");
     return 1;
+}
+
+STATIC_OVL boolean
+precheck_save_file_tracking(fq_save)
+const char* fq_save;
+{
+    if (wizard || discover || CasualMode || iflags.save_file_secure || !iflags.save_file_tracking_supported)
+        return TRUE;
+
+    if (!flags.save_file_tracking_migrated) /* Migrate older versions; this should already be handled in restore, but here just in case */
+    {
+        flags.save_file_tracking_migrated = TRUE;
+        flags.save_file_tracking_value = SAVEFILETRACK_VALID;
+        impossible("Handling tracking for a non-migrated save file?");
+    }
+    else if(flags.save_file_tracking_value == SAVEFILETRACK_VALID)
+    {
+        if (iflags.save_file_tracking_needed && !iflags.save_file_tracking_on) /* This should not happen since tracking cannot be currently be switched off in the middle of the game */
+        {
+            char ans = yn_query("Save file tracking has been turned off. Do you want to mark this save file unsuccessfully tracked?");
+            if (ans == 'y')
+            {
+                flags.save_file_tracking_value = SAVEFILETRACK_INVALID;
+                issue_gui_command(GUI_CMD_DELETE_TRACKING_FILE, 0, 0, fq_save);
+            }
+            else
+                return FALSE; /* Abort save */
+        }
+    }
+    return TRUE;
+}
+
+void 
+track_new_save_file(filename, time_stamp)
+const char* filename;
+int64_t time_stamp;
+{
+    if (wizard || discover || CasualMode || iflags.save_file_secure || !iflags.save_file_tracking_supported)
+        return;
+
+    if (iflags.save_file_tracking_needed && iflags.save_file_tracking_on && flags.save_file_tracking_value == SAVEFILETRACK_VALID)
+    {
+        //Inform GUI of the new save file
+        struct special_view_info info = { 0 };
+        info.viewtype = SPECIAL_VIEW_SAVE_FILE_TRACKING_SAVE;
+        info.text = filename;
+        info.time_stamp = time_stamp;
+        int errorcode = open_special_view(info);
+        if (errorcode)
+        {
+            //issue_debuglog(errorcode, "Save file tracking encountered a problem upon save.");
+        }
+    }
 }
 
 STATIC_OVL void
@@ -394,8 +453,9 @@ int fd, mode;
 }
 
 STATIC_OVL void
-savegamestate(fd, mode)
+savegamestate(fd, mode, time_stamp)
 register int fd, mode;
+int64_t time_stamp;
 {
     uint64_t uid;
 
@@ -410,7 +470,7 @@ register int fd, mode;
     bwrite(fd, (genericptr_t) &sysflags, sizeof(struct sysflag));
 #endif
     bwrite(fd, (genericptr_t)&spl_orderindx, sizeof(spl_orderindx));
-    urealtime.finish_time = (int64_t)getnow();
+    urealtime.finish_time = time_stamp;
     urealtime.realtime += (urealtime.finish_time
                                   - urealtime.start_timing);
     bwrite(fd, (genericptr_t) &u, sizeof(struct you));
@@ -542,16 +602,17 @@ savestateinlock()
         (void) write(fd, (genericptr_t) &hackpid, sizeof(hackpid));
         if (flags.ins_chkpt) {
             int currlev = ledger_no(&u.uz);
+            int64_t time_stamp = (int64_t)getnow();
 
             (void) write(fd, (genericptr_t) &currlev, sizeof(currlev));
             save_savefile_name(fd);
             store_version(fd);
             store_savefileinfo(fd);
             store_plname_in_file(fd);
-            store_save_game_stats_in_file(fd);
+            store_save_game_stats_in_file(fd, time_stamp);
             ustuck_id = (u.ustuck ? u.ustuck->m_id : 0);
             usteed_id = (u.usteed ? u.usteed->m_id : 0);
-            savegamestate(fd, WRITE_SAVE);
+            savegamestate(fd, WRITE_SAVE, time_stamp);
         }
         bclose(fd);
     }
@@ -1425,8 +1486,9 @@ int fd;
 
 
 void
-store_save_game_stats_in_file(fd)
+store_save_game_stats_in_file(fd, time_stamp)
 int fd;
+int64_t time_stamp;
 {
     struct save_game_stats gamestats = { 0 };
     gamestats.glyph = abs(u_to_glyph());
@@ -1456,8 +1518,10 @@ int fd;
     gamestats.explore_mode = discover;
     gamestats.modern_mode = ModernMode;
     gamestats.casual_mode = CasualMode;
-    gamestats.save_flags = (flags.non_scoring ? SAVEFLAGS_NON_SCORING : 0) | (TournamentMode ? SAVEFLAGS_TOURNAMENT_MODE : 0);
-    gamestats.time_stamp = (int64_t)getnow();
+    gamestats.save_flags = 
+        (flags.non_scoring ? SAVEFLAGS_NON_SCORING : 0) | (TournamentMode ? SAVEFLAGS_TOURNAMENT_MODE : 0) |
+        SAVEFLAGS_FILETRACK_SUPPORT | (flags.save_file_tracking_value ? SAVEFLAGS_FILETRACK_ON : 0);
+    gamestats.time_stamp = time_stamp;
     gamestats.num_recoveries = n_game_recoveries;
 
     bufoff(fd);

@@ -92,6 +92,7 @@ set_uasmon(VOID_ARGS)
     PROPSET(STUN_RESISTANCE, resists_stun(&youmonst));
     PROPSET(BISECTION_RESISTANCE, resists_bisection(&youmonst));
     PROPSET(SLIME_RESISTANCE, resists_slime(&youmonst));
+    PROPSET(POLYMORPH_RESISTANCE, resists_polymorph(&youmonst));
 
     PROPSET(FIRE_IMMUNITY, is_mon_immune_to_fire(&youmonst));
     PROPSET(COLD_IMMUNITY, is_mon_immune_to_cold(&youmonst));
@@ -1124,6 +1125,8 @@ break_armor()
     //Suit, cloak, robe, shirt
     if (breakarm(youmonst.data)) 
     {
+        Strcpy(priority_debug_buf_3, "break_armor");
+        Strcpy(priority_debug_buf_4, "break_armor");
         if ((otmp = uarm) != 0)
         {
             if (donning(otmp))
@@ -1142,6 +1145,7 @@ break_armor()
                 You_ex(ATR_NONE, CLR_MSG_NEGATIVE, "break out of %s!", yname(otmp));
                 exercise(A_STR, FALSE);
                 (void)Armor_gone();
+                Sprintf(priority_debug_buf_2, "break_armor: %d", otmp->otyp);
                 useup(otmp);
             }
         }
@@ -1161,6 +1165,7 @@ break_armor()
                 play_simple_object_sound(otmp, OBJECT_SOUND_TYPE_BREAK);
                 Your_ex(ATR_NONE, CLR_MSG_NEGATIVE, "%s tears apart!", cloak_simple_name(otmp));
                 (void) Cloak_off();
+                Sprintf(priority_debug_buf_2, "break_armor2: %d", otmp->otyp);
                 useup(otmp);
             }
         }
@@ -1181,6 +1186,7 @@ break_armor()
                 play_simple_object_sound(otmp, OBJECT_SOUND_TYPE_BREAK);
                 Your_ex(ATR_NONE, CLR_MSG_NEGATIVE, "%s is torn to pieces!", robe_simple_name(otmp));
                 (void)Robe_off();
+                Sprintf(priority_debug_buf_2, "break_armor3: %d", otmp->otyp);
                 useup(otmp);
             }
         }
@@ -1201,6 +1207,7 @@ break_armor()
                 play_simple_object_sound(otmp, OBJECT_SOUND_TYPE_BREAK);
                 Your_ex(ATR_NONE, CLR_MSG_NEGATIVE, "shirt rips to shreds!");
                 (void)Shirt_off();
+                Sprintf(priority_debug_buf_2, "break_armor4: %d", otmp->otyp);
                 useup(otmp);
             }
         }
@@ -1396,6 +1403,7 @@ break_armor()
                     pline_ex(ATR_NONE, CLR_MSG_NEGATIVE, "%s!", Yobjnam2(otmp, "break"));
                     exercise(A_STR, FALSE);
                     (void)MiscellaneousItem_off(otmp);
+                    Sprintf(priority_debug_buf_2, "break_armor5: %d", otmp->otyp);
                     useup(otmp);
                 }
             }
@@ -2076,6 +2084,8 @@ dogaze()
                                     : -200);
                                 multi_reason = "frozen by a monster's gaze";
                                 nomovemsg = 0;
+                                nomovemsg_attr = ATR_NONE;
+                                nomovemsg_color = NO_COLOR;
                                 standard_hint("Do not gaze at floating eyes unless you have paralysis resistance. Use ranged weapons against them.", &u.uhint.paralyzed_by_floating_eye);
                                 return 1;
                             }

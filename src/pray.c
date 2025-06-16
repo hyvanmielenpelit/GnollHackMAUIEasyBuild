@@ -405,6 +405,7 @@ int trouble;
         {
             play_sfx_sound(SFX_ITEM_VANISHES);
             Your_ex(ATR_NONE, CLR_MSG_POSITIVE, "amulet vanishes!");
+            Sprintf(priority_debug_buf_2, "fix_worst_trouble: %d", uamul->otyp);
             useup(uamul);
         }
         if(Breathless)
@@ -2295,6 +2296,9 @@ register struct obj *otmp;
         Your_ex(ATR_NONE, CLR_MSG_MYSTICAL, "sacrifice is consumed in a %s!",
             u.ualign.type == A_LAWFUL ? "flash of light" : "burst of flame");
     }
+    Sprintf(priority_debug_buf_2, "consume_offering: %d", otmp->otyp);
+    Strcpy(priority_debug_buf_3, "consume_offering");
+    Strcpy(priority_debug_buf_4, "consume_offering");
     if (carried(otmp))
         useup(otmp);
     else
@@ -2465,6 +2469,8 @@ dosacrifice()
                         nomul(-3);
                         multi_reason = "being terrified of a demon";
                         nomovemsg = 0;
+                        nomovemsg_attr = ATR_NONE;
+                        nomovemsg_color = NO_COLOR;
                     }
                 }
                 else
@@ -2484,6 +2490,9 @@ dosacrifice()
 
             change_luck(luck_change, TRUE);
 
+            Sprintf(priority_debug_buf_2, "dosacrifice: %d", otmp->otyp);
+            Strcpy(priority_debug_buf_3, "dosacrifice");
+            Strcpy(priority_debug_buf_4, "dosacrifice");
             if (carried(otmp))
                 useup(otmp);
             else
@@ -2580,6 +2589,9 @@ dosacrifice()
             if (uamul == otmp)
                 Amulet_off();
             u.uevent.ascended = 1;
+            Sprintf(priority_debug_buf_2, "dosacrifice2: %d", otmp->otyp);
+            Strcpy(priority_debug_buf_3, "dosacrifice2");
+            Strcpy(priority_debug_buf_4, "dosacrifice2");
             if (carried(otmp))
                 useup(otmp); /* well, it's gone now */
             else
@@ -3210,6 +3222,8 @@ dopray()
     nomul(-3);
     multi_reason = "praying";
     nomovemsg = "You finish your prayer.";
+    nomovemsg_attr = ATR_NONE;
+    nomovemsg_color = NO_COLOR;
     afternmv = prayer_done;
 
     if (iflags.using_gui_sounds)
@@ -3445,6 +3459,7 @@ doturn()
     nomul(-(5 - ((u.ulevel - 1) / 6))); /* -5 .. -1 */
     multi_reason = "trying to turn the monsters";
     nomovemsg = You_can_move_again;
+    nomovemsg_attr = ATR_NONE;
     nomovemsg_color = CLR_MSG_SUCCESS;
     return 1;
 }

@@ -720,10 +720,12 @@ xchar x, y; /* coordinates where object was before the impact, not after */
                     stolen_value(otmp, x, y, is_peaceful(shkp), TRUE);
             }
             if (otmp->quan > 1L) {
+                Sprintf(priority_debug_buf_2, "container_impact_dmg: %d", otmp->otyp);
                 useup(otmp);
             } else {
                 Strcpy(debug_buf_2, "container_impact_dmg");
                 obj_extract_self(otmp);
+                Sprintf(priority_debug_buf_4, "container_impact_dmg: %d", otmp->otyp);
                 obfree(otmp, (struct obj *) 0);
             }
             /* contents of this container are no longer known */
@@ -946,7 +948,7 @@ boolean is_golf_swing;
         {
             if (!rn2(5) || (martial() && !rn2(2))) 
             {
-                if (kickedobj->keyotyp == STRANGE_OBJECT || kickedobj->keyotyp == NON_PM || kickedobj->keyotyp == SKELETON_KEY)
+                if (kickedobj->keyotyp == STRANGE_OBJECT || kickedobj->keyotyp == NON_PM || kickedobj->keyotyp == SKELETON_KEY || kickedobj->keyotyp == MASTER_KEY)
                 {
                     play_simple_container_sound(kickedobj, CONTAINER_SOUND_TYPE_BREAK_LOCK);
                     You_ex(ATR_NONE, CLR_MSG_SUCCESS, "break open the lock!");
@@ -2267,6 +2269,7 @@ boolean shop_floor_obj;
         }
         Strcpy(debug_buf_2, "ship_object");
         obj_extract_self(otmp);
+        Sprintf(priority_debug_buf_4, "ship_object: %d", otmp->otyp);
         obfree(otmp, (struct obj *) 0);
         return TRUE;
     }

@@ -1016,6 +1016,8 @@ coord *cc;
             pline("KADOOM!  The boulder falls in!");
             (void) delfloortrap(ttmp);
         }
+        Sprintf(priority_debug_buf_2, "dighole: %d", boulder_here->otyp);
+        Sprintf(priority_debug_buf_3, "dighole: %d", boulder_here->otyp);
         delobj(boulder_here);
         return TRUE;
 
@@ -1400,7 +1402,9 @@ struct obj *obj;
                 nomul(-d(2, 2));
                 multi_reason = "stuck in a spider web";
                 nomovemsg = "You pull free.";
-            } 
+                nomovemsg_attr = ATR_NONE;
+                nomovemsg_color = CLR_MSG_SUCCESS;
+            }
             else if (lev->typ == IRONBARS) 
             {
                 play_object_hit_sound(obj, HIT_SURFACE_SOURCE_LOCATION, xy_to_any(rx, ry), 0, HMON_MELEE);
@@ -1573,7 +1577,7 @@ struct obj *obj;
                 if (action_taken)
                     update_u_action_revert(ACTION_TILE_NO_ACTION);
             }
-            set_occupation(dig, verbing, objects[obj->otyp].oc_soundset, 
+            set_occupation(dig, verbing, ATR_NONE, CLR_MSG_ATTENTION, objects[obj->otyp].oc_soundset,
                 d_action_soundset[dig_target],
                 context.digging.chew ? OCCUPATION_SOUND_TYPE_START : OCCUPATION_SOUND_TYPE_RESUME, 0);
         }
@@ -1666,7 +1670,7 @@ struct obj *obj;
             resume = TRUE;
         }
         did_dig_msg = FALSE;
-        set_occupation(dig, verbing, objects[obj->otyp].oc_soundset,
+        set_occupation(dig, verbing, ATR_NONE, CLR_MSG_ATTENTION, objects[obj->otyp].oc_soundset,
             (context.digging.down && (levl[u.ux][u.uy].typ == GROUND || levl[u.ux][u.uy].typ == GRASS ||
                 levl[u.ux][u.uy].floortyp == GROUND || levl[u.ux][u.uy].floortyp == GRASS)) 
             ? OCCUPATION_DIGGING_GROUND : OCCUPATION_DIGGING_ROCK, 
@@ -2674,6 +2678,8 @@ struct obj* origobj;
                 if(see_it)
                     pline("%s!", Tobjnam(otmp, "evaporate"));
 
+                Sprintf(priority_debug_buf_2, "zap_evaporation: %d", otmp->otyp);
+                Sprintf(priority_debug_buf_3, "zap_evaporation: %d", otmp->otyp);
                 delobj(otmp);
             }
         }
@@ -3042,6 +3048,7 @@ boolean *dealloced;
         /* merges into burying material */
         if (dealloced)
             *dealloced = TRUE;
+        Sprintf(priority_debug_buf_4, "bury_an_obj: %d", otmp->otyp);
         obfree(otmp, (struct obj *) 0);
         return otmp2;
     }
@@ -3053,6 +3060,10 @@ boolean *dealloced;
         ; /* should cancel timer if under_ice */
     } else if ((under_ice ? otmp->oclass == POTION_CLASS : is_rottable(otmp))
                && !obj_resists(otmp, 5, 95)) {
+        Sprintf(priority_debug_buf_1, "bury_an_obj (timed): %d, %d", otmp->otyp, otmp->corpsenm);
+        Strcpy(priority_debug_buf_2, "bury_an_obj");
+        Strcpy(priority_debug_buf_3, "bury_an_obj");
+        Strcpy(priority_debug_buf_4, "bury_an_obj");
         (void) start_timer((under_ice ? 0L : 250L) + (int64_t) rnd(250),
                            TIMER_OBJECT, ROT_ORGANIC, obj_to_any(otmp));
 #if 0
@@ -3186,7 +3197,10 @@ int64_t timeout UNUSED;
     }
     Strcpy(debug_buf_2, "rot_organic");
     obj_extract_self(obj);
+    Sprintf(priority_debug_buf_4, "rot_organic: %d", obj->otyp);
+    context.surpress_container_deletion_warning = 1;
     obfree(obj, (struct obj *) 0);
+    context.surpress_container_deletion_warning = 0;
 }
 
 /*
@@ -3242,6 +3256,7 @@ int64_t timeout;
            freeing a worn object doesn't get a false hit */
         obj->owornmask = 0L;
     }
+    Sprintf(priority_debug_buf_3, "rot_corpse: %d, %d", obj->otyp, obj->corpsenm);
     rot_organic(arg, timeout);
     if (on_floor) {
         struct monst *mtmp = m_at(x, y);

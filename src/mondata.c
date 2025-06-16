@@ -66,6 +66,7 @@ STATIC_VAR const NEARDATA struct ability_conversion_table prop2innate[] = {
     { SLIME_RESISTANCE, MR_NONE, MR2_SLIME_RESISTANCE, MC_NONE, -1 },
     { ENERGY_REGENERATION, MR_NONE, MR2_ENERGY_REGENERATION, MC_NONE, -1 },
     { WOUNDING_RESISTANCE, MR_NONE, MR2_WOUNDING_RESISTANCE, MC_NONE, -1 },
+    { POLYMORPH_RESISTANCE, MR_NONE, MR2_POLYMORPH_RESISTANCE, MC_NONE, -1 },
 };
 
 struct mflag_description {
@@ -336,6 +337,53 @@ unsigned short subtype;
         }
     }
     return;
+}
+
+int
+does_passive_impact_obj(ptr, obj)
+struct permonst* ptr;
+struct obj* obj;
+{
+    if (!obj || !ptr || is_obj_indestructible(obj))
+        return 0;
+
+    struct attack* a;
+    for (a = &ptr->mattk[0]; a < &ptr->mattk[NATTK]; a++)
+        if (a->aatyp == AT_PASV || a->aatyp == AT_BOOM || a->aatyp == AT_EXPL)
+        {
+            if (a->aflags & ATTKFLAGS_NO_OBJ_DMG) //Non-corrosive passive for floating eye
+                continue;
+
+            switch (a->adtyp)
+            {
+            case AD_FIRE:
+                return !oresist_fire(obj);
+            case AD_ELEC:
+                return !oresist_elec(obj);
+            case AD_COLD:
+                return !oresist_cold(obj);
+            case AD_ACID:
+            case AD_PLYS:
+                return !!is_damageable(obj);
+            case AD_CORR:
+                return !!is_corrodeable(obj);
+            case AD_RUST:
+                return !!is_rustprone(obj);
+            case AD_STON:
+                return !!is_organic(obj);
+            case AD_SLIM:
+                return !!is_organic(obj);
+            case AD_DISN:
+                return !oresist_disintegration(obj);
+            case AD_ENCH:
+                return 2; // enchantment does not matter
+            case AD_PHYS:
+                return 1;
+            default:
+                break;
+            }
+        }
+    return 0;
 }
 
 /* does monster-type have any attack for a specific type of damage? */

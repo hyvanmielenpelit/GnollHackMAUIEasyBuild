@@ -591,6 +591,8 @@ doengrave()
 
     multi = 0;              /* moves consumed */
     nomovemsg = (char *) 0; /* occupation end message */
+    nomovemsg_attr = ATR_NONE;
+    nomovemsg_color = NO_COLOR;
 
     buf[0] = (char) 0;
     ebuf[0] = (char) 0;
@@ -1077,6 +1079,7 @@ doengrave()
             You(
     "are not going to get anywhere trying to write in the %s with your dust.",
                 is_ice(u.ux, u.uy) ? "frost" : "dust");
+        Sprintf(priority_debug_buf_2, "doengrave: %d", otmp->otyp);
         useup(otmp);
         otmp = 0; /* wand is now gone */
         ptext = FALSE;
@@ -1241,12 +1244,20 @@ doengrave()
     default:
         multi = -(len / 10);
         if (multi)
+        {
             nomovemsg = "You finish your weird engraving.";
+            nomovemsg_attr = ATR_NONE;
+            nomovemsg_color = NO_COLOR;
+        }
         break;
     case DUST:
         multi = -(len / 10);
         if (multi)
+        {
             nomovemsg = "You finish writing in the dust.";
+            nomovemsg_attr = ATR_NONE;
+            nomovemsg_color = NO_COLOR;
+        }
         break;
     case ENGR_HEADSTONE:
     case ENGR_SIGNPOST:
@@ -1274,14 +1285,22 @@ doengrave()
             multi = -len;
         }
         if (multi)
+        {
             nomovemsg = "You finish engraving.";
+            nomovemsg_attr = ATR_NONE;
+            nomovemsg_color = NO_COLOR;
+        }
         break;
     case BURN:
         multi = -(len / 10);
         if (multi)
+        {
             nomovemsg = is_ice(u.ux, u.uy)
-                          ? "You finish melting your message into the ice."
-                          : "You finish burning your message into the floor.";
+                ? "You finish melting your message into the ice."
+                : "You finish burning your message into the floor.";
+            nomovemsg_attr = ATR_NONE;
+            nomovemsg_color = NO_COLOR;
+        }
         break;
     case MARK:
         multi = -(len / 10);
@@ -1297,12 +1316,20 @@ doengrave()
                 otmp->charges -= 1; /* Prevent infinite graffiti */
         }
         if (multi)
+        {
             nomovemsg = "You finish defacing the dungeon.";
+            nomovemsg_attr = ATR_NONE;
+            nomovemsg_color = NO_COLOR;
+        }
         break;
     case ENGR_BLOOD:
         multi = -(len / 10);
         if (multi)
+        {
             nomovemsg = "You finish scrawling.";
+            nomovemsg_attr = ATR_NONE;
+            nomovemsg_color = NO_COLOR;
+        }
         break;
     }
 
@@ -1314,7 +1341,11 @@ doengrave()
         if (!maxelen && *sp) {
             *sp = '\0';
             if (multi)
+            {
                 nomovemsg = "You cannot write any more.";
+                nomovemsg_attr = ATR_NONE;
+                nomovemsg_color = NO_COLOR;
+            }
             pline_multi_ex(ATR_NONE, NO_COLOR, no_multiattrs, multicolor_text1, "You are only able to write \"%s\".", ebuf);
         }
     }
@@ -1515,7 +1546,7 @@ boolean in_mklev_var;
     }
     else
     {
-        create_simple_location(x, y, GRAVE, 0, 0, 0, 0, levl[x][y].typ == GRAVE ? levl[x][y].floortyp : levl[x][y].typ, levl[x][y].typ == GRAVE ? levl[x][y].floorsubtyp : levl[x][y].subtyp, levl[x][y].typ == GRAVE ? levl[x][y].floorvartyp : levl[x][y].vartyp, FALSE);
+        create_simple_location_with_carpet(x, y, GRAVE, 0, 0, 0, levl[x][y].carpet_typ, levl[x][y].carpet_piece, levl[x][y].carpet_flags, 0, levl[x][y].typ == GRAVE ? levl[x][y].floortyp : levl[x][y].typ, levl[x][y].typ == GRAVE ? levl[x][y].floorsubtyp : levl[x][y].subtyp, levl[x][y].typ == GRAVE ? levl[x][y].floorvartyp : levl[x][y].vartyp, FALSE);
     }
 
     /* Engrave the headstone */
@@ -1550,7 +1581,7 @@ boolean in_mklev_var;
         }
         else if (!IS_FLOOR(levl[x][y].floortyp))
         {
-            levl[x][y].floortyp = location_type_definitions[GRAVE].initial_floor_type;
+            levl[x][y].floortyp = location_type_definitions[SIGNPOST].initial_floor_type;
             levl[x][y].floorsubtyp = get_initial_location_subtype(levl[x][y].floortyp);
             levl[x][y].floorvartyp = get_initial_location_vartype(levl[x][y].floortyp, levl[x][y].floorsubtyp);
         }
@@ -1563,7 +1594,7 @@ boolean in_mklev_var;
     else
     {
         boolean issignpost = (levl[x][y].typ == SIGNPOST);
-        create_simple_location(x, y, SIGNPOST, 0, 0, 0, 0, issignpost ? levl[x][y].floortyp : levl[x][y].typ, issignpost ? levl[x][y].floorsubtyp : levl[x][y].subtyp, issignpost ? levl[x][y].floorvartyp : levl[x][y].vartyp, FALSE);
+        create_simple_location_with_carpet(x, y, SIGNPOST, 0, 0, 0, levl[x][y].carpet_typ, levl[x][y].carpet_piece, levl[x][y].carpet_flags, 0, issignpost ? levl[x][y].floortyp : levl[x][y].typ, issignpost ? levl[x][y].floorsubtyp : levl[x][y].subtyp, issignpost ? levl[x][y].floorvartyp : levl[x][y].vartyp, FALSE);
     }
 
     /* Engrave the signpost */

@@ -1192,7 +1192,7 @@ boolean* obj_destroyed;
                 /* or strike with a missile in your hand... */
                 || (!thrown && (is_missile(obj) || is_ammo(obj)))
                 /* or use a pole at short range and not mounted... */
-                || (!thrown && !u.usteed && is_appliable_pole_type_weapon(obj) && !is_spear(obj))
+                || (!thrown && !u.usteed && is_appliable_pole_type_weapon(obj) && !is_spear(obj) && !is_trident(obj))
                 /* or throw a missile without the proper bow... */
                 || (is_ammo(obj) && !is_golf_swing_with_stone && (thrown != HMON_THROWN
                     || !ammo_and_launcher(obj, uwep)))) 
@@ -1232,6 +1232,7 @@ boolean* obj_destroyed;
                         else if (obj == uarms)
                             uwep2gone(); /* set unweapon */
                     }
+                    Sprintf(priority_debug_buf_2, "hmon_hitmon: %d", obj->otyp);
                     useup(obj);
                     if (!more_than_1)
                         obj = (struct obj*) 0;
@@ -1417,6 +1418,7 @@ boolean* obj_destroyed;
                         play_simple_object_sound(obj, OBJECT_SOUND_TYPE_BREAK);
                         You_ex(ATR_NONE, CLR_MSG_WARNING, "break %s.  That's bad luck!", ysimple_name(obj));
                         change_luck(-2, TRUE);
+                        Sprintf(priority_debug_buf_2, "hmon_hitmon2: %d", obj->otyp);
                         useup(obj);
                         obj = (struct obj*) 0;
                         unarmed = FALSE; /* avoid obj==0 confusion */
@@ -1437,6 +1439,7 @@ boolean* obj_destroyed;
                     You_ex(ATR_NONE, CLR_MSG_WARNING, "succeed in destroying %s.  Congratulations!",
                         ysimple_name(obj));
                     release_camera_demon(obj, u.ux, u.uy);
+                    Sprintf(priority_debug_buf_2, "hmon_hitmon3: %d", obj->otyp);
                     useup(obj);
                     return TRUE;
                 case CORPSE: /* fixed by polder@cs.vu.nl */
@@ -1482,9 +1485,15 @@ boolean* obj_destroyed;
 #define useup_eggs(o)                    \
     do { \
             if (thrown)                      \
-                obfree(o, (struct obj*) 0); \
+            { \
+                    Sprintf(priority_debug_buf_4, "useup_eggs: %d", (o)->otyp); \
+                    obfree(o, (struct obj*)0); \
+            } \
             else                             \
+            {\
+                Sprintf(priority_debug_buf_3, "useup_eggs: %d", (o)->otyp); \
                 useupall(o);                 \
+            }\
             o = (struct obj*) 0;            \
     } while (0) /* now gone */
                 case EGG: 
@@ -1623,9 +1632,15 @@ boolean* obj_destroyed;
                         setmangry(mon, TRUE);
                     }
                     if (thrown)
-                        obfree(obj, (struct obj*) 0);
+                    {
+                        Sprintf(priority_debug_buf_4, "hmon_hitmon: %d", obj->otyp);
+                        obfree(obj, (struct obj*)0);
+                    }
                     else
+                    {
+                        Sprintf(priority_debug_buf_2, "hmon_hitmon4: %d", obj->otyp);
                         useup(obj);
+                    }
                     hittxt = TRUE;
                     get_dmg_bonus = FALSE;
                     damage = 0;
@@ -1645,6 +1660,8 @@ boolean* obj_destroyed;
                         extratmp = weapon_extra_dmg_value(obj, mon, &youmonst, basedmg);
                         damage += adjust_damage(extratmp, &youmonst, mon, objects[obj->otyp].oc_extra_damagetype, ADFLAGS_NONE);
                     }
+                    Sprintf(priority_debug_buf_4, "hmon_hitmon2: %d", obj->otyp);
+                    Sprintf(priority_debug_buf_2, "hmon_hitmon5: %d", obj->otyp);
                     if (thrown)
                         obfree(obj, (struct obj*) 0);
                     else
@@ -1777,11 +1794,17 @@ boolean* obj_destroyed;
 
         if (thrown == HMON_MELEE && obj && uwep && obj == uwep && two_handed_bonus_applies(obj))
             use_skill(P_TWO_HANDED_WEAPON, 1);
+
+        if (thrown == HMON_THROWN && wtype != P_THROWN_WEAPON && ordinary_thrown)
+            use_skill(P_THROWN_WEAPON, 1);
     }
     else if (ordinary_thrown) //Thrown weapon skill bonus to thrown objects
     {
         damage += adjust_damage(weapon_skill_dmg_bonus((struct obj*)0, P_NONE, FALSE, FALSE, 2, 0, TRUE, TRUE),
             &youmonst, mon, wep ? objects[wep->otyp].oc_damagetype : AD_PHYS, ADFLAGS_NONE);
+
+        if (thrown == HMON_THROWN && wtype != P_THROWN_WEAPON && damage > 0)
+            use_skill(P_THROWN_WEAPON, 1);
     }
 
     if (ispoisoned && !isdisintegrated) 
@@ -1952,6 +1975,7 @@ boolean* obj_destroyed;
             if (obj == uarms)
                 uwep2gone(); /* set unweapon */
             /* minor side-effect: broken lance won't split puddings */
+            Sprintf(priority_debug_buf_2, "hmon_hitmon6: %d", obj->otyp);
             useup(obj);
             obj = 0;
         }
@@ -2472,6 +2496,7 @@ boolean* obj_destroyed;
 
         if (obj->where == OBJ_INVENT)
         {
+            Sprintf(priority_debug_buf_2, "hmon_hitmon7: %d", obj->otyp);
             if (obj->quan > 1)
                 useup(obj);
             else
@@ -2480,6 +2505,7 @@ boolean* obj_destroyed;
                     uwepgone(); /* set unweapon */
                 else if (obj == uarms)
                     uwep2gone(); /* set unweapon */
+                Sprintf(priority_debug_buf_3, "hmon_hitmon: %d", obj->otyp);
                 useupall(obj);
                 obj = 0;
             }
@@ -2495,6 +2521,7 @@ boolean* obj_destroyed;
         }
         else if (obj->where == OBJ_FREE)
         {
+            Sprintf(priority_debug_buf_4, "hmon_hitmon3: %d", obj->otyp);
             obfree(obj, (struct obj*)0);
             obj = (struct obj*)0;
         }
@@ -3030,7 +3057,7 @@ int specialdmg; /* blessed and/or silver bonus against various things */
                 Your_ex(ATR_NONE, CLR_MSG_SUCCESS, "purse feels heavier.");
             } else {
                 play_ui_sound(UI_SOUND_KNAPSACK_FULL);
-                You_ex(ATR_NONE, CLR_MSG_SUCCESS, "grab %s's gold, but find no room in your knapsack.",
+                You_ex(ATR_NONE, CLR_MSG_SUCCESS, "grab %s's gold, but find no room in your inventory.",
                     mon_nam(mdef));
                 dropyf(mongold);
             }
@@ -3673,6 +3700,8 @@ register struct attack *mattk;
                         nomul(-tmp);
                         multi_reason = "digesting something";
                         nomovemsg = msgbuf;
+                        nomovemsg_attr = ATR_NONE;
+                        nomovemsg_color = NO_COLOR;
                     }
                     else
                         pline_ex1(ATR_NONE, CLR_MSG_SUCCESS, msgbuf);
@@ -4327,7 +4356,7 @@ boolean wep_was_destroyed;
     {
         update_m_action(mon, ptr->mattk[i].action_tile ? ptr->mattk[i].action_tile : ACTION_TILE_PASSIVE_DEFENSE);
         play_monster_simple_weapon_sound(mon, i, (struct obj*)0, OBJECT_SOUND_TYPE_SWING_MELEE);
-        m_wait_until_action();
+        m_wait_until_action(mon, ptr->mattk[i].action_tile ? ptr->mattk[i].action_tile : ACTION_TILE_PASSIVE_DEFENSE);
     }
 
     /*  These affect you even if they just died.
@@ -5378,7 +5407,7 @@ enum action_tile_types action;
     if(mtmp == &youmonst)
         u_wait_until_action();
     else if(action == ACTION_TILE_DEATH ? canspotmon(mtmp) : canseemon(mtmp))
-        m_wait_until_action();
+        m_wait_until_action((struct monst*)0, action); // Visibility check is above
 }
 
 void
@@ -5392,7 +5421,7 @@ enum action_tile_types action;
     if (mtmp == &youmonst)
         u_wait_until_action();
     else if (action == ACTION_TILE_DEATH ? canspotmon(mtmp) : canseemon(mtmp))
-        m_wait_until_action();
+        m_wait_until_action((struct monst*)0, action); // Visibility check is above
 }
 
 
@@ -5499,11 +5528,14 @@ u_wait_until_action()
 }
 
 void
-m_wait_until_action()
+m_wait_until_action(mon, action)
+struct monst* mon;
+enum action_tile_types action;
 {
     if (context.m_intervals_to_wait_until_action > 0UL)
     {
-        delay_output_intervals((int)context.m_intervals_to_wait_until_action);
+        if (!mon || mon == &youmonst || (action == ACTION_TILE_DEATH ? canspotmon(mon) : canseemon(mon)))
+            delay_output_intervals((int)context.m_intervals_to_wait_until_action);
         context.m_intervals_to_wait_until_action = 0UL;
     }
 }
@@ -5519,15 +5551,17 @@ u_wait_until_end()
 }
 
 void
-m_wait_until_end()
+m_wait_until_end(mon, action)
+struct monst* mon;
+enum action_tile_types action;
 {
     if (context.m_intervals_to_wait_until_end > 0UL)
     {
-        delay_output_intervals((int)context.m_intervals_to_wait_until_end);
+        if (!mon || mon == &youmonst || (action == ACTION_TILE_DEATH ? canspotmon(mon) : canseemon(mon)))
+            delay_output_intervals((int)context.m_intervals_to_wait_until_end);
         context.m_intervals_to_wait_until_end = 0UL;
     }
 }
-
 
 void
 display_being_hit(mon, x, y, hit_symbol_shown, damage_shown, extra_mflags)
@@ -5545,7 +5579,7 @@ uint64_t extra_mflags;
     if(mon == &youmonst)
         u_wait_until_action();
     else
-        m_wait_until_action();
+        m_wait_until_action((struct monst*)0, ACTION_TILE_NO_ACTION); // Visibility check has been before
     flush_screen(1);
     adjusted_delay_output();
     adjusted_delay_output();

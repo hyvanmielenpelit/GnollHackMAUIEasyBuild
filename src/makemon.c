@@ -309,7 +309,8 @@ struct obj* obj;
             otmp->speflags |= SPEFLAGS_CLONED_ITEM; /* This item will disappear when Aleax dies / is gone */
         }
         otmp->owt = weight(otmp);
-        (void)mpickobj(mtmp, otmp);
+        if (mpickobj(mtmp, otmp))
+            otmp = 0;
     }
 
     return otmp;
@@ -816,6 +817,7 @@ register struct monst *mtmp;
                     else
                     {
                         /* free object */
+                        Sprintf(priority_debug_buf_4, "m_initweap: %d", otmp->otyp);
                         obfree(otmp, (struct obj*) 0);
                     }
                 }
@@ -1338,7 +1340,7 @@ register struct monst *mtmp;
             for (i = 0; i < num; i++)
             {
                 if (!rn2(2))
-                    otmp = mongets(mtmp, randomtruegem());
+                    (void) mongets(mtmp, randomtruegem());
                 else
                 {
                     otmp = mkobj(GEM_CLASS, TRUE, 0);
@@ -1500,7 +1502,8 @@ register struct monst *mtmp;
             if (ptr == &mons[PM_HIGH_PRIEST])
             {
                 otmp = mongets(mtmp, !rn2(2) ? ROBE_OF_STARRY_WISDOM : GOWN_OF_THE_ARCHBISHOPS);
-                otmp->enchantment = max(otmp->enchantment, rn2(3));
+                if (otmp)
+                    otmp->enchantment = max(otmp->enchantment, rn2(3));
             }
             else
             {
@@ -1604,6 +1607,7 @@ register struct monst *mtmp;
                     else
                     {
                         /* free object */
+                        Sprintf(priority_debug_buf_4, "m_initweap2: %d", otmp->otyp);
                         obfree(otmp, (struct obj*) 0);
                     }
                 }
@@ -1934,6 +1938,7 @@ register struct monst *mtmp;
                otherwise it's given a rot timer; weight is now ordinary */
             if ((catcorpse = mksobj(CORPSE, TRUE, FALSE, FALSE)) != 0) {
                 otmp->speflags |= SPEFLAGS_SCHROEDINGERS_BOX; /* flag for special SchroedingersBox */
+                catcorpse->speflags |= SPEFLAGS_SCHROEDINGERS_BOX; /* Schroedinger's cat in fact */
                 set_corpsenm(catcorpse, PM_HOUSECAT);
                 (void)stop_timer(ROT_CORPSE, obj_to_any(catcorpse));
                 add_to_container(otmp, catcorpse);
@@ -2986,7 +2991,7 @@ aligntyp alignment;
     {
         if (mons[mndx].mflags6 & M6_USES_CAT_SUBTYPES)
         {
-            if(!rn2(4))
+            if(!rn2(flags.friday13 ? 2 : 4))
                 mtmp->subtype = CAT_BREED_BLACK;
             else if (!rn2(9))
                 mtmp->subtype = rn2(NUM_CAT_BREEDS);
@@ -4249,7 +4254,8 @@ uchar material;
             otmp->special_tileset = levl[mtmp->mx][mtmp->my].use_special_tileset ? levl[mtmp->mx][mtmp->my].special_tileset : get_current_cmap_type_index();
         }
 
-        (void) mpickobj(mtmp, otmp); /* might free otmp */
+        if (mpickobj(mtmp, otmp))
+            otmp = 0; /* might free otmp */
     }
 
     return otmp;
@@ -4514,6 +4520,7 @@ int otyp;
                 copy_oextra(MOBJ(mtmp), otmp);
         }
         /* make sure container contents are free'ed */
+        Sprintf(priority_debug_buf_4, "set_mimic_new_mobj: %d", otmp->otyp);
         obfree(otmp, (struct obj*)0);
     }
 }
@@ -4655,6 +4662,7 @@ register struct monst *mtmp;
                 appear = STRANGE_OBJECT;
             } else if (s_sym == COIN_CLASS) {
                 appear = GOLD_PIECE;
+                set_mimic_new_mobj(mtmp, appear);
             } else {
                 otmp = mkobj((char) s_sym, FALSE, FALSE);
                 appear = otmp->otyp;
@@ -4677,6 +4685,7 @@ register struct monst *mtmp;
                         copy_oextra(MOBJ(mtmp), otmp);
                 }
                 /* make sure container contents are free'ed */
+                Sprintf(priority_debug_buf_4, "set_mimic_sym: %d", otmp->otyp);
                 obfree(otmp, (struct obj *) 0);
             }
         }

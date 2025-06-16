@@ -131,6 +131,7 @@ char lock[PL_NSIZ + 27]; /* long enough for username+-+name+.99 */
 #define BACKUP_EXTENSION "bup"       /* extension for backup save files */
 #define ALT_BACKUP_EXTENSION "bak"   /* extension for backup save files (alternative) */
 #define TEMP_BACKUP_EXTENSION "tmp"  /* extension for temp backup save files */
+#define SAVE_FILE_TRACKING_EXTENSION "ghsft"  /* extension for save file tracking files */
 
 #ifdef WIN32
 #include <io.h>
@@ -260,7 +261,7 @@ STATIC_DCL void FDECL(livelog_post_to_forum, (unsigned int, const char*));
 STATIC_DCL void FDECL(livelog_post_to_forum_rt, (unsigned int, struct u_realtime, const char*));
 STATIC_DCL int FDECL(copy_savefile, (const char*, const char*));
 
-#define INBUF_SIZ 4 * BUFSIZ
+#define INBUF_SIZ 8 * BUFSZ
 
 STATIC_VAR char config_section_chosen[INBUF_SIZ]; // = (char*)0;
 STATIC_VAR char config_section_current[INBUF_SIZ]; // = (char*)0;
@@ -358,6 +359,27 @@ const char* savefilename;
     char ebuf[BUFSZ] = "";
     print_special_savefile_extension(ebuf, BACKUP_EXTENSION);
     print_imported_savefile_extension(ebuf);
+    size_t elen = strlen(ebuf);
+    if (dlen <= elen)
+        return FALSE;
+
+    size_t i;
+    for (i = 0; i < elen; i++)
+        if (savefilename[dlen - 1 - i] != ebuf[elen - 1 - i])
+            return FALSE;
+
+    return TRUE;
+}
+
+int is_save_file_tracking_file_name(savefilename)
+const char* savefilename;
+{
+    if (!savefilename || !*savefilename)
+        return FALSE;
+
+    size_t dlen = strlen(savefilename);
+    char ebuf[BUFSZ] = "";
+    print_special_savefile_extension(ebuf, SAVE_FILE_TRACKING_EXTENSION);
     size_t elen = strlen(ebuf);
     if (dlen <= elen)
         return FALSE;
@@ -2409,6 +2431,8 @@ get_saved_games()
                             continue;
                         if (is_imported_backup_savefile_name(usedfoundfile))
                             continue;
+                        if (is_save_file_tracking_file_name(usedfoundfile))
+                            continue;
                         char* r;
                         r = plname_from_file(usedfoundfile, &gamestats);
                         if (r)
@@ -2472,7 +2496,7 @@ get_saved_games()
                     n4 = 0;
                     do {
                         char* r;
-                        Sprintf(usedfoundfile, "%s%s", foundfileprefix, foundfile);
+                        Sprintf(usedfoundfile, "%s", foundfile); //"%s%s", foundfileprefix, foundfile);
                         r = plname_from_running(usedfoundfile, &gamestats);
                         if (r)
                         {
@@ -5396,8 +5420,9 @@ recover_savefile()
         return FALSE;
     }
 
-    /* Add number of recoveries by one */
+    /* Add number of recoveries by one and update gamestats time_stamp so it can be used for new save file tracking */
     gamestats.num_recoveries++;
+    gamestats.time_stamp = (int64_t)getnow();
 
     /* save file should contain:
      *  version info
@@ -5523,6 +5548,7 @@ recover_savefile()
 #ifdef HOLD_LOCKFILE_OPEN
     really_close();
 #endif
+
     /*
      * We have a successful savefile!
      * Only now do we erase the level files.
@@ -5537,12 +5563,15 @@ recover_savefile()
         }
     }
 
+    const char* fq_save = fqname(SAVEF, SAVEPREFIX, 0);
+    track_new_save_file(fq_save, gamestats.time_stamp);
+
 #ifdef ANDROID
     /* if the new savefile isn't compressed
      * it will be overwritten when the old
      * savefile is restored in open_and_validate_saved_game(TRUE, (boolean*)0)
      */
-    nh_compress(fqname(SAVEF, SAVEPREFIX, 0));
+    nh_compress(fq_save);
 #endif
 
     return TRUE;
@@ -5760,8 +5789,14 @@ unsigned oid; /* book identifier */
         *nowin_buf = '\0';
 
     /* check for mandatories */
-    if (!tribsection || !tribtitle) {
-        if (!nowin_buf)
+    if (!tribsection || !tribtitle) 
+    {
+        if (!tribtitle)
+        {
+            pline1("This novel is all blank.");
+            makeknown(SPE_NOVEL);
+        }
+        else if (!nowin_buf)
             pline("It's %s of \"%s\"!", badtranslation, tribtitle);
         return grasped;
     }

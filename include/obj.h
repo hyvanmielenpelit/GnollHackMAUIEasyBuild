@@ -274,11 +274,6 @@ enum elemental_enchantments {
 #define is_otyp_indestructible(otyp) ((objects[(otyp)].oc_flags & O1_INDESTRUCTIBLE) != 0)
 #define is_obj_indestructible(o) ((get_obj_oc_flags(o) & O1_INDESTRUCTIBLE) != 0 || ((o)->speflags & SPEFLAGS_INDESTRUCTIBLE) != 0 \
                                   || ((o)->oartifact > 0 && (artilist[(o)->oartifact].aflags2 & AF2_INDESTRUCTIBLE) != 0))
-#define is_obj_unremovable_from_the_game(o) ((o)->otyp == AMULET_OF_YENDOR \
-    || (o)->otyp == SPE_BOOK_OF_THE_DEAD \
-    || (o)->otyp == CANDELABRUM_OF_INVOCATION \
-    || (o)->otyp == BELL_OF_OPENING \
-    || ((o)->otyp == CORPSE && (o)->corpsenm >= LOW_PM && is_rider(&mons[(o)->corpsenm])))
 
 #define is_otyp_no_pickup(otyp) ((objects[(otyp)].oc_flags3 & O3_NO_PICKUP) != 0)
 #define is_obj_no_pickup(o) (is_otyp_no_pickup((o)->otyp) || ((o)->speflags & SPEFLAGS_NO_PICKUP) != 0)
@@ -321,13 +316,16 @@ enum elemental_enchantments {
     (objects[(otyp)].oc_class == WEAPON_CLASS && objects[(otyp)].oc_subtyp == WEP_SPEAR)
 #define is_otyp_lance(otyp) \
     (objects[(otyp)].oc_class == WEAPON_CLASS && objects[(otyp)].oc_subtyp == WEP_LANCE)
+#define is_otyp_trident(otyp) \
+    (objects[(otyp)].oc_class == WEAPON_CLASS && objects[(otyp)].oc_subtyp == WEP_TRIDENT)
 #define is_pole(o) is_otyp_pole((o)->otyp)
 #define is_spear(o) is_otyp_spear((o)->otyp)
 #define is_lance(o) is_otyp_lance((o)->otyp)
+#define is_trident(o) is_otyp_trident((o)->otyp)
 #define is_otyp_appliable_pole_type_weapon(otyp)   \
-    (is_otyp_pole(otyp) || is_otyp_spear(otyp) || is_otyp_lance(otyp))
+    (is_otyp_pole(otyp) || is_otyp_spear(otyp) || is_otyp_lance(otyp) || is_otyp_trident(otyp))
 #define is_appliable_pole_type_weapon(o)   \
-    (is_pole(o) || is_spear(o) || is_lance(o))
+    (is_pole(o) || is_spear(o) || is_lance(o) || is_trident(o))
 #define is_otyp_appliable_weapon(otyp) \
     (objects[otyp].oc_class == WEAPON_CLASS && (is_otyp_pick(otyp) || is_otyp_axe(otyp) || is_otyp_appliable_pole_type_weapon(otyp) || is_otyp_whip(otyp) || is_otyp_appliable(otyp)))
 #define is_appliable_weapon(o) \
@@ -394,7 +392,7 @@ enum elemental_enchantments {
     ((objects[(o)->otyp].oc_flags4 & O4_TETHERED_WEAPON) != 0 && ((wmask) & W_WIELDED_WEAPON) != 0)
 
 #define is_unweapon(o) (((o)->oclass == WEAPON_CLASS) \
-    ? is_launcher(o) || is_ammo(o) || is_missile(o) || (is_appliable_pole_type_weapon(o) && !is_spear(o) && !u.usteed) \
+    ? is_launcher(o) || is_ammo(o) || is_missile(o) || (is_appliable_pole_type_weapon(o) && !is_spear(o) && !is_trident(o) && !u.usteed) \
     : !is_wieldable_weapon(o) && !is_wet_towel(o))
 
 #define uslinging() (uwep && objects[uwep->otyp].oc_skill == P_SLING)
@@ -669,6 +667,14 @@ enum elemental_enchantments {
     (is_key(obj) || (obj)->otyp == LOCK_PICK || (obj)->otyp == CREDIT_CARD)
 #define is_locking_tool(obj)                                 \
     (is_key(obj) || (obj)->otyp == LOCK_PICK)
+#define is_special_key(obj)                                 \
+    (is_key(obj) && is_otyp_indestructible((obj)->otyp))
+#define is_obj_unremovable_from_the_game(o) ((o)->otyp == AMULET_OF_YENDOR \
+    || (o)->otyp == SPE_BOOK_OF_THE_DEAD \
+    || (o)->otyp == CANDELABRUM_OF_INVOCATION \
+    || (o)->otyp == BELL_OF_OPENING \
+    || is_special_key(o) \
+    || ((o)->otyp == CORPSE && (o)->corpsenm >= LOW_PM && is_rider(&mons[(o)->corpsenm])))
 
 /* misc helpers, simple enough to be macros */
 #define is_flimsy(otmp) \
@@ -781,6 +787,7 @@ enum elemental_enchantments {
     ((o)->oclass == COIN_CLASS || (o)->oclass == GEM_CLASS \
     || (o)->oclass == RING_CLASS || (o)->oclass == AMULET_CLASS \
     || (o)->oclass == MISCELLANEOUS_CLASS \
+    || (o)->oclass == ART_CLASS \
     || (o)->material == MAT_SILVER \
     || (o)->material == MAT_GOLD \
     || (o)->material == MAT_PLATINUM \
@@ -793,7 +800,7 @@ enum elemental_enchantments {
     ((o)->oclass == POTION_CLASS || is_obj_normally_edible(o))
 
 #define unfit_for_container(o) \
-    ((o)->otyp == ICE_BOX || (o)->otyp == BOOKSHELF || Is_box(o) || (o)->otyp == BOULDER \
+    ((o)->otyp == ICE_BOX || (o)->otyp == BOOKSHELF || (o)->otyp == COFFIN || (o)->otyp == SARCOPHAGUS || Is_box(o) || (o)->otyp == BOULDER \
     || ((o)->otyp == STATUE && (o)->corpsenm >= LOW_PM && bigmonst(&mons[(o)->corpsenm])))
 
 /* 'PRIZE' values override obj->corpsenm so prizes mustn't be object types
@@ -1189,6 +1196,11 @@ extern NEARDATA const struct mythic_power_definition mythic_suffix_powers[MAX_MY
      || obj_resists(o, 0, 0) \
      || is_quest_artifact(o) )
 
+#define obj_destroyed_in_lava_effects(o) \
+    ((melts_in_lava(o) || o->oclass == POTION_CLASS) \
+        && !o->oerodeproof \
+        && !oresist_fire(o))
+
 /* Manuals */
 enum manual_types
 {
@@ -1211,7 +1223,7 @@ enum manual_types
     MANUAL_ITEM_IDENTIFICATION_101,
     MANUAL_ITEM_IDENTIFICATION_102,
     MANUAL_GUIDE_TO_ESSENTIAL_RESISTANCES_VOL_I,
-    MANUAL_GUIDE_TO_ESSENTIAL_RESISTANCES_VOL_II, /* There must be at most 32 random manuals due to exclusion bit use in mksobj */
+    MANUAL_GUIDE_TO_ESSENTIAL_RESISTANCES_VOL_II, /* There must be at most 128 random manuals due to exclusion bit use in mksobj */
     /* Non-randomly generated below */
     MANUAL_GUIDE_TO_DRAGON_SCALE_MAILS, /* Start marker */
     MANUAL_GUIDE_TO_ALTARS_AND_SACRIFICE,
@@ -1236,12 +1248,13 @@ enum manual_types
     MANUAL_CATALOGUE_OF_GEMS_AND_STONES,
     MANUAL_CATALOGUE_OF_ARTIFACTS,
     MANUAL_CATALOGUE_OF_AMULETS,
+    MANUAL_CATALOGUE_OF_MYTHIC_POWERS,
     MAX_MANUAL_TYPES
 };
 
 #define NUM_RANDOM_MANUALS MANUAL_GUIDE_TO_DRAGON_SCALE_MAILS
 #define FIRST_CATALOGUE MANUAL_CATALOGUE_OF_WEAPONS
-#define LAST_CATALOGUE MANUAL_CATALOGUE_OF_AMULETS
+#define LAST_CATALOGUE MANUAL_CATALOGUE_OF_MYTHIC_POWERS
 #define NUM_CATALOGUES (LAST_CATALOGUE - FIRST_CATALOGUE + 1)
 
 /* Flags for get_obj_location(). */

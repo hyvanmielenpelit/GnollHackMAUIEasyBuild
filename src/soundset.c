@@ -5130,7 +5130,7 @@ NEARDATA struct monster_soundset_definition monster_soundsets[MAX_MONSTER_SOUNDS
     },
     {
         "Artificer Female",
-        MONSTER_SOUNDSET_HUMAN_MALE,
+        MONSTER_SOUNDSET_HUMAN_FEMALE,
         {
             {MAX_GHSOUNDS, 1.0f}, /* MONSTER_SOUND_TYPE_AMBIENT */
             {MAX_GHSOUNDS, 1.0f}, /* MONSTER_SOUND_TYPE_SWALLOW_AMBIENT */
@@ -16661,7 +16661,7 @@ enum climbing_types climbingid;
         if (is_flyer(mtmp->data) || Flying)
         {
             sound_type = OBJECT_SOUND_TYPE_FLY;
-            struct obj* otmp = what_gives(FLYING);
+            struct obj* otmp = what_gives(FLYING, FALSE);
             if (otmp)
             {
                 enum object_soundset_types oss2 = objects[otmp->otyp].oc_soundset;
@@ -16679,7 +16679,7 @@ enum climbing_types climbingid;
         else if (is_floater(mtmp->data) || Levitation)
         {
             sound_type = OBJECT_SOUND_TYPE_LEVITATION;
-            struct obj* otmp = what_gives(LEVITATION);
+            struct obj* otmp = what_gives(LEVITATION, FALSE);
             if (otmp)
             {
                 enum object_soundset_types oss2 = objects[otmp->otyp].oc_soundset;
@@ -16697,7 +16697,7 @@ enum climbing_types climbingid;
         else if ((is_swimmer(mtmp->data) || amphibious(mtmp->data) || Swimming) && floorid == FLOOR_SURFACE_LIQUID)
         {
             sound_type = OBJECT_SOUND_TYPE_SWIM;
-            struct obj* otmp = what_gives(SWIMMING);
+            struct obj* otmp = what_gives(SWIMMING, FALSE);
             if (otmp)
             {
                 enum object_soundset_types oss2 = objects[otmp->otyp].oc_soundset;
@@ -20529,6 +20529,20 @@ stop_all_long_immediate_sounds()
     info.stop_flags = STOP_SOUNDS_FLAGS_IMMEDIATE_LONG;
     stop_all_sounds(info);
 }
+
+void
+stop_all_dialogue_of_mon_on_mobile(mon)
+#ifdef GNH_MOBILE
+struct monst* mon;
+{
+    stop_all_dialogue_of_mon(mon);
+}
+#else
+struct monst* mon UNUSED;
+{
+    //Nothing
+}
+#endif
 
 void
 stop_all_dialogue_of_mon(mon)

@@ -47,7 +47,7 @@ const struct Role roles[] = {
       "the College of Archaeology",
       "the Tomb of the Toltec Kings",
       ROLE_ARCHAEOLOGIST,
-      { "Extra score from artifacts", "", "", "", ""},
+      { "Extra score from artifacts, historic statues, and art objects", "", "", "", ""},
       PM_ARCHAEOLOGIST,
       NON_PM,
       PM_LORD_CARNARVON,
@@ -203,7 +203,7 @@ const struct Role roles[] = {
       "the Caves of the Ancestors",
       "the Dragon's Lair",
       ROLE_CAVEMAN,
-      { "Extra score from amulets of life saving", "Can practice cannibalism", "", "", ""},
+      { "Extra score from amulets of life saving and other amulets", "Can practice cannibalism", "", "", ""},
       PM_CAVEMAN,
       PM_LITTLE_DOG,
       PM_SHAMAN_KARNOV,
@@ -371,7 +371,7 @@ const struct Role roles[] = {
       ART_MAGIC_MIRROR_OF_MERLIN,
       MH_HUMAN | MH_DWARF | ROLE_MALE | ROLE_FEMALE | ROLE_LAWFUL,
       /* Str Int Wis Dex Con Cha */
-      { 15,  7, 12,  8, 14, 17 },
+      { 15,  7, 13,  8, 14, 16 },
       { 30, 5, 15, 20, 25, 5 },
       /* Init   Lower  Higher */
       { 15, 0, 1, 11, 3, 1 }, /* Hit points */
@@ -538,7 +538,7 @@ const struct Role roles[] = {
       /* Init   Lower  Higher */
       { 12, 0, 1, 7, 1, 0 }, /* Hit points */
       { 6, 2, 2, 3, 2, 3 },  /* Energy 1d4+4*/
-      10,
+      MAXULEV,
       0,
       0,
         {
@@ -599,7 +599,7 @@ const struct Role roles[] = {
       "the Thieves' Guild Hall",
       "the Assassins' Guild Hall",
       ROLE_ROGUE,
-      { "Extra score from gold and gems", "Can backstab fleeing monsters", "", "", ""},
+      { "Extra score from gold, gems, and art objects", "Can backstab fleeing monsters", "", "", ""},
       PM_ROGUE,
       NON_PM,
       PM_MASTER_OF_THIEVES,
@@ -617,7 +617,7 @@ const struct Role roles[] = {
       /* Init   Lower  Higher */
       { 10, 0, 1, 8, 1, 0 }, /* Hit points */
       { 3, 1, 1, 2, 1, 2 },  /* Energy 1d3*/
-      11,
+      MAXULEV,
       10,
       0,
         {
@@ -709,7 +709,7 @@ const struct Role roles[] = {
       /* Init   Lower  Higher */
       { 13, 0, 1, 9, 1, 0 }, /* Hit points */
       { 3, 1, 1, 2, 1, 2 },  /* Energy 1d3*/
-      12,
+      MAXULEV,
       10,
       0,
         {
@@ -844,8 +844,8 @@ const struct Role roles[] = {
       "Tou",
       "Ankh-Morpork",
       "the Thieves' Guild Hall",
-      ROLE_TOURIST,
-      { "Extra score from taking selfies with monsters", "Worse prices in shops below level 15", "", "", ""},
+      ROLE_TOURIST, 
+      { "Extra score from taking selfies with monsters", "", "", "", ""},
       PM_TOURIST,
       PM_SMALL_LUGGAGE,
       PM_TWOFLOWER,
@@ -1149,7 +1149,7 @@ const struct Race races[] = {
         { 3, 3, 3, 3, 3, 3 },
         { STR18(100), 18, 18, 18, 18, 18 },
         /* Init   Lower  Higher */
-        { 2, 0, 1, 2, 1, 0 }, /* Hit points */
+        { 12, 0, 1, 2, 1, 0 }, /* Hit points */
         { 1, 2, 0, 2, 0, 2 }  /* Energy 1d4*/
     },
     {
@@ -1171,7 +1171,7 @@ const struct Race races[] = {
         { 3, 3, 3, 3, 3, 3 },
         { 18, 20, 20, 18, 16, 18 },
         /* Init   Lower  Higher */
-        { 1, 0, 1, 1, 1, 0 }, /* Hit points */
+        { 10, 0, 1, 1, 1, 0 }, /* Hit points */
         { 5, 5, 1, 2, 1, 2 }  /* Energy  1d6*/
     },
     {
@@ -1193,7 +1193,7 @@ const struct Race races[] = {
         { 3, 3, 3, 3, 3, 3 },
         { STR18(100), 16, 16, 20, 20, 16 },
         /* Init   Lower  Higher */
-        { 4, 0, 1, 3, 2, 0 }, /* Hit points */
+        { 17, 0, 1, 3, 2, 0 }, /* Hit points */
         { 0, 0, 0, 0, 0, 0 }  /* Energy 0d1*/
     },
     {
@@ -1215,7 +1215,7 @@ const struct Race races[] = {
         { 3, 3, 3, 3, 3, 3 },
         { STR18(100), 16, 16, 19, 19, 16 },
         /* Init   Lower  Higher */
-        { 3, 0, 1, 3, 1, 0 }, /* Hit points */
+        { 13, 0, 1, 3, 1, 0 }, /* Hit points */
         { 0, 2, 0, 1, 0, 1 }  /* Energy 1d3*/
     },
     {
@@ -1237,7 +1237,7 @@ const struct Race races[] = {
         { 3, 3, 3, 3, 3, 3 },
         { STR18(100), 16, 16, 18, 18, 16 },
         /* Init   Lower  Higher */
-        { 3, 0, 1, 3, 1, 0 }, /* Hit points */
+        { 15, 0, 1, 3, 1, 0 }, /* Hit points */
         { 0, 2, 0, 1, 0, 1 }  /* Energy 1d2*/
     },
     /* Array terminator */
@@ -3185,9 +3185,18 @@ boolean ismana;
     {
         int totalrnd = rolernd + racernd + 1;
         int mfix = fix - 1;
-        Sprintf(buf, "+1d%d", totalrnd);
-        if (mfix != 0)
-            Sprintf(eos(buf), "%s%d", mfix >= 0 ? "+" : "", mfix);
+        if (iflags.show_dice_as_ranges)
+        {
+            int minr = 1 + mfix;
+            int maxr = totalrnd + mfix;
+            Sprintf(buf, "+%d-%d", minr, maxr);
+        }
+        else
+        {
+            Sprintf(buf, "+1d%d", totalrnd);
+            if (mfix != 0)
+                Sprintf(eos(buf), "%s%d", mfix >= 0 ? "+" : "", mfix);
+        }
     }
     else
     {

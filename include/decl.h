@@ -334,6 +334,8 @@ E char preferred_pet;
 E NEARDATA uint64_t n_game_recoveries;
 
 E const char *occtxt; /* defined when occupation != NULL */
+E int occattr;
+E int occclr;
 E enum object_soundset_types occsoundset; /* defined when occupation != NULL */
 E enum object_occupation_types occtyp; /* defined when occupation != NULL */
 
@@ -679,6 +681,11 @@ E char debug_buf_1[BUFSZ * 2];
 E char debug_buf_2[BUFSZ * 2];
 E char debug_buf_3[BUFSZ * 2];
 E char debug_buf_4[BUFSZ * 2];
+
+E char priority_debug_buf_1[BUFSZ * 2];
+E char priority_debug_buf_2[BUFSZ * 2];
+E char priority_debug_buf_3[BUFSZ * 2];
+E char priority_debug_buf_4[BUFSZ * 2];
 
 #undef E
 

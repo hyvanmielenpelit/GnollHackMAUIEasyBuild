@@ -1032,7 +1032,7 @@ struct monst* origmonst;
                the current zap and shouldn't be affected if hit again */
             ;
         } 
-        else if (resists_magic(mtmp))
+        else if (resists_magic(mtmp) || resists_polymorph(mtmp))
         {
             /* magic missile resistance protects from polymorph traps, so make
                it guard against involuntary polymorph attacks too... */
@@ -1117,7 +1117,7 @@ struct monst* origmonst;
         res = 1;
         if (disguised_mimic)
             seemimic(mtmp);
-        if (mtmp->cham && !mtmp->mprops[UNCHANGING])
+        if (mtmp->cham && !has_unchanging(mtmp))
             revert_mon_polymorph(mtmp, FALSE, TRUE, TRUE);
         if (!has_cancellation_resistance(mtmp))
         {
@@ -1135,7 +1135,7 @@ struct monst* origmonst;
         res = 1;
         if (disguised_mimic)
             seemimic(mtmp);
-        if (mtmp->cham && !mtmp->mprops[UNCHANGING])
+        if (mtmp->cham && !has_unchanging(mtmp))
             revert_mon_polymorph(mtmp, FALSE, TRUE, TRUE);
         /* Unaffected by cancellation resistance */
         play_special_effect_at(SPECIAL_EFFECT_GENERIC_SPELL, 0, mtmp->mx, mtmp->my, FALSE);
@@ -1941,6 +1941,13 @@ struct permonst* ptr;
     {
         abilcnt++;
         Sprintf(buf, " %2d - %s", abilcnt, "Resists magic");
+        putstr(datawin, ATR_INDENT_AT_DASH | ATR_ORDERED_LIST, buf);
+    }
+
+    if (mtmp ? resists_polymorph(mtmp) : pm_resists_polymorph(ptr))
+    {
+        abilcnt++;
+        Sprintf(buf, " %2d - %s", abilcnt, "Resists polymorph");
         putstr(datawin, ATR_INDENT_AT_DASH | ATR_ORDERED_LIST, buf);
     }
 
@@ -2762,6 +2769,9 @@ boolean by_hero;
 int animateintomon;
 boolean replaceundead;
 {
+    if (!corpse)
+        return (struct monst*)0;
+
     struct monst *mtmp = 0;
     struct permonst *mptr = 0;
     struct obj *container;
@@ -2918,6 +2928,17 @@ boolean replaceundead;
     {
         /* make a new monster */
         mtmp = makemon2(mptr, x, y, MM_NO_MONSTER_INVENTORY | MM_NOWAIT | MM_NOCOUNTBIRTH | MM_PLAY_SUMMON_ANIMATION | MM_ANIMATE_DEAD_ANIMATION | MM_PLAY_SUMMON_SOUND, MM2_REVIVING);
+        if (mtmp)
+        {
+            if ((corpse->speflags & SPEFLAGS_SCHROEDINGERS_BOX) != 0) /* Dead cat straight from the box */
+                mtmp->mon_flags |= MON_FLAGS_SCHROEDINGERS_CAT;
+            if (has_oname(corpse))
+            {
+                (void) christen_monst(mtmp, ONAME(corpse));
+                if (corpse->nknown) /* If you know corpse name, then you will know revived monster's name */
+                    mtmp->u_know_mname = 1;
+            }
+        }
     }
 
     if (!mtmp)
@@ -3050,6 +3071,7 @@ boolean replaceundead;
     /* finally, get rid of the corpse--it's gone now */
     switch (corpse->where) {
     case OBJ_INVENT:
+        Sprintf(priority_debug_buf_2, "revive: %d", corpse->otyp);
         useup(corpse);
         break;
     case OBJ_FLOOR:
@@ -3067,10 +3089,12 @@ boolean replaceundead;
     case OBJ_CONTAINED:
         Strcpy(debug_buf_2, "revive2");
         obj_extract_self(corpse);
+        Sprintf(priority_debug_buf_4, "revive: %d", corpse->otyp);
         obfree(corpse, (struct obj *) 0);
         break;
     case OBJ_MAGIC:
         obj_extract_self(corpse);
+        Sprintf(priority_debug_buf_4, "revive2: %d", corpse->otyp);
         obfree(corpse, (struct obj*)0);
         break;
     default:
@@ -3399,12 +3423,13 @@ boolean update_inv;
             obj->special_quality = 0;
             break;
         case SPBOOK_CLASS:
-            if (objects[otyp].oc_multigen_type == BOOKTYPE_SPELLBOOK
+            if (objects[otyp].oc_subtyp == BOOKTYPE_SPELLBOOK && otyp != SPE_BOOK_OF_THE_DEAD && objects[otyp].oc_magic
                 && !objects[otyp].oc_unique && !(objects[otyp].oc_flags & O1_INDESTRUCTIBLE) && obj->oartifact == 0)
             {
                 costly_alteration(obj, COST_CANCEL);
                 obj->otyp = SPE_BLANK_PAPER;
                 obj->material = objects[obj->otyp].oc_material;
+                obj->owt = weight(obj);
             }
             break;
         case POTION_CLASS:
@@ -3491,8 +3516,7 @@ obj_resists(obj, ochance, achance)
 struct obj *obj;
 int ochance, achance; /* percent chance for ordinary objects, artifacts */
 {
-    if (is_obj_unremovable_from_the_game(obj)
-        || is_obj_indestructible(obj))
+    if (is_obj_unremovable_from_the_game(obj) || is_obj_indestructible(obj))
     {
         return TRUE;
     }
@@ -3968,6 +3992,7 @@ int id;
         {
             otmp->otyp = rnd_class(SPE_DIG, SPE_BLANK_PAPER);
             otmp->material = objects[otmp->otyp].oc_material;
+            otmp->owt = weight(otmp);
         }
         /* reduce spellbook abuse; non-blank books degrade */
         if (otmp->otyp != SPE_BLANK_PAPER) 
@@ -3976,6 +4001,8 @@ int id;
             if (otmp->spestudied > MAX_SPELL_STUDY) 
             {
                 otmp->otyp = SPE_BLANK_PAPER;
+                otmp->material = objects[otmp->otyp].oc_material;
+                otmp->owt = weight(otmp);
                 /* writing a new book over it will yield an unstudied
                    one; re-polymorphing this one as-is may or may not
                    get something non-blank */
@@ -4163,6 +4190,7 @@ struct obj *obj;
                     }
                     if (obj->timed)
                         obj_stop_timers(obj);
+                    Sprintf(priority_debug_buf_2, "stone_to_flesh_obj: %d", obj->otyp);
                     if (carried(obj))
                         useup(obj);
                     else
@@ -6215,6 +6243,7 @@ struct obj *otmp;
     pline_ex(ATR_NONE, CLR_MSG_NEGATIVE, "%s suddenly explodes!", The(xname(otmp)));
     dmg = d(otmp->charges + 2, 6);
     losehp(adjust_damage(dmg, (struct monst*)0, &youmonst, AD_MAGM, ADFLAGS_NONE), "exploding wand", KILLED_BY_AN);
+    Sprintf(priority_debug_buf_2, "backfire: %d", otmp->otyp);
     useup(otmp);
 }
 
@@ -6331,7 +6360,7 @@ struct obj* obj;
 
                 if (ans == 'm')
                 {
-                    prinv("Marked empty:", obj, 0L);
+                    prinvc("Marked empty:", obj, 0L);
                     update_inventory();
                 }
             }
@@ -6403,6 +6432,7 @@ struct obj* obj;
     {
         play_sfx_sound(SFX_ITEM_CRUMBLES_TO_DUST);
         pline("%s to dust.", Tobjnam(obj, "turn"));
+        Sprintf(priority_debug_buf_2, "backfire: %d", obj->otyp);
         useup(obj);
     }
     update_inventory(); /* maybe used a charge */
@@ -6727,7 +6757,7 @@ boolean ordinary;
     case WAN_POLYMORPH:
     case SPE_POLYMORPH:
         damage = 0;
-        if (!Unchanging) {
+        if (!Unchanging && !Polymorph_resistance) {
             learn_it = TRUE;
             polyself(0);
         }
@@ -9316,7 +9346,7 @@ const char *fltxt;
             if (origmonst == &youmonst)
                 Sprintf(hisbuf, "%s own", uhis());
             else
-                Sprintf(hisbuf, "%s's", an(mon_monster_name(origmonst)));
+                Sprintf(hisbuf, "%s's", mon_monster_name(origmonst));
 
             if (origobj)
             {
@@ -9641,6 +9671,7 @@ boolean u_caused;
                     obj->quan = scrquan;
                 }
                 /* useupf(), which charges, only if hero caused damage */
+                Sprintf(priority_debug_buf_3, "burn_floor_objects: %d", obj->otyp);
                 if (u_caused)
                     useupf_with_flags(obj, delquan, NEWSYM_FLAGS_KEEP_OLD_EFFECT_MISSILE_ZAP_GLYPHS);
                 else if (delquan < scrquan)
@@ -9816,6 +9847,7 @@ const char *fltxt;
             }
             Strcpy(debug_buf_2, "disintegrate_mon");
             obj_extract_self(otmp);
+            Sprintf(priority_debug_buf_4, "disintegrate_mon: %d", otmp->otyp);
             obfree(otmp, (struct obj *) 0);
         }
     }
@@ -11347,6 +11379,9 @@ boolean forcedestroy;
         if (obj == current_wand)
             current_wand = 0; /* destroyed */
 
+        Sprintf(priority_debug_buf_2, "destroy_one_item: %d", obj->otyp);
+        Strcpy(priority_debug_buf_3, "destroy_one_item");
+        Strcpy(priority_debug_buf_4, "destroy_one_item");
         for (i = 0; i < cnt; i++)
             useup(obj);
 
@@ -12063,6 +12098,8 @@ retry:
                                    (const char *) 0);
         u.uprayer_timeout += rn1(100, 50) / (Role_if(PM_PRIEST) ? 2 : 1); /* the gods take notice */
     }
+    if(!is_wiz_wish)
+        context.save_checkpoint = TRUE; /* A good point to save to make sure that obtained item remains and is not lost via crash or changed due to cheating */
     ignore_onsleep_autosave = FALSE;
 }
 
@@ -12112,9 +12149,10 @@ int otyp;
                 : "Oops!  %s to the floor!");
 
         /* The(aobjnam()) is safe since otmp is unidentified -dlc */
-        (void)hold_another_object(otmp, oops_msg,
-            The(aobjnam(otmp, verb)),
-            (const char*)0);
+        otmp = hold_another_object(otmp, oops_msg, The(aobjnam(otmp, verb)), (const char*)0);
+
+        if (otmp)
+            otmp->nomerge = 0;
     }
 }
 

@@ -1901,7 +1901,8 @@ domove_core()
                     && !(mtmp2->mon_flags & MON_FLAGS_SPOTTED_IN_RUN_AT_START) /* Hasn't been spotted at the start of running */
                     )
                 {
-                    You("spot %s%s.", a_monnam(mtmp2), iflags.run_spot_distance < 0 ? "" : distu(mtmp2->mx, mtmp2->my) <= RUN_SPOT_NEARBY_DISTANCE * RUN_SPOT_NEARBY_DISTANCE ? " nearby" : " at a distance");
+                    int multicolors[2] = { CLR_MSG_WARNING, NO_COLOR };
+                    You_multi_ex(ATR_NONE, CLR_MSG_ATTENTION, no_multiattrs, multicolors, "spot %s%s.", a_monnam(mtmp2), iflags.run_spot_distance < 0 ? "" : distu(mtmp2->mx, mtmp2->my) <= RUN_SPOT_NEARBY_DISTANCE * RUN_SPOT_NEARBY_DISTANCE ? " nearby" : " at a distance");
                     You("stop %s.", context.travel ? "travelling" : "running");
                     nomul(0);
                     context.move = 0;
@@ -2501,6 +2502,8 @@ finish_move:
         nomul(-2);
         multi_reason = "dragging an iron ball";
         nomovemsg = "";
+        nomovemsg_attr = ATR_NONE;
+        nomovemsg_color = NO_COLOR;
     }
 
     if (context.run && (flags.runmode != RUN_TPORT || (context.travel && context.travel_mode > TRAVEL_MODE_NORMAL))) {
@@ -2827,7 +2830,7 @@ boolean pick;
             action_taken = TRUE;
             update_m_action_core(mtmp, ACTION_TILE_SPECIAL_ATTACK, 2, NEWSYM_FLAGS_KEEP_OLD_FLAGS | NEWSYM_FLAGS_SHOW_DROPPING_PIERCER);
             play_sfx_sound(SFX_PIERCER_DROPS);
-            m_wait_until_action();
+            m_wait_until_action(mtmp, ACTION_TILE_SPECIAL_ATTACK);
             pline_ex(ATR_NONE, CLR_MSG_WARNING, "%s suddenly drops from the %s!", Amonnam(mtmp),
                   ceiling(u.ux, u.uy));
 
@@ -2882,14 +2885,14 @@ boolean pick;
                 action_taken = TRUE;
                 update_m_action_core(mtmp, ACTION_TILE_SPECIAL_ATTACK, 2, NEWSYM_FLAGS_SHOW_DROPPING_PIERCER);
                 play_sfx_sound(SFX_SURPRISE_ATTACK);
-                m_wait_until_action();
+                m_wait_until_action(mtmp, ACTION_TILE_SPECIAL_ATTACK);
                 pline_ex(ATR_NONE, CLR_MSG_WARNING, "%s attacks you by surprise!", Amonnam(mtmp));
 
             }
             break;
         }
         if(action_taken)
-            m_wait_until_end();
+            m_wait_until_end(mtmp, ACTION_TILE_SPECIAL_ATTACK);
         update_m_action_revert(mtmp, ACTION_TILE_NO_ACTION);
         newsym(mtmp->mx, mtmp->my);
         mnexto(mtmp); /* have to move the monster */
@@ -3707,14 +3710,27 @@ register int nval;
 /* called when a non-movement, multi-turn action has completed */
 void
 unmul(msg_override)
+const char* msg_override;
+{
+    unmul_ex(ATR_NONE, NO_COLOR, msg_override);
+}
+
+void
+unmul_ex(attr, color, msg_override)
+int attr, color;
 const char *msg_override;
 {
     multi = 0; /* caller will usually have done this already */
     if (msg_override)
+    {
         nomovemsg = msg_override;
+        nomovemsg_attr = attr;
+        nomovemsg_color = color;
+    }
     else if (!nomovemsg)
     {
         nomovemsg = You_can_move_again;
+        nomovemsg_attr = ATR_NONE;
         nomovemsg_color = CLR_MSG_SUCCESS;
     }
     if (*nomovemsg)
@@ -4126,7 +4142,7 @@ mark_spotted_monsters_in_run(VOID_ARGS)
     struct monst* mtmp;
     for (mtmp = fmon; mtmp; mtmp = mtmp->nmon)
     {
-        if (!DEADMONSTER(mtmp) && canspotmon(mtmp) && isok(mtmp->mx, mtmp->my) && couldsee(mtmp->mx, mtmp->my))
+        if (!DEADMONSTER(mtmp) && isok(mtmp->mx, mtmp->my) && canspotmon(mtmp) && couldsee(mtmp->mx, mtmp->my))
             mtmp->mon_flags |= MON_FLAGS_SPOTTED_IN_RUN_AT_START;
         else
             mtmp->mon_flags &= ~MON_FLAGS_SPOTTED_IN_RUN_AT_START;

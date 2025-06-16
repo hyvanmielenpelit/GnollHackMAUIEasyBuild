@@ -17,6 +17,7 @@ STATIC_DCL void FDECL(container_weight, (struct obj *));
 STATIC_DCL void FDECL(save_mtraits, (struct obj *, struct monst *));
 STATIC_DCL void FDECL(objlist_sanity, (struct obj *, int, const char *));
 STATIC_DCL void FDECL(mon_obj_sanity, (struct monst *, const char *));
+STATIC_DCL void FDECL(insane_obj_bits, (struct obj*, struct monst*));
 STATIC_DCL const char *FDECL(where_name, (struct obj *));
 STATIC_DCL void FDECL(insane_object, (struct obj *, const char *,
                                       const char *, struct monst *));
@@ -976,6 +977,8 @@ struct obj *obj;
     }
     /* if we have both parent and child, try to merge them;
        if successful, return the combined stack, otherwise return null */
+    if(oparent && ochild)
+        Sprintf(priority_debug_buf_3, "unsplitobj: %d", ochild->otyp);
     return (oparent && ochild && merged(&oparent, &ochild)) ? oparent : 0;
 }
 
@@ -1268,6 +1271,8 @@ clear_memoryobjs()
 {
     struct obj* obj; // , * contained_obj;
     Strcpy(debug_buf_2, "clear_memoryobjs");
+    Strcpy(priority_debug_buf_4, "clear_memoryobjs");
+    context.surpress_container_deletion_warning = 1;
     while ((obj = memoryobjs) != 0) {
         obj_extract_self(obj);
         //while ((contained_obj = obj->cobj) != 0) {
@@ -1276,6 +1281,7 @@ clear_memoryobjs()
         //}
         obfree(obj, (struct obj*)0);
     }
+    context.surpress_container_deletion_warning = 0;
     memoryobjs = 0;
     lastmemoryobj = 0;
 }
@@ -1294,6 +1300,8 @@ int x, y;
         level.locations[x][y].hero_memory_layers.o_id = 0;
 
         Strcpy(debug_buf_2, "clear_hero_object_memory_at");
+        Strcpy(priority_debug_buf_4, "clear_hero_object_memory_at");
+        context.surpress_container_deletion_warning = 1;
 
         /* Clear actual memory objects */
         struct obj* obj; // , * contained_obj;
@@ -1306,6 +1314,7 @@ int x, y;
             //}
             obfree(obj, (struct obj*)0);
         }
+        context.surpress_container_deletion_warning = 0;
     }
 }
 
@@ -1440,6 +1449,9 @@ struct monst* mtmp;
     else if (alignment == A_CHAOTIC)
         mkflags |= MKOBJ_FLAGS_OWNER_IS_CHAOTIC;
 
+    if (is_demon(mtmp->data))
+        mkflags |= MKOBJ_FLAGS_OWNER_IS_DEMON;
+
     return mkflags;
 }
 
@@ -1502,7 +1514,7 @@ uint64_t mkflags;
     {
         mkflags |= mkobj_ownerflags(mowner);
     }
-
+    boolean no_celestial_or_primordial = (mkflags & MKOBJ_FLAGS_OWNER_IS_DEMON) != 0;
     otmp = newobj();
     *otmp = zeroobj;
     otmp->age = monstermoves;
@@ -1605,7 +1617,7 @@ uint64_t mkflags;
 
         switch (let) {
         case WEAPON_CLASS:
-            otmp->quan = get_multigen_quan(objects[otmp->otyp].oc_multigen_type);// is_multigen(otmp) ? (int64_t) rn1(6, 6) : 1L;
+            //otmp->quan = get_multigen_quan(objects[otmp->otyp].oc_multigen_type);// is_multigen(otmp) ? (int64_t) rn1(6, 6) : 1L;
             if (!rn2(11) && !is_cursed_magic_item(otmp))
             {
                 otmp->enchantment = rne(3);
@@ -1705,7 +1717,7 @@ uint64_t mkflags;
                 flags.made_fruit = TRUE;
                 break;
             case KELP_FROND:
-                otmp->quan = (int64_t) rnd(2);
+                //otmp->quan = (int64_t) rnd(2);
                 break;
             }
             if (Is_pudding(otmp)) 
@@ -1715,27 +1727,31 @@ uint64_t mkflags;
                 otmp->corpsenm = PM_GRAY_OOZE
                                  + (otmp->otyp - GLOB_OF_GRAY_OOZE);
             } 
-            else 
-            {
-                if (otmp->otyp != CORPSE && otmp->otyp != MEAT_RING
-                    && otmp->otyp != KELP_FROND && !rn2(6)) 
-                {
-                    otmp->quan = 2L;
-                }
-            }
+            //else 
+            //{
+            //    if (otmp->otyp != CORPSE && otmp->otyp != MEAT_RING
+            //        && otmp->otyp != KELP_FROND && !rn2(6))
+            //    {
+            //        otmp->quan = 2L;
+            //    }
+            //}
             break;
         case GEM_CLASS:
             otmp->corpsenm = 0; /* LOADSTONE hack */
-            if (is_rock(otmp))
-                otmp->quan = (int64_t) rn1(6, 6);
-            else if (otmp->otyp == FLINT)
-                otmp->quan = (int64_t)rnd(30);
-            else if (is_ore(otmp) && Inhell)
-                otmp->quan = (int64_t)rnd(6);
-            else if (otmp->otyp != LUCKSTONE && !rn2(6))
-                otmp->quan = 2L;
-            else
-                otmp->quan = 1L;
+            //if (objects[otmp->otyp].oc_merge && !is_obj_unique(otmp))
+            //{
+                /* NetHack override of quantities */
+                //if (is_rock(otmp))
+                //    otmp->quan = (int64_t)rn1(6, 6);
+                //else if (otmp->otyp == FLINT)
+                //    otmp->quan = (int64_t)rnd(30);
+                //else if (is_ore(otmp) && Inhell)
+                //    otmp->quan = (int64_t)rnd(6); /* Replace the single generation */
+                //else if (otmp->otyp != LUCKSTONE && otmp->otyp != TOUCHSTONE && !rn2(6))
+                //    otmp->quan = 2L;
+                //else
+                //    otmp->quan = 1L;
+            //}
             break;
         case TOOL_CLASS:
             /* Primary initialization */
@@ -1745,13 +1761,13 @@ uint64_t mkflags;
             case WAX_CANDLE:
                 otmp->special_quality = SPEQUAL_LIGHT_SOURCE_FUNCTIONAL;
                 otmp->age = candle_starting_burn_time(otmp);
-                otmp->quan = 1L + (int64_t) (rn2(2) ? rn2(7) : 0);
+                //otmp->quan = 1L + (int64_t) (rn2(2) ? rn2(7) : 0);
                 blessorcurse(otmp, 5);
                 break;
             case TORCH:
                 otmp->special_quality = SPEQUAL_LIGHT_SOURCE_FUNCTIONAL;
                 otmp->age = torch_starting_burn_time(otmp);
-                otmp->quan = 1L;
+                //otmp->quan = 1L;
                 blessorcurse(otmp, 5);
                 break;
             case LARGE_FIVE_BRANCHED_CANDELABRUM:
@@ -2144,9 +2160,9 @@ uint64_t mkflags;
             boolean iswand = otmp->oclass == WAND_CLASS || (otmp->oclass == TOOL_CLASS && is_spelltool(otmp));
             boolean halfchance = !!(objects[otmp->otyp].oc_flags5 & O5_HALF_EXCEPTIONALITY_CHANCE);
             boolean doublechance = !!(objects[otmp->otyp].oc_flags5 & O5_DOUBLE_EXCEPTIONALITY_CHANCE);
-            uchar ownerimpliedexcep = (mkflags & MKOBJ_FLAGS_OWNER_IS_LAWFUL) ? EXCEPTIONALITY_CELESTIAL :
-                (mkflags & MKOBJ_FLAGS_OWNER_IS_NEUTRAL) ? EXCEPTIONALITY_PRIMORDIAL : (mkflags & MKOBJ_FLAGS_OWNER_IS_LAWFUL) ? EXCEPTIONALITY_INFERNAL : 
-                (mkflags & MKOBJ_FLAGS_OWNER_IS_NONALIGNED) ? EXCEPTIONALITY_ELITE : 0;
+            uchar ownerimpliedexcep = (mkflags & MKOBJ_FLAGS_OWNER_IS_LAWFUL) != 0 && !no_celestial_or_primordial ? EXCEPTIONALITY_CELESTIAL :
+                (mkflags & MKOBJ_FLAGS_OWNER_IS_NEUTRAL) != 0 && !no_celestial_or_primordial ? EXCEPTIONALITY_PRIMORDIAL : (mkflags & MKOBJ_FLAGS_OWNER_IS_CHAOTIC) != 0 ? EXCEPTIONALITY_INFERNAL :
+                (mkflags & MKOBJ_FLAGS_OWNER_IS_NONALIGNED) != 0 ? EXCEPTIONALITY_ELITE : 0;
             if (In_endgame(&u.uz))
             {
                 if (!iswand && (doublechance || !rn2(halfchance ? 4 : 2)))
@@ -2257,18 +2273,25 @@ uint64_t mkflags;
         if(mkflags & MKOBJ_FLAGS_PARAM_IS_TITLE)
             otmp->novelidx = (short)param;
         else
-            otmp->novelidx = -1; /* "none of the above"; will be changed */
-        otmp = oname(otmp, noveltitle(&otmp->novelidx, excludedtitles, excludedtitles2));
-        otmp->nknown = TRUE;
+            otmp->novelidx = -2; /* "none of the above"; will be changed */
+
+        if (otmp->novelidx != -1) /* Not blank */
+        {
+            otmp = oname(otmp, noveltitle(&otmp->novelidx, excludedtitles, excludedtitles2));
+            otmp->nknown = TRUE;
+        }
         break;
     case SPE_MANUAL:
         if (mkflags & MKOBJ_FLAGS_PARAM_IS_TITLE)
             otmp->manualidx = (short)param;
         else
-            otmp->manualidx = -1; /* "none of the above"; will be changed */
+            otmp->manualidx = -2; /* "none of the above"; will be changed */
 
-        otmp = oname(otmp, manualtitle(&otmp->manualidx, excludedtitles, excludedtitles2));
-        otmp->nknown = TRUE;
+        if (otmp->manualidx != -1) /* Not blank */
+        {
+            otmp = oname(otmp, manualtitle(&otmp->manualidx, excludedtitles, excludedtitles2));
+            otmp->nknown = TRUE;
+        }
         otmp->cursed = otmp->blessed = 0; /* Never blessed or cursed */
         break;
     }
@@ -2899,6 +2922,18 @@ uchar multigen_index;
     case MULTIGEN_1D4_4:
         quan = rnd(4) + 4;
         break;
+    case MULTIGEN_1D30:
+        quan = rnd(30);
+        break;
+    case MULTIGEN_1_OR_1D6_IN_HELL:
+        quan = Inhell ? rnd(6) : 1;
+        break;
+    case MULTIGEN_1_OR_2:
+        quan = !rn2(6) ? 2 : 1;
+        break;
+    case MULTIGEN_CANDLE:
+        quan = 1 + (rn2(2) ? rn2(7) : 0);
+        break;
     default:
         break;
     }
@@ -3427,7 +3462,7 @@ register struct obj *obj;
     } else if (obj->oclass == FOOD_CLASS && obj->oeaten) {
         return eaten_stat((int) obj->quan * wt, obj);
     } else if (obj->oclass == COIN_CLASS) {
-        return (int) ((obj->quan) / 10L) + 1;
+        return (int) ((obj->quan - 1) / 10L) + 1;
     } else if (obj->otyp == HEAVY_IRON_BALL && obj->owt != 0) {
         return (int) obj->owt; /* kludge for "very" heavy iron ball */
     } else if (is_obj_candelabrum(obj) && obj->special_quality > 0) {
@@ -4031,6 +4066,7 @@ struct monst *mtmp;
         if (otmp->oartifact)
             artifact_taken_away(otmp->oartifact);
 
+        Sprintf(priority_debug_buf_4, "discard_minvent: %d", otmp->otyp);
         obfree(otmp, (struct obj *) 0); /* dealloc_obj() isn't sufficient */
     }
 }
@@ -4170,6 +4206,7 @@ struct obj *obj;
         return 0;
     }
     /* merge if possible */
+    Sprintf(priority_debug_buf_3, "add_to_minv: %d", obj->otyp);
     for (otmp = mon->minvent; otmp; otmp = otmp->nobj)
         if (merged(&otmp, &obj))
             return 1; /* obj merged and then free'd */
@@ -4200,6 +4237,7 @@ struct obj *container, *obj;
         obj_no_longer_held(obj);
 
     /* merge if possible */
+    Sprintf(priority_debug_buf_3, "add_to_container: %d", obj->otyp);
     for (otmp = container->cobj; otmp; otmp = otmp->nobj)
         if (merged(&otmp, &obj))
             return otmp;
@@ -4245,6 +4283,7 @@ struct obj* obj;
         maybe_reset_pick(obj);
 
     /* merge if possible */
+    Sprintf(priority_debug_buf_3, "add_to_magic_chest: %d", obj->otyp);
     struct obj* otmp;
     for (otmp = magic_objs; otmp; otmp = otmp->nobj)
         if (merged(&otmp, &obj))
@@ -4433,7 +4472,7 @@ STATIC_VAR const char NEARDATA /* pline formats for insane_object() */
 
 /* Check all object lists for consistency. */
 void
-obj_sanity_check()
+obj_sanity_check(VOID_ARGS)
 {
     int x, y;
     struct obj *obj;
@@ -4543,6 +4582,10 @@ const char *mesg;
                 break;
             }
         }
+        /* temporary flags that might have been set but which should
+           be clear by the time this sanity check is taking place */
+        if (obj->in_use || obj->bypass || obj->nomerge)
+            insane_obj_bits(obj, (struct monst*)0);
     }
 }
 
@@ -4570,7 +4613,31 @@ const char *mesg;
             if (obj->ocarry != mon)
                 insane_object(obj, mfmt2, mesg, mon);
             check_contained(obj, mesg);
+            if (obj->in_use || obj->bypass || obj->nomerge)
+                insane_obj_bits(obj, mon);
         }
+    }
+}
+
+STATIC_OVL void
+insane_obj_bits(obj, mon)
+struct obj* obj;
+struct monst* mon;
+{
+    unsigned o_in_use, o_bypass, o_nomerge;
+
+    o_in_use = obj->in_use;
+    o_bypass = obj->bypass;
+    o_nomerge = obj->nomerge && !(obj->speflags & (SPEFLAGS_MINES_PRIZE | SPEFLAGS_SOKO_PRIZE1 | SPEFLAGS_SOKO_PRIZE2));
+
+    if (o_in_use || o_bypass || o_nomerge) {
+        char infobuf[QBUFSZ];
+
+        Sprintf(infobuf, "flagged%s%s%s",
+            o_in_use ? " in_use" : "",
+            o_bypass ? " bypass" : "",
+            o_nomerge ? " nomerge" : "");
+        insane_object(obj, ofmt0, infobuf, mon);
     }
 }
 
@@ -5016,6 +5083,7 @@ struct obj **obj1, **obj2;
             Strcpy(debug_buf_2, "obj_absorb");
             obj_extract_self(otmp2);
             newsym(otmp2->ox, otmp2->oy); /* in case of floor */
+            Sprintf(priority_debug_buf_4, "obj_absorb: %d", otmp2->otyp);
             obfree(otmp2, (struct obj*)0);
             //dealloc_obj(otmp2);
             *obj2 = (struct obj *) 0;

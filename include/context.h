@@ -257,8 +257,8 @@ struct context_info
     unsigned quick_zap_wand_oid;
     int quick_cast_spell_no;
     boolean quick_cast_spell_set;
-    boolean reserved_boolA;
-    boolean reserved_boolB;
+    boolean surpress_container_deletion_warning;
+    boolean save_checkpoint;
     boolean reserved_boolC;
     boolean reserved_boolD;
     boolean reserved_boolE;
