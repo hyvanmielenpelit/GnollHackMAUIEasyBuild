@@ -1,6 +1,9 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.IO;
 using System.Text;
+using System.Threading.Tasks;
+
 #if GNH_MAUI
 #else
 using Xamarin.Forms;
@@ -13,6 +16,9 @@ namespace GnollHackX
         void InitializePlatform();
         void CloseApplication();
         void HideKeyboard();
+        float GetPlatformScreenScale();
+        Task<Stream> GetPlatformAssetsStreamAsync(string directory, string fileName);
+        bool IsRunningOnDesktop();
 
         string GetVersionString();
         ulong GetDeviceMemoryInBytes();
@@ -37,7 +43,7 @@ namespace GnollHackX
         string GetCanonicalPath(string fileName);
         string GetAbsoluteOnDemandAssetPath(string assetPack);
         string GetAbsoluteOnDemandAssetPath(string assetPack, string relativeAssetPath);
-        void RequestAppReview(ContentPage page);
+        Task RequestAppReview(ContentPage page);
         int FetchOnDemandPack(string pack);
         event EventHandler<AssetPackStatusEventArgs> OnDemandPackStatusNotification;
     }

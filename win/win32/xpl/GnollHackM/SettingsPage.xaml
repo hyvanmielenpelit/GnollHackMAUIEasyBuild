@@ -494,6 +494,22 @@
                                             HorizontalOptions="Start" />
                                 <Switch Grid.Column="1" x:Name="MenuHighFilterQualitySwitch" HorizontalOptions="End" VerticalOptions="Center" />
                             </Grid>
+                            <Grid ColumnSpacing="6" ColumnDefinitions="*,Auto" HorizontalOptions="Fill" HeightRequest="40">
+                                <Label Text="Highlighted Menu Keys"
+                                    FontFamily="Underwood" TextColor="Black"
+                                    FontSize="15"
+                                    VerticalOptions="Center" 
+                                    HorizontalOptions="Start" />
+                                <Switch Grid.Column="1" x:Name="MenuHighlightedKeysSwitch" HorizontalOptions="End" VerticalOptions="Center" />
+                            </Grid>
+                            <Grid ColumnSpacing="6" ColumnDefinitions="*,Auto" HorizontalOptions="Fill" HeightRequest="40">
+                                <Label Text="Show Dice as Ranges"
+                                    FontFamily="Underwood" TextColor="Black"
+                                    FontSize="15"
+                                    VerticalOptions="Center" 
+                                    HorizontalOptions="Start" />
+                                <Switch Grid.Column="1" x:Name="DiceAsRangesSwitch" HorizontalOptions="End" VerticalOptions="Center" />
+                            </Grid>
 
                             <Label Text="Behavior" FontSize="21" FontAttributes="Bold" FontFamily="Immortal" TextColor="Black" Margin="0,16,0,2" />
                             <Grid ColumnSpacing="6" ColumnDefinitions="*,Auto" HorizontalOptions="Fill" HeightRequest="40">
@@ -519,6 +535,14 @@
                                     VerticalOptions="Center" 
                                     HorizontalOptions="Start" />
                                 <Switch Grid.Column="1" x:Name="DoubleClickSwitch" HorizontalOptions="End" VerticalOptions="Center" />
+                            </Grid>
+                            <Grid ColumnSpacing="6" ColumnDefinitions="*,Auto" HorizontalOptions="Fill" HeightRequest="40">
+                                <Label Text="Traditional Get Position"
+                                    FontFamily="Underwood" TextColor="Black"
+                                    FontSize="15"
+                                    VerticalOptions="Center" 
+                                    HorizontalOptions="Start" />
+                                <Switch Grid.Column="1" x:Name="GetPositionArrowsSwitch" HorizontalOptions="End" VerticalOptions="Center" />
                             </Grid>
                             <Grid x:Name="RightMouseButtonGrid" ColumnSpacing="6" ColumnDefinitions="*,Auto" HorizontalOptions="Fill" HeightRequest="40">
                                 <Label Text="Right Mouse Button"
@@ -999,44 +1023,59 @@
                                         Text="  Webhook Link"
                                         FontFamily="Underwood" TextColor="Black"
                                         FontSize="15"
-                                        VerticalOptions="CenterAndExpand" 
+                                        VerticalOptions="Center" 
                                         HorizontalOptions="Start" />
                                 <StackLayout Grid.Column="1" Spacing="6" Orientation="Horizontal" HeightRequest="40" HorizontalOptions="End">
                                     <Label x:Name="CustomLinkLabel"
                                         Text="Default"
                                         FontFamily="Underwood" TextColor="Blue"
                                         FontSize="14"
-                                        VerticalOptions="CenterAndExpand" 
+                                        VerticalOptions="Center" 
                                         HorizontalOptions="End" />
                                     <controls:CustomImageButton Grid.Column="1" x:Name="CustomLinkButton" Text="Edit" FontSize="13" WidthRequest="80" HeightRequest="35" FontFamily="Diablo"
                                         BackgroundColor="Transparent" TextColor="White"
                                         Clicked="CustomLinkButton_Clicked"
-                                        VerticalOptions="CenterAndExpand" 
+                                        VerticalOptions="Center" 
                                         HorizontalOptions="End" />
                                 </StackLayout>
                             </Grid>
-                            <Grid ColumnSpacing="6" ColumnDefinitions="*,Auto" HorizontalOptions="Fill" HeightRequest="40">
+                            <Grid x:Name="PostDiagnosticDataGrid" ColumnSpacing="6" ColumnDefinitions="*,Auto" HorizontalOptions="Fill" HeightRequest="40">
                                 <Label Text="Post Diagnostic Data"
-                                    FontFamily="Underwood" TextColor="Black"
-                                    FontSize="15"
-                                    VerticalOptions="Center" 
-                                    HorizontalOptions="Start" />
+                                       x:Name="PostDiagnosticDataLabel"
+                                       FontFamily="Underwood" TextColor="Black"
+                                       FontSize="15"
+                                       VerticalOptions="Center" 
+                                       HorizontalOptions="Start">
+                                    <Label.GestureRecognizers>
+                                        <TapGestureRecognizer Tapped="PostDiagnosticDataLabel_TapGestureRecognizer_Tapped" />
+                                    </Label.GestureRecognizers>
+                                </Label>
                                 <Switch Grid.Column="1" x:Name="PostDiagnosticDataSwitch" HorizontalOptions="End" VerticalOptions="Center" Toggled="PostDiagnosticDataSwitch_Toggled" />
                             </Grid>
 
                             <Label Text="Server Posting" FontSize="21" FontAttributes="Bold" FontFamily="Immortal" TextColor="Black" Margin="0,16,0,2" />
+                            <Grid x:Name="SaveFileTrackingGrid" ColumnSpacing="6" ColumnDefinitions="*,Auto" HorizontalOptions="Fill" HeightRequest="40">
+                                <Label Text="Save File Tracking"
+                                       x:Name="SaveFileTrackingLabel"
+                                       FontFamily="Underwood" TextColor="Black"
+                                       FontSize="15"
+                                       VerticalOptions="Center" 
+                                       HorizontalOptions="Start">
+                                </Label>
+                                <Switch Grid.Column="1" x:Name="SaveFileTrackingSwitch" HorizontalOptions="End" VerticalOptions="Center" Toggled="SaveFileTrackingSwitch_Toggled" />
+                            </Grid>
                             <Grid ColumnSpacing="6" ColumnDefinitions="Auto,*" HeightRequest="40" HorizontalOptions="Fill">
                                 <StackLayout Grid.Column="0" Orientation="Horizontal" Spacing="12" HeightRequest="40" HorizontalOptions="Start">
                                     <Label x:Name="AccountTitleLabel"
                                         Text="Account"
                                         FontFamily="Underwood" TextColor="Black"
                                         FontSize="15"
-                                        VerticalOptions="CenterAndExpand" 
+                                        VerticalOptions="Center" 
                                         HorizontalOptions="Start" />
                                     <controls:CustomImageButton x:Name="XlogAccountButton" Text="Setup" FontSize="13" WidthRequest="90" HeightRequest="35" FontFamily="Diablo"
                                         BackgroundColor="Transparent" TextColor="White"
                                         Clicked="XlogAccountButton_Clicked"
-                                        VerticalOptions="CenterAndExpand" 
+                                        VerticalOptions="Center" 
                                         HorizontalOptions="Start" />
                                 </StackLayout>
                                 <StackLayout Grid.Column="1" Orientation="Horizontal" Spacing="12" HeightRequest="40" HorizontalOptions="End">
@@ -1044,44 +1083,16 @@
                                         Text="Default"
                                         FontFamily="Underwood" TextColor="Blue"
                                         FontSize="14"
-                                        VerticalOptions="CenterAndExpand" 
+                                        VerticalOptions="Center" 
                                         HorizontalOptions="End" />
                                     <controls:CustomImageButton x:Name="CustomXlogAccountButton" Text="Link" FontSize="13" WidthRequest="80" HeightRequest="35" FontFamily="Diablo"
                                         BackgroundColor="Transparent" TextColor="White"
                                         Clicked="CustomXlogAccountButton_Clicked"
-                                        VerticalOptions="CenterAndExpand" 
+                                        VerticalOptions="Center" 
                                         HorizontalOptions="End" />
                                 </StackLayout>
                             </Grid>
-                            <Grid ColumnSpacing="6" ColumnDefinitions="Auto,*" HeightRequest="40" HorizontalOptions="Fill">
-                                <StackLayout Grid.Column="0" Spacing="12" Orientation="Horizontal" HeightRequest="40" HorizontalOptions="Start">
-                                    <Label x:Name="PostingTitleLabel"
-                                        Text="Posting"
-                                        FontFamily="Underwood" TextColor="Black"
-                                        FontSize="15"
-                                        VerticalOptions="CenterAndExpand" 
-                                        HorizontalOptions="Start" />
-                                    <controls:CustomImageButton x:Name="XlogTestButton" Text="Test" FontSize="13" WidthRequest="90" HeightRequest="35" FontFamily="Diablo"
-                                        BackgroundColor="Transparent" TextColor="White"
-                                        Clicked="XlogTestButton_Clicked"
-                                        VerticalOptions="CenterAndExpand" 
-                                        HorizontalOptions="Start" />
-                                </StackLayout>
-                                <StackLayout Grid.Column="1" Spacing="12" Orientation="Horizontal" HeightRequest="40" HorizontalOptions="End">
-                                        <Label x:Name="CustomXlogPostLinkLabel"
-                                        Text="Default"
-                                        FontFamily="Underwood" TextColor="Blue"
-                                        FontSize="14"
-                                        VerticalOptions="CenterAndExpand" 
-                                        HorizontalOptions="End" />
-                                    <controls:CustomImageButton x:Name="CustomXlogPostButton" Text="Link" FontSize="13" WidthRequest="80" HeightRequest="35" FontFamily="Diablo"
-                                        BackgroundColor="Transparent" TextColor="White"
-                                        Clicked="CustomXlogPostButton_Clicked"
-                                        VerticalOptions="CenterAndExpand" 
-                                        HorizontalOptions="End" />
-                                </StackLayout>
-                            </Grid>
-                            <Grid x:Name="PostXlogUserNameStackLayout" ColumnSpacing="6" ColumnDefinitions="*,Auto" HorizontalOptions="Fill" HeightRequest="40">
+                            <Grid x:Name="PostXlogUserNameGrid" ColumnSpacing="6" ColumnDefinitions="*,Auto" HorizontalOptions="Fill" HeightRequest="40">
                                 <Label Text="User Name"
                                     x:Name="PostXlogUserNameLabel" 
                                     FontFamily="Underwood" TextColor="Black"
@@ -1089,7 +1100,7 @@
                                     VerticalOptions="Center" 
                                     HorizontalOptions="Start" />
                                 <Entry Grid.Column="1" x:Name="PostXlogUserNameEntry" MaxLength="31" HorizontalOptions="End" VerticalOptions="Center" Placeholder="Enter user name" PlaceholderColor="Gray"
-                                    TextColor="Black" FontFamily="DejaVuSansMono" FontSize="16" BackgroundColor="Transparent" HorizontalTextAlignment="Center" WidthRequest="200" />
+                                    Keyboard="Plain" TextColor="Black" FontFamily="DejaVuSansMono" FontSize="16" BackgroundColor="Transparent" HorizontalTextAlignment="Center" WidthRequest="200" />
                             </Grid>
                             <Grid ColumnSpacing="6" ColumnDefinitions="*,Auto" HorizontalOptions="Fill" HeightRequest="40">
                                 <Label Text="Password"
@@ -1099,9 +1110,37 @@
                                     VerticalOptions="Center" 
                                     HorizontalOptions="Start" />
                                 <Entry Grid.Column="1" x:Name="PostXlogPasswordEntry" IsPassword="True" MaxLength="63" HorizontalOptions="End" VerticalOptions="Center" Placeholder="Enter password" PlaceholderColor="Gray"
-                                    TextColor="Black" FontFamily="DejaVuSansMono" FontSize="16" BackgroundColor="Transparent" HorizontalTextAlignment="Center" WidthRequest="200" />
+                                    Keyboard="Plain" TextColor="Black" FontFamily="DejaVuSansMono" FontSize="16" BackgroundColor="Transparent" HorizontalTextAlignment="Center" WidthRequest="200" />
                             </Grid>
-                            <Grid x:Name="XlogReleaseAccountStackLayout" ColumnSpacing="6" ColumnDefinitions="*,Auto" HorizontalOptions="Fill" HeightRequest="40" IsVisible="False">
+                            <Grid ColumnSpacing="6" ColumnDefinitions="Auto,*" HeightRequest="40" HorizontalOptions="Fill">
+                                <StackLayout Grid.Column="0" Spacing="12" Orientation="Horizontal" HeightRequest="40" HorizontalOptions="Start">
+                                    <Label x:Name="PostingTitleLabel"
+                                        Text="Posting"
+                                        FontFamily="Underwood" TextColor="Black"
+                                        FontSize="15"
+                                        VerticalOptions="Center" 
+                                        HorizontalOptions="Start" />
+                                    <controls:CustomImageButton x:Name="XlogTestButton" Text="Test" FontSize="13" WidthRequest="90" HeightRequest="35" FontFamily="Diablo"
+                                        BackgroundColor="Transparent" TextColor="White"
+                                        Clicked="XlogTestButton_Clicked"
+                                        VerticalOptions="Center" 
+                                        HorizontalOptions="Start" />
+                                </StackLayout>
+                                <StackLayout Grid.Column="1" Spacing="12" Orientation="Horizontal" HeightRequest="40" HorizontalOptions="End">
+                                    <Label x:Name="CustomXlogPostLinkLabel"
+                                        Text="Default"
+                                        FontFamily="Underwood" TextColor="Blue"
+                                        FontSize="14"
+                                        VerticalOptions="Center" 
+                                        HorizontalOptions="End" />
+                                    <controls:CustomImageButton x:Name="CustomXlogPostButton" Text="Link" FontSize="13" WidthRequest="80" HeightRequest="35" FontFamily="Diablo"
+                                        BackgroundColor="Transparent" TextColor="White"
+                                        Clicked="CustomXlogPostButton_Clicked"
+                                        VerticalOptions="Center" 
+                                        HorizontalOptions="End" />
+                                </StackLayout>
+                            </Grid>
+                            <Grid x:Name="XlogReleaseAccountGrid" ColumnSpacing="6" ColumnDefinitions="*,Auto" HorizontalOptions="Fill" HeightRequest="40" IsVisible="False">
                                 <Label Text="Use Release Account"
                                     x:Name="XlogReleaseAccountLabel"
                                     FontFamily="Underwood" TextColor="Black"
@@ -1145,7 +1184,7 @@
                                     HorizontalOptions="Start" />
                                 <Switch Grid.Column="1" x:Name="BonesListSwitch" HorizontalOptions="End" VerticalOptions="Center" Toggled="BonesListSwitch_Toggled" />
                             </Grid>
-                            <Grid x:Name="BonesAllowedUsersStackLayout" ColumnSpacing="6" ColumnDefinitions="*,Auto" HorizontalOptions="Fill" HeightRequest="40">
+                            <Grid x:Name="BonesAllowedUsersGrid" ColumnSpacing="6" ColumnDefinitions="*,Auto" HorizontalOptions="Fill" HeightRequest="40">
                                 <Label Text="  Whitelist"
                                     x:Name="BonesAllowedUsersLabel" 
                                     FontFamily="Underwood" TextColor="Black"
@@ -1157,9 +1196,9 @@
                                     </Label.GestureRecognizers>
                                 </Label>
                                 <Entry Grid.Column="1" x:Name="BonesAllowedUsersEntry" MaxLength="2047" HorizontalOptions="End" VerticalOptions="Center" Placeholder="All users" PlaceholderColor="Gray"
-                                    TextColor="Black" FontFamily="DejaVuSansMono" FontSize="16" BackgroundColor="Transparent" HorizontalTextAlignment="Center" WidthRequest="200" />
+                                    Keyboard="Plain" TextColor="Black" FontFamily="DejaVuSansMono" FontSize="16" BackgroundColor="Transparent" HorizontalTextAlignment="Center" WidthRequest="200" />
                             </Grid>
-                            <Grid x:Name="ForcePostBonesStackLayout" ColumnSpacing="6" ColumnDefinitions="*,Auto" HorizontalOptions="Fill" HeightRequest="40" IsVisible="False">
+                            <Grid x:Name="ForcePostBonesGrid" ColumnSpacing="6" ColumnDefinitions="*,Auto" HorizontalOptions="Fill" HeightRequest="40" IsVisible="False">
                                 <Label Text="  Force Post Bones"
                                     x:Name="ForcePostBonesLabel"
                                     FontFamily="Underwood" TextColor="Black"
@@ -1206,19 +1245,19 @@
                                         Text="Cloud Storage"
                                         FontFamily="Underwood" TextColor="Black"
                                         FontSize="15"
-                                        VerticalOptions="CenterAndExpand" 
+                                        VerticalOptions="Center" 
                                         HorizontalOptions="Start" />
                                 <StackLayout Grid.Column="1" Spacing="6" Orientation="Horizontal" HeightRequest="40" HorizontalOptions="End">
                                     <Label x:Name="CustomCloudStorageLabel"
                                         Text="Default"
                                         FontFamily="Underwood" TextColor="Blue"
                                         FontSize="14"
-                                        VerticalOptions="CenterAndExpand" 
+                                        VerticalOptions="Center" 
                                         HorizontalOptions="End" />
                                     <controls:CustomImageButton x:Name="CustomCloudStorageButton" Text="Edit" FontSize="13" WidthRequest="80" HeightRequest="35" FontFamily="Diablo"
                                         BackgroundColor="Transparent" TextColor="White"
                                         Clicked="CustomCloudStorageButton_Clicked"
-                                        VerticalOptions="CenterAndExpand" 
+                                        VerticalOptions="Center" 
                                         HorizontalOptions="End" />
                                 </StackLayout>
                             </Grid>
@@ -1240,6 +1279,15 @@
                                     VerticalOptions="Center" 
                                     HorizontalOptions="Start" />
                                 <Switch Grid.Column="1" x:Name="LogMessageSwitch" HorizontalOptions="End" VerticalOptions="Center" />
+                            </Grid>
+                            <Grid ColumnSpacing="6" ColumnDefinitions="*,Auto" HorizontalOptions="Fill" HeightRequest="40">
+                                <Label Text="Debug Post Channel"
+                                    x:Name="DebugPostChannelLabel"
+                                    FontFamily="Underwood" TextColor="Black"
+                                    FontSize="15"
+                                    VerticalOptions="Center" 
+                                    HorizontalOptions="Start" />
+                                <Switch Grid.Column="1" x:Name="DebugPostChannelSwitch" HorizontalOptions="End" VerticalOptions="Center" Toggled="DebugPostChannelSwitch_Toggled" />
                             </Grid>
                             <Grid ColumnSpacing="6" ColumnDefinitions="*,Auto" HorizontalOptions="Fill" HeightRequest="40">
                                 <Label Text="Show Memory"
@@ -1292,6 +1340,15 @@
                                 <Switch Grid.Column="1" x:Name="LongerMessageHistorySwitch" HorizontalOptions="End" VerticalOptions="Center" />
                             </Grid>
                             <Grid ColumnSpacing="6" ColumnDefinitions="*,Auto" HorizontalOptions="Fill" HeightRequest="40">
+                                <Label x:Name="HideMessageHistoryLabel"
+                                    Text="Hide Message History"
+                                    FontFamily="Underwood" TextColor="Black"
+                                    FontSize="15"
+                                    VerticalOptions="Center"
+                                    HorizontalOptions="Start" />
+                                <Switch Grid.Column="1" x:Name="HideMessageHistorySwitch" HorizontalOptions="End" VerticalOptions="Center" />
+                            </Grid>
+                            <Grid ColumnSpacing="6" ColumnDefinitions="*,Auto" HorizontalOptions="Fill" HeightRequest="40">
                                 <Label Text="Use Single Dumplog"
                                     FontFamily="Underwood" TextColor="Black"
                                     FontSize="15"
@@ -1340,13 +1397,22 @@
                                 <Switch Grid.Column="1" x:Name="MipMapSwitch" Toggled="MipMapSwitch_Toggled" HorizontalOptions="End" VerticalOptions="Center" />
                             </Grid>
                             <Grid ColumnSpacing="6" ColumnDefinitions="*,Auto" HorizontalOptions="Fill" HeightRequest="40">
-                                <Label Text="Adjust GL Rectangles"
+                                <Label Text="Adjust Rectangles"
                                     x:Name="FixRectsLabel"
                                     FontFamily="Underwood" TextColor="Black"
                                     FontSize="15"
                                     VerticalOptions="Center" 
                                     HorizontalOptions="Start" />
                                 <Switch Grid.Column="1" x:Name="FixRectsSwitch" HorizontalOptions="End" VerticalOptions="Center" />
+                            </Grid>
+                            <Grid x:Name="DisableWindowsKeyGrid" ColumnSpacing="6" ColumnDefinitions="*,Auto" HorizontalOptions="Fill" HeightRequest="40" IsVisible="False">
+                                <Label Text="Disable Windows Key"
+                                    x:Name="DisableWindowsKeyLabel"
+                                    FontFamily="Underwood" TextColor="Black"
+                                    FontSize="15"
+                                    VerticalOptions="Center" 
+                                    HorizontalOptions="Start" />
+                                <Switch Grid.Column="1" x:Name="DisableWindowsKeySwitch" HorizontalOptions="End" VerticalOptions="Center" />
                             </Grid>
                             <Grid ColumnSpacing="6" ColumnDefinitions="*,Auto" HorizontalOptions="Fill" HeightRequest="40">
                                 <Label 
@@ -1426,10 +1492,10 @@
                 <Grid MaximumWidthRequest="440" HorizontalOptions="Center" VerticalOptions="Start" Margin="0,50,0,10" >
                     <Border x:Name="TextFrame" BackgroundColor="#66000000" Stroke="Black" Padding="12,12" StrokeThickness="1" StrokeShape="RoundRectangle 10,10,10,10" HorizontalOptions="Fill" VerticalOptions="Center">
                         <StackLayout x:Name="TextLayout" Spacing="6" HorizontalOptions="Fill" VerticalOptions="Center">
-                            <Label x:Name="TextCaption" Text="" FontFamily="Immortal" FontSize="20" HorizontalOptions="CenterAndExpand" TextColor="White" />
+                            <Label x:Name="TextCaption" Text="" FontFamily="Immortal" FontSize="20" HorizontalOptions="Center" TextColor="White" />
                             <Entry x:Name="TextEntry" WidthRequest="320" HorizontalOptions="Center" Placeholder="Enter the link here" PlaceholderColor="Gray" TextColor="White" BackgroundColor="#40000000"
-                                       HorizontalTextAlignment="Center" FontSize="20" FontFamily="LatoRegular" Completed="TextEntry_Completed" />
-                            <Grid ColumnSpacing="6" WidthRequest="360" HorizontalOptions="Center" VerticalOptions="CenterAndExpand">
+                                       Keyboard="Plain" HorizontalTextAlignment="Center" FontSize="20" FontFamily="LatoRegular" Completed="TextEntry_Completed" />
+                            <Grid ColumnSpacing="6" WidthRequest="360" HorizontalOptions="Center" VerticalOptions="Center">
                                 <Grid.RowDefinitions>
                                     <RowDefinition Height="65" />
                                 </Grid.RowDefinitions>

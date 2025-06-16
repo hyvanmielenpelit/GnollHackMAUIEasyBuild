@@ -24,6 +24,11 @@ DLLEXPORT int FDECL(GnollHackStart, (char*));
 #define GHRUNFLAGS_GUI_DEBUG_MODE           0x00000200UL
 #define GHRUNFLAGS_CHARACTER_CLICK_ACTION   0x00000400UL
 #define GHRUNFLAGS_NO_PET                   0x00000800UL
+#define GHRUNFLAGS_DICE_AS_RANGES           0x00001000UL
+#define GHRUNFLAGS_GETPOS_ARROWS            0x00002000UL
+#define GHRUNFLAGS_SAVE_FILE_TRACKING_SUPPORTED 0x00004000UL
+#define GHRUNFLAGS_SAVE_FILE_TRACKING_NEEDED    0x00008000UL
+#define GHRUNFLAGS_SAVE_FILE_TRACKING_ON    0x00010000UL
 
 #define GHRUNFLAGS_RIGHT_MOUSE_BIT_1        0x00400000UL
 #define GHRUNFLAGS_RIGHT_MOUSE_BIT_2        0x00800000UL
@@ -49,6 +54,7 @@ DLLEXPORT int RunGnollHack(
     char* preset_player_name,
     char* recovery_name,
     uint64_t runflags,
+    uint64_t foundmanuals,
     uint64_t wincap1,
     uint64_t wincap2,
     InitWindowsCallback callback_init_nhwindows,

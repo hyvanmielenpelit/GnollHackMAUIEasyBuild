@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Collections;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Linq;
@@ -36,8 +37,8 @@ namespace GnollHackX.Pages.Game
             InitializeComponent();
             On<iOS>().SetUseSafeArea(true);
             UIUtils.AdjustRootLayout(RootGrid);
-            GHApp.SetPageThemeOnHandler(this, GHApp.DarkMode);
-            GHApp.SetViewCursorOnHandler(RootGrid, GameCursorType.Normal);
+            UIUtils.SetPageThemeOnHandler(this, GHApp.DarkMode);
+            UIUtils.SetViewCursorOnHandler(RootGrid, GameCursorType.Normal);
 #if GNH_MAUI
             Loaded += ContentPage_Loaded;
 #else
@@ -86,6 +87,11 @@ namespace GnollHackX.Pages.Game
 
         private async void btnOK_Clicked(object sender, EventArgs e)
         {
+            await DoPressOk();
+        }
+
+        private async Task DoPressOk()
+        {
             btnOK.IsEnabled = false;
             btnCancel.IsEnabled = false;
             GHApp.PlayButtonClickedSound();
@@ -108,14 +114,9 @@ namespace GnollHackX.Pages.Game
                 return;
             }
 
-            ConcurrentQueue<GHResponse> queue;
-            if (GHGame.ResponseDictionary.TryGetValue(_currentGame, out queue))
-            {
-                await _gamePage.Navigation.PopModalAsync();
-                queue.Enqueue(new GHResponse(_currentGame, GHRequestType.AskName, usedName));
-            }
-            btnOK.IsEnabled = true;
-            btnCancel.IsEnabled = true;
+            var page = await _gamePage.Navigation.PopModalAsync();
+            _currentGame?.ResponseQueue.Enqueue(new GHResponse(_currentGame, GHRequestType.AskName, usedName));
+            GHApp.DisconnectIViewHandlers(page);
         }
 
         private void ReplayDoEnterName()
@@ -123,6 +124,14 @@ namespace GnollHackX.Pages.Game
             MainThread.BeginInvokeOnMainThread(() =>
             {
                 eName.Text = _replayEnteredName;
+            });
+        }
+
+        private void FocusToEnterName()
+        {
+            MainThread.BeginInvokeOnMainThread(() =>
+            {
+                eName.Focus();
             });
         }
 
@@ -166,7 +175,15 @@ namespace GnollHackX.Pages.Game
             }
             else
             {
+#if GNH_MAUI
+                var timer = Microsoft.Maui.Controls.Application.Current.Dispatcher.CreateTimer();
+                timer.Interval = TimeSpan.FromSeconds(GHConstants.KeyboardFocusDelay);
+                timer.IsRepeating = false;
+                timer.Tick += (s, e) => { FocusToEnterName(); };
+                timer.Start();
+#else
                 eName.Focus();
+#endif
             }
         }
 
@@ -193,25 +210,86 @@ namespace GnollHackX.Pages.Game
 
         private async void btnCancel_Clicked(object sender, EventArgs e)
         {
+            await DoPressCancel();
+        }
+
+        public void PressCancel()
+        {
+            try
+            {
+                MainThread.BeginInvokeOnMainThread(async () =>
+                {
+                    try
+                    {
+                        await DoPressCancel();
+                    }
+                    catch (Exception ex)
+                    {
+                        System.Diagnostics.Debug.WriteLine(ex);
+                    }
+                });
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine(ex);
+            }
+        }
+
+        public async Task DoPressCancel()
+        {
             btnOK.IsEnabled = false;
             btnCancel.IsEnabled = false;
             GHApp.PlayButtonClickedSound();
 
-            ConcurrentQueue<GHResponse> queue;
-            if (GHGame.ResponseDictionary.TryGetValue(_currentGame, out queue))
-            {
-                await _gamePage.Navigation.PopModalAsync();
-                queue.Enqueue(new GHResponse(_currentGame, GHRequestType.AskName, ""));
-            }
-            btnOK.IsEnabled = true;
-            btnCancel.IsEnabled = true;
+            var page = await _gamePage.Navigation.PopModalAsync();
+            _currentGame?.ResponseQueue.Enqueue(new GHResponse(_currentGame, GHRequestType.AskName, ""));
+            GHApp.DisconnectIViewHandlers(page);
         }
 
-        private void eName_Completed(object sender, EventArgs e)
+        public bool HandleSpecialKeyPress(GHSpecialKey key, bool isCtrl, bool isMeta, bool isShift)
+        {
+            bool handled = false;
+            try
+            {
+                MainThread.BeginInvokeOnMainThread(async () =>
+                {
+                    try
+                    {
+                        if (key == GHSpecialKey.Escape)
+                        {
+                            if (btnCancel.IsEnabled)
+                            {
+                                await DoPressCancel();
+                                handled = true;
+                            }
+                        }
+                        else if (key == GHSpecialKey.Enter)
+                        {
+                            if (btnOK.IsEnabled)
+                            {
+                                await DoPressOk();
+                                handled = true;
+                            }
+                        }
+                    }
+                    catch (Exception ex)
+                    {
+                        System.Diagnostics.Debug.WriteLine(ex);
+                    }
+                });
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine(ex);
+            }
+            return handled;
+        }
+
+        private async void eName_Completed(object sender, EventArgs e)
         {
             if (btnOK.IsEnabled)
             {
-                btnOK_Clicked(sender, e);
+                await DoPressOk();
             }
         }
 

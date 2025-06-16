@@ -20,10 +20,12 @@ namespace GnollHackX
 {
     public static class UIUtils
     {
+        private static readonly SKColor GHGray = new SKColor(128, 128, 128);
         private static readonly SKColor GHDarkGray = new SKColor(96, 96, 96);
         private static readonly SKColor GHVeryDarkGray = new SKColor(64, 64, 64);
+        private static readonly SKColor GHVeryVeryDarkGray = new SKColor(32, 32, 32);
         private static readonly SKColor GHTitleGold = new SKColor(0xD4, 0xA0, 0x17);
-        private static readonly SKColor GHRed = new SKColor(255, 32, 32);
+        private static readonly SKColor GHRed = new SKColor(255, 64, 64);
         private static readonly SKColor GHDarkRed = new SKColor(224, 0, 0);
         private static readonly SKColor GHGreen = new SKColor(0, 255, 0);
         private static readonly SKColor GHRevertedBrightGreen = new SKColor(0, 160, 0);
@@ -110,10 +112,20 @@ namespace GnollHackX
                         res = SKColors.Cyan;
                     break;
                 case NhColor.CLR_GRAY:
-                    if (isselected)
-                        res = revertblackwhite ? GHVeryDarkGray : SKColors.Gray;
+                    if (usealtcolors)
+                    {
+                        if (isselected)
+                            res = revertblackwhite ? GHDarkGray : GHVeryDarkGray;
+                        else
+                            res = revertblackwhite ? GHGray : GHDarkGray;
+                    }
                     else
-                        res = revertblackwhite ? GHDarkGray : SKColors.LightGray;
+                    {
+                        if (isselected)
+                            res = revertblackwhite ? GHVeryDarkGray : SKColors.Gray;
+                        else
+                            res = revertblackwhite ? GHDarkGray : SKColors.LightGray;
+                    }
                     break;
                 case NhColor.NO_COLOR:
                     break;
@@ -1181,21 +1193,27 @@ namespace GnollHackX
         {
 #if WINDOWS
             Microsoft.UI.Input.InputCursor usedCursor = cursorType == GameCursorType.Normal ? GHApp.WindowsCursor : GHApp.WindowsInfoCursor;
-            if (usedCursor == null || layout == null || layout.Handler == null)
+            if (usedCursor == null || layout == null)
                 return;
 
-            if (layout.Handler.PlatformView is Microsoft.UI.Xaml.UIElement)
+            MainThread.BeginInvokeOnMainThread(() => 
             {
-                try
+                if (layout.Handler == null)
+                    return;
+
+                if (layout.Handler.PlatformView is Microsoft.UI.Xaml.UIElement)
                 {
-                    Microsoft.UI.Xaml.UIElement element = (Microsoft.UI.Xaml.UIElement)layout.Handler.PlatformView;
-                    element.ChangeCursor(usedCursor);
+                    try
+                    {
+                        Microsoft.UI.Xaml.UIElement element = (Microsoft.UI.Xaml.UIElement)layout.Handler.PlatformView;
+                        element.ChangeCursor(usedCursor);
+                    }
+                    catch (Exception ex)
+                    {
+                        Debug.WriteLine(ex.Message);
+                    }
                 }
-                catch (Exception ex)
-                {
-                    Debug.WriteLine(ex.Message);
-                }
-            }
+            });
 #endif
         }
 
@@ -1364,6 +1382,129 @@ namespace GnollHackX
             float possibleScaling = freeSpacePerTextRow / fontHeight;
 
             return Math.Max(1.0f, Math.Min(possibleScaling, Math.Min(GHConstants.WindowMessageFontSizeMaxMultiplier, (float)relevantScale)));
+        }
+
+        public static void SetPageTheme(Page page, bool isDarkTheme)
+        {
+#if WINDOWS
+            if (page != null)
+            {
+                var handler = page.Handler;
+                if (handler != null && handler.PlatformView is Microsoft.UI.Xaml.FrameworkElement)
+                    ((Microsoft.UI.Xaml.FrameworkElement)handler.PlatformView).RequestedTheme = isDarkTheme ? Microsoft.UI.Xaml.ElementTheme.Dark : Microsoft.UI.Xaml.ElementTheme.Light;
+            }
+#endif
+        }
+
+        public static void SetPageThemeOnHandler(Page page, bool isDarkTheme)
+        {
+#if WINDOWS
+            if (page != null)
+            {
+                page.HandlerChanged += (sender, e) =>
+                {
+                    if (sender != null && sender is Page)
+                    {
+                        SetPageTheme((Page)sender, isDarkTheme);
+                        if (!(page is MainPage))
+                        {
+                            Microsoft.UI.Xaml.Controls.Panel p = page?.Handler?.PlatformView as Microsoft.UI.Xaml.Controls.Panel;
+                            if (p != null)
+                            {
+                                p.Transitions = new Microsoft.UI.Xaml.Media.Animation.TransitionCollection()
+                                {
+                                    new Microsoft.UI.Xaml.Media.Animation.EntranceThemeTransition()
+                                };
+                            }
+                        }
+                    }
+                };
+            }
+#endif
+        }
+
+        public static void SetViewCursorOnHandler(View layout, GameCursorType cursorType)
+        {
+#if WINDOWS
+            if (layout != null)
+            {
+                layout.HandlerChanged += (sender, e) =>
+                {
+                    UIUtils.ChangeElementCursor(layout, cursorType);
+                };
+            }
+#endif
+        }
+
+        public static void SetCreateGHWindow(GHWindow ghwin)
+        {
+            if(ghwin == null)
+                return;
+            ghwin.Typeface = GHApp.LatoRegular;
+            ghwin.TextColor = SKColors.White;
+            ghwin.TextSize = GHConstants.WindowBaseFontSize;
+            ghwin.BackgroundColor = SKColors.Transparent;
+            switch (ghwin.WindowType)
+            {
+                case GHWinType.None:
+                    break;
+                case GHWinType.Message:
+                    ghwin.TextSize = GHConstants.WindowMessageFontSize;
+                    ghwin.Typeface = GHApp.DejaVuSansMonoTypeface;
+                    ghwin.StrokeWidth = ghwin.TextSize / 4.0f;
+                    ghwin.AutoPlacement = true;
+                    break;
+                case GHWinType.Status:
+                    ghwin.TextSize = GHConstants.WindowStatusBarFontSize;
+                    ghwin.Typeface = GHApp.LatoRegular;
+                    ghwin.StrokeWidth = ghwin.TextSize / 4.0f;
+                    ghwin.HasShadow = true;
+                    ghwin.Left = 0;
+                    ghwin.Top = 0;
+                    break;
+                case GHWinType.Map:
+                    ghwin.TextSize = GHConstants.WindowStatusBarFontSize;
+                    ghwin.Typeface = GHApp.LatoRegular;
+                    ghwin.Left = 0;
+                    ghwin.Top = 120;
+                    break;
+                case GHWinType.Menu:
+                    ghwin.TextSize = GHConstants.WindowMenuFontSize;
+                    ghwin.Typeface = GHApp.UnderwoodTypeface;
+                    ghwin.Left = 0;
+                    ghwin.Top = 150;
+                    ghwin.CenterHorizontally = true;
+                    break;
+                case GHWinType.Text:
+                    ghwin.TextSize = GHConstants.WindowMenuFontSize;
+                    ghwin.Typeface = GHApp.UnderwoodTypeface;
+                    ghwin.Left = 0;
+                    ghwin.Top = 150;
+                    ghwin.CenterHorizontally = true;
+                    break;
+                case GHWinType.Base:
+                    break;
+                case GHWinType.Here:
+                    ghwin.TextSize = GHConstants.WindowMessageFontSize;
+                    ghwin.Typeface = GHApp.DejaVuSansMonoTypeface;
+                    ghwin.StrokeWidth = ghwin.TextSize / 4.0f;
+                    ghwin.AutoPlacement = true;
+                    break;
+                case GHWinType.Inventory:
+                    break;
+                case GHWinType.Reserved_1:
+                case GHWinType.Reserved_2:
+                case GHWinType.Reserved_3:
+                    break;
+                case GHWinType.RIP:
+                    break;
+                case GHWinType.Keypad:
+                    break;
+                case GHWinType.Overview:
+                    break;
+                case GHWinType.Worn:
+                    break;
+            }
         }
     }
 

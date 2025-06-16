@@ -614,6 +614,30 @@ LibGetCharacterClickAction(VOID_ARGS)
 }
 
 DLLEXPORT void
+LibSetGetPositionArrows(int new_value)
+{
+    iflags.getpos_arrows = new_value != 0;
+}
+
+DLLEXPORT int
+LibGetGetPositionArrows(VOID_ARGS)
+{
+    return (int)iflags.getpos_arrows;
+}
+
+DLLEXPORT void
+LibSetDiceAsRanges(int new_value)
+{
+    iflags.show_dice_as_ranges = new_value != 0;
+}
+
+DLLEXPORT int
+LibGetDiceAsRanges(VOID_ARGS)
+{
+    return (int)iflags.show_dice_as_ranges;
+}
+
+DLLEXPORT void
 LibSetMouseCommand(int new_value, int is_middle)
 {
     if (is_middle)
@@ -712,6 +736,7 @@ DLLEXPORT int RunGnollHack(
     char* preset_player_name,
     char* last_used_player_name,
     uint64_t runflags,
+    uint64_t foundmanuals,
     uint64_t wincap1,
     uint64_t wincap2,
     InitWindowsCallback callback_init_nhwindows,
@@ -883,14 +908,21 @@ DLLEXPORT int RunGnollHack(
 
     /* The following does the same as the default options file, but accessible easier from the GUI settings */
     memset(&initial_flags, 0, sizeof(initial_flags));
-    if (runflags & GHRUNFLAGS_CHARACTER_CLICK_ACTION)
-    {
-        initial_flags.click_action_set = TRUE;
-        initial_flags.click_action_value = TRUE;
-    }
-
+    initial_flags.click_action_set = TRUE;
+    initial_flags.click_action_value = (runflags & GHRUNFLAGS_CHARACTER_CLICK_ACTION) != 0;
+    initial_flags.getpos_arrows_set = TRUE;
+    initial_flags.getpos_arrows_value = (runflags & GHRUNFLAGS_GETPOS_ARROWS) != 0;
+    initial_flags.dice_as_ranges_set = TRUE;
+    initial_flags.dice_as_ranges_value = (runflags & GHRUNFLAGS_DICE_AS_RANGES) != 0;
+    initial_flags.save_file_tracking_supported_set = TRUE;
+    initial_flags.save_file_tracking_supported_value = (runflags & GHRUNFLAGS_SAVE_FILE_TRACKING_SUPPORTED) != 0;
+    initial_flags.save_file_tracking_needed_set = TRUE;
+    initial_flags.save_file_tracking_needed_value = (runflags & GHRUNFLAGS_SAVE_FILE_TRACKING_NEEDED) != 0;
+    initial_flags.save_file_tracking_on_set = TRUE;
+    initial_flags.save_file_tracking_on_value = (runflags & GHRUNFLAGS_SAVE_FILE_TRACKING_ON) != 0;
     initial_flags.right_click_action = (uchar)((runflags & GHRUNFLAGS_RIGHT_MOUSE_BIT_MASK) >> GHRUNFLAGS_RIGHT_MOUSE_BIT_INDEX);
     initial_flags.middle_click_action = (uchar)((runflags & GHRUNFLAGS_MIDDLE_MOUSE_BIT_MASK) >> GHRUNFLAGS_MIDDLE_MOUSE_BIT_INDEX);
+    initial_flags.found_manuals = foundmanuals;
 
     if (runflags & GHRUNFLAGS_NO_PET)
     {

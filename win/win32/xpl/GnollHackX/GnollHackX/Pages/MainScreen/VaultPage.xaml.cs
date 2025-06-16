@@ -24,7 +24,7 @@ namespace GnollHackX.Pages.MainScreen
 #endif
 {
     [XamlCompilation(XamlCompilationOptions.Compile)]
-    public partial class VaultPage : ContentPage
+    public partial class VaultPage : ContentPage, ICloseablePage
     {
         private MainPage _mainPage;
         List<LabeledImageButton> _buttons = new List<LabeledImageButton>();
@@ -37,8 +37,8 @@ namespace GnollHackX.Pages.MainScreen
             InitializeComponent();
             On<iOS>().SetUseSafeArea(true);
             UIUtils.AdjustRootLayout(RootGrid);
-            GHApp.SetPageThemeOnHandler(this, GHApp.DarkMode);
-            GHApp.SetViewCursorOnHandler(RootGrid, GameCursorType.Normal);
+            UIUtils.SetPageThemeOnHandler(this, GHApp.DarkMode);
+            UIUtils.SetViewCursorOnHandler(RootGrid, GameCursorType.Normal);
             if (GHApp.DarkMode)
             {
                 lblHeader.TextColor = GHColors.White;
@@ -140,10 +140,40 @@ namespace GnollHackX.Pages.MainScreen
 
         private async void Button_Clicked(object sender, EventArgs e)
         {
+            await ClosePageAsync();
+        }
+
+        public void ClosePage()
+        {
+            try
+            {
+                MainThread.BeginInvokeOnMainThread(async () =>
+                {
+                    try
+                    {
+                        if (CloseButton.IsEnabled)
+                            await ClosePageAsync();
+                    }
+                    catch (Exception ex)
+                    {
+                        System.Diagnostics.Debug.WriteLine(ex);
+                    }
+
+                });
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine(ex);
+            }
+        }
+
+        private async Task ClosePageAsync()
+        {
             CloseButton.IsEnabled = false;
             GHApp.PlayButtonClickedSound();
             GHApp.CurrentMainPage?.InvalidateCarousel();
-            await GHApp.Navigation.PopModalAsync();
+            var page = await GHApp.Navigation.PopModalAsync();
+            GHApp.DisconnectIViewHandlers(page);
         }
 
         private bool _backPressed = false;
@@ -153,7 +183,8 @@ namespace GnollHackX.Pages.MainScreen
             {
                 _backPressed = true;
                 GHApp.CurrentMainPage?.InvalidateCarousel();
-                await GHApp.Navigation.PopModalAsync();
+                var page = await GHApp.Navigation.PopModalAsync();
+                GHApp.DisconnectIViewHandlers(page);
             }
             return false;
         }
@@ -227,6 +258,11 @@ namespace GnollHackX.Pages.MainScreen
 
         private async void btnTopScores_Clicked(object sender, EventArgs e)
         {
+            await OpenTopScorePage();
+        }
+
+        private async Task OpenTopScorePage()
+        {
             VaultLayout.IsEnabled = false;
             GHApp.PlayButtonClickedSound();
             string fulltargetpath = Path.Combine(GHApp.GHPath, "xlogfile");
@@ -236,7 +272,7 @@ namespace GnollHackX.Pages.MainScreen
                 string errormsg = "";
                 if (!topScorePage.ReadFile(out errormsg))
                 {
-                    await DisplayAlert("Reading Top Scores Failed", "GnollHack failed to read the top scores file: " + errormsg, "OK");
+                    await GHApp.DisplayMessageBox(this, "Reading Top Scores Failed", "GnollHack failed to read the top scores file: " + errormsg, "OK");
                     VaultLayout.IsEnabled = true;
                 }
                 else
@@ -255,6 +291,11 @@ namespace GnollHackX.Pages.MainScreen
 
         private async void btnLibrary_Clicked(object sender, EventArgs e)
         {
+            await OpenLibraryPage();
+        }
+
+        private async Task OpenLibraryPage()
+        {
             VaultLayout.IsEnabled = false;
             GHApp.PlayButtonClickedSound();
             var libPage = new LibraryPage();
@@ -265,6 +306,11 @@ namespace GnollHackX.Pages.MainScreen
 
         private async void btnSoundTracks_Clicked(object sender, EventArgs e)
         {
+            await OpenMusicPage();
+        }
+
+        private async Task OpenMusicPage()
+        {
             VaultLayout.IsEnabled = false;
             GHApp.PlayButtonClickedSound();
             var musicPage = new MusicPage();
@@ -273,6 +319,11 @@ namespace GnollHackX.Pages.MainScreen
         }
 
         private async void btnSnapshots_Clicked(object sender, EventArgs e)
+        {
+            await OpenSnapshotPage();
+        }
+
+        private async Task OpenSnapshotPage()
         {
             VaultLayout.IsEnabled = false;
             GHApp.PlayButtonClickedSound();
@@ -284,13 +335,74 @@ namespace GnollHackX.Pages.MainScreen
 
         private async void btnReplays_Clicked(object sender, EventArgs e)
         {
+            await OpenReplayPage();
+        }
+
+        private async Task OpenReplayPage()
+        {
             VaultLayout.IsEnabled = false;
             GHApp.PlayButtonClickedSound();
-
             ReplayPage selectFilePage = new ReplayPage(_mainPage);
             await GHApp.Navigation.PushModalAsync(selectFilePage);
-
             VaultLayout.IsEnabled = true;
+        }
+
+        public bool HandleKeyPress(int key, bool isCtrl, bool isMeta)
+        {
+            bool handled = false;
+            try
+            {
+                MainThread.BeginInvokeOnMainThread(async () =>
+                {
+                    try
+                    {
+                        switch (key)
+                        {
+                            case (int)'t':
+                            case (int)'T':
+                                if (VaultLayout.IsEnabled)
+                                    await OpenTopScorePage();
+                                handled = true;
+                                break;
+                            case (int)'l':
+                            case (int)'L':
+                                if (VaultLayout.IsEnabled)
+                                    await OpenLibraryPage();
+                                handled = true;
+                                break;
+                            case (int)'m':
+                            case (int)'M':
+                                if (VaultLayout.IsEnabled)
+                                    await OpenMusicPage();
+                                handled = true;
+                                break;
+                            case (int)'s':
+                            case (int)'S':
+                                if (VaultLayout.IsEnabled)
+                                    await OpenSnapshotPage();
+                                handled = true;
+                                break;
+                            case (int)'r':
+                            case (int)'R':
+                                if (VaultLayout.IsEnabled)
+                                    await OpenReplayPage();
+                                handled = true;
+                                break;
+                            default:
+                                break;
+                        }
+                    }
+                    catch (Exception ex)
+                    {
+                        System.Diagnostics.Debug.WriteLine(ex);
+                    }
+                });
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine(ex);
+            }
+            return handled;
         }
     }
 }

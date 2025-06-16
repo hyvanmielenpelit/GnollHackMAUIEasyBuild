@@ -38,7 +38,7 @@ namespace GnollHackX.Pages.MainScreen
 #endif
 {
     [XamlCompilation(XamlCompilationOptions.Compile)]
-    public partial class ReplayPage : ContentPage
+    public partial class ReplayPage : ContentPage, ICloseablePage
     {
         MainPage _mainPage = null;
         string _subDirectoryLocal = null;
@@ -55,8 +55,8 @@ namespace GnollHackX.Pages.MainScreen
 			InitializeComponent();
             On<iOS>().SetUseSafeArea(true);
             UIUtils.AdjustRootLayout(RootGrid);
-            GHApp.SetPageThemeOnHandler(this, GHApp.DarkMode);
-            GHApp.SetViewCursorOnHandler(RootGrid, GameCursorType.Normal);
+            UIUtils.SetPageThemeOnHandler(this, GHApp.DarkMode);
+            UIUtils.SetViewCursorOnHandler(RootGrid, GameCursorType.Normal);
             if (GHApp.DarkMode)
             {
                 HeaderLabel.TextColor = GHColors.White;
@@ -71,19 +71,24 @@ namespace GnollHackX.Pages.MainScreen
             SelectButton.IsEnabled = false;
             FolderPicker.SelectedIndex = 0;
 
-            UpdateRecordings();
+            Appearing += ReplayPage_Appearing;
         }
 
-        private void UpdateRecordings()
+        private async void ReplayPage_Appearing(object sender, EventArgs e)
         {
-            UpdateLocalOrServerRecordings(IsCloud);
+            await UpdateRecordings();
         }
 
-        private void UpdateLocalOrServerRecordings(bool isServer)
+        private async Task UpdateRecordings()
+        {
+            await UpdateLocalOrServerRecordings(IsCloud);
+        }
+
+        private async Task UpdateLocalOrServerRecordings(bool isServer)
         {
             if (isServer)
             {
-                UpdateServerRecordings();
+                await UpdateServerRecordings();
             }
             else
             {
@@ -585,7 +590,7 @@ namespace GnollHackX.Pages.MainScreen
                     }
                     catch (Exception ex)
                     {
-                        await DisplayAlert("Share File Failure", "GnollHack failed to share " + noEntries + " selected item" + (noEntries != 1 ? "s" : "") + ": " + ex.Message, "OK");
+                        await GHApp.DisplayMessageBox(this, "Share File Failure", "GnollHack failed to share " + noEntries + " selected item" + (noEntries != 1 ? "s" : "") + ": " + ex.Message, "OK");
                     }
                 }
             }
@@ -735,7 +740,7 @@ namespace GnollHackX.Pages.MainScreen
                     }
                     catch (Exception ex)
                     {
-                        await DisplayAlert("Share File Failure", "GnollHack failed to share " + filePath + ": " + ex.Message, "OK");
+                        await GHApp.DisplayMessageBox(this, "Share File Failure", "GnollHack failed to share " + filePath + ": " + ex.Message, "OK");
                     }
                 }
             }
@@ -767,14 +772,14 @@ namespace GnollHackX.Pages.MainScreen
                     _subDirectoryDownload = string.IsNullOrWhiteSpace(rgf.FilePath) ? null : rgf.FileName + rgf.Extension;
                 else if (IsLocal)
                     _subDirectoryLocal = string.IsNullOrWhiteSpace(rgf.FilePath) ? null : rgf.FileName + rgf.Extension;
-                UpdateRecordings();
+                await UpdateRecordings();
                 return;
             }
 
             if (IsCloud)
             {
                 /* Download */
-                DownloadButton_Clicked(sender, e);
+                await DoDownload();
                 return;
             }
 
@@ -793,22 +798,22 @@ namespace GnollHackX.Pages.MainScreen
                     var gamePage = new GamePage(_mainPage);
                     GHApp.CurrentGamePage = gamePage;
                     await GHApp.Navigation.PushModalAsync(gamePage);
-                    gamePage.StartReplay(filePath, -1);
+                    await gamePage.StartReplay(filePath, -1);
                 }
                 else
                 {
                     FileInfo fi = new FileInfo(filePath);
-                    bool ans = await DisplayAlert("Replay Invalid", "Replay " + fi.Name + " is invalid: " + outstr + ". Delete it?", "Yes", "No");
+                    bool ans = await GHApp.DisplayMessageBox(this, "Replay Invalid", "Replay " + fi.Name + " is invalid: " + outstr + ". Delete it?", "Yes", "No");
                     if(ans)
                     {
                         try
                         {
                             GHApp.DeleteReplay(filePath);
-                            UpdateRecordings();
+                            await UpdateRecordings();
                         }
                         catch (Exception ex)
                         {
-                            await DisplayAlert("Deletion Failed", "GnollHack failed to delete game recording " + filePath + ": " + ex.Message, "OK");
+                            await GHApp.DisplayMessageBox(this, "Deletion Failed", "GnollHack failed to delete game recording " + filePath + ": " + ex.Message, "OK");
                         }
                     }
                 }
@@ -818,9 +823,15 @@ namespace GnollHackX.Pages.MainScreen
 
         private async void CloseButton_Clicked(object sender, EventArgs e)
         {
+            await ClosePageAsync();
+        }
+
+        private async Task ClosePageAsync()
+        {
             CloseButton.IsEnabled = false;
             GHApp.PlayButtonClickedSound();
-            await GHApp.Navigation.PopModalAsync();
+            var page = await GHApp.Navigation.PopModalAsync();
+            GHApp.DisconnectIViewHandlers(page);
         }
 
         private double _currentPageWidth = 0;
@@ -1058,7 +1069,7 @@ namespace GnollHackX.Pages.MainScreen
                                areAllFiles ? "replay" + (noEntries != 1 ? "s" : "") : 
                                "replay" + (noFiles != 1 ? "s" : "") + " and folder" + (noFolders != 1 ? "s" : "")) + 
                             "?";
-                    if (await DisplayAlert("Confirm Deletion", qText, "Yes", "No"))
+                    if (await GHApp.DisplayMessageBox(this, "Confirm Deletion", qText, "Yes", "No"))
                     {
                         foreach (object selItem in ReplayCollectionView.SelectedItems)
                         {
@@ -1089,12 +1100,12 @@ namespace GnollHackX.Pages.MainScreen
                         }
                         if (noErrors > 0)
                         {
-                            await DisplayAlert("Deletion Failed",
+                            await GHApp.DisplayMessageBox(this, "Deletion Failed",
                                 noErrors + " error" + (noErrors != 1 ? "s" : "") + " occurred when trying to delete " + noEntries + " replay" + (noEntries != 1 ? "s" : "") + "."
                                 + (GHApp.DebugLogMessages ? " See App Log for details." : ""),
                                 "OK");
                         }
-                        UpdateRecordings();
+                        await UpdateRecordings();
                     }
                 }
             }
@@ -1113,7 +1124,7 @@ namespace GnollHackX.Pages.MainScreen
 
                 if (filePath != null && recfile != null)
                 {
-                    if (await DisplayAlert("Confirm Deletion", "Are you sure to delete the " + 
+                    if (await GHApp.DisplayMessageBox(this, "Confirm Deletion", "Are you sure to delete the " + 
                         (recfile.IsFolder ? "folder" : "game recording") + " " + recfile.FileName + "?", "Yes", "No"))
                     {
                         try
@@ -1122,11 +1133,11 @@ namespace GnollHackX.Pages.MainScreen
                                 Directory.Delete(filePath, true);
                             else
                                 GHApp.DeleteReplay(filePath);
-                            UpdateRecordings();
+                            await UpdateRecordings();
                         }
                         catch (Exception ex)
                         {
-                            await DisplayAlert("Deletion Failed", "GnollHack failed to delete game recording " + filePath + ": " + ex.Message, "OK");
+                            await GHApp.DisplayMessageBox(this, "Deletion Failed", "GnollHack failed to delete game recording " + filePath + ": " + ex.Message, "OK");
                         }
                     }
                 }
@@ -1155,7 +1166,7 @@ namespace GnollHackX.Pages.MainScreen
             UpdateRecordingsLabel();
         }
 
-        private async void UpdateServerRecordings()
+        private async Task UpdateServerRecordings()
         {
             BlobServiceClient client = GHApp.GetBlobServiceClient();
             if (client == null)
@@ -1472,6 +1483,7 @@ namespace GnollHackX.Pages.MainScreen
                                     fileIdx++;
                                     UploadDownloadFileLabel.Text = fileName;
                                     UploadDownloadStatusLabel.Text = "Main replay file " + fileIdx + " of " + noValidFiles;
+                                    GHApp.MaybeWriteGHLog("UploadButton_Clicked: UploadFromFileAsync, " + fileName + ", " + UploadDownloadStatusLabel.Text);
                                     await GHApp.UploadFromFileAsync(blobContainerClient, prefix, filePath, _uploadDownloadCts.Token);
                                     recfile.Uploaded = true;
                                     if (UploadDownloadCancelled)
@@ -1519,6 +1531,7 @@ namespace GnollHackX.Pages.MainScreen
                                                         {
                                                             UploadDownloadFileLabel.Text = contFI.Name;
                                                             UploadDownloadStatusLabel.Text = "Continuation " + subFileIdx + " of " + noSubFiles + " for file " + fileIdx + " of " + noValidFiles;
+                                                            GHApp.MaybeWriteGHLog("UploadButton_Clicked: UploadFromFileAsync, cont, " + contFI.Name + ", " + UploadDownloadStatusLabel.Text);
                                                             await GHApp.UploadFromFileAsync(blobContainerClient, prefix, file, _uploadDownloadCts.Token);
                                                         }
                                                     }
@@ -1532,7 +1545,7 @@ namespace GnollHackX.Pages.MainScreen
                     }
                     catch (Exception ex)
                     {
-                        await DisplayAlert("Upload File Failure", "GnollHack failed to upload " + noFiles + " replay" + (noFiles != 1 ? "s" : "") + ": " + ex.Message, "OK");
+                        await GHApp.DisplayMessageBox(this, "Upload File Failure", "GnollHack failed to upload " + noFiles + " replay" + (noFiles != 1 ? "s" : "") + ": " + ex.Message, "OK");
                     }
                 }
             }
@@ -1628,7 +1641,7 @@ namespace GnollHackX.Pages.MainScreen
                     }
                     catch (Exception ex)
                     {
-                        await DisplayAlert("Upload File Failure", "GnollHack failed to upload " + filePath + ": " + ex.Message, "OK");
+                        await GHApp.DisplayMessageBox(this, "Upload File Failure", "GnollHack failed to upload " + filePath + ": " + ex.Message, "OK");
                     }
                 }
             }
@@ -1646,6 +1659,11 @@ namespace GnollHackX.Pages.MainScreen
         }
 
         private async void DownloadButton_Clicked(object sender, EventArgs e)
+        {
+            await DoDownload();
+        }
+
+        private async Task DoDownload()
         {
             SelectButton.IsEnabled = false;
             GHApp.PlayButtonClickedSound();
@@ -1754,7 +1772,7 @@ namespace GnollHackX.Pages.MainScreen
                     }
                     catch (Exception ex)
                     {
-                        await DisplayAlert("Download File Failure", "GnollHack failed to download " + noFiles + " replay" + (noFiles != 1 ? "s" : "") + ": " + ex.Message, "OK");
+                        await GHApp.DisplayMessageBox(this, "Download File Failure", "GnollHack failed to download " + noFiles + " replay" + (noFiles != 1 ? "s" : "") + ": " + ex.Message, "OK");
                     }
                 }
             }
@@ -1818,7 +1836,7 @@ namespace GnollHackX.Pages.MainScreen
                     }
                     catch (Exception ex)
                     {
-                        await DisplayAlert("Download File Failure", "GnollHack failed to download " + filePath + ": " + ex.Message, "OK");
+                        await GHApp.DisplayMessageBox(this, "Download File Failure", "GnollHack failed to download " + filePath + ": " + ex.Message, "OK");
                     }
                 }
             }
@@ -1832,8 +1850,8 @@ namespace GnollHackX.Pages.MainScreen
             UploadDownloadStatusLabel.Text = "";
             UploadDownloadGrid.IsVisible = false;
             UploadButton.IsEnabled = true;
-            PopupCancelButton_Clicked(sender, e);
-            UpdateRecordings();
+            PopupCancelButton_Clicked(this, EventArgs.Empty);
+            await UpdateRecordings();
         }
 
         private async void ServerButton_Clicked(object sender, EventArgs e)
@@ -1867,16 +1885,57 @@ namespace GnollHackX.Pages.MainScreen
             UploadDownloadGrid.IsVisible = false;
         }
 
-        private void ServerSwitch_Toggled(object sender, ToggledEventArgs e)
+        private async void ServerSwitch_Toggled(object sender, ToggledEventArgs e)
         {
-            UpdateLocalOrServerRecordings(e.Value);
+            await UpdateLocalOrServerRecordings(e.Value);
             UpdateButtons();
         }
 
-        private void FolderPicker_SelectedIndexChanged(object sender, EventArgs e)
+        private async void FolderPicker_SelectedIndexChanged(object sender, EventArgs e)
         {
-            UpdateLocalOrServerRecordings(IsCloud);
+            await UpdateLocalOrServerRecordings(IsCloud);
             UpdateButtons();
+        }
+
+        public void ClosePage()
+        {
+            try
+            {
+                MainThread.BeginInvokeOnMainThread(async () =>
+                {
+                    try
+                    {
+                        if (UploadDownloadGrid.IsVisible)
+                        {
+                            if (UploadDownloadCancelButton.IsEnabled)
+                            {
+                                UploadDownloadCancelButton_Clicked(UploadDownloadCancelButton, EventArgs.Empty);
+                            }
+                        }
+                        else if (PopupGrid.IsVisible)
+                        {
+                            if (PopupCancelButton.IsEnabled)
+                            {
+                                PopupCancelButton_Clicked(PopupCancelButton, EventArgs.Empty);
+                            }
+                        }
+                        else
+                        {
+                            if (CloseButton.IsEnabled)
+                                await ClosePageAsync();
+                        }
+                    }
+                    catch (Exception ex)
+                    {
+                        System.Diagnostics.Debug.WriteLine(ex);
+                    }
+
+                });
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine(ex);
+            }
         }
     }
 

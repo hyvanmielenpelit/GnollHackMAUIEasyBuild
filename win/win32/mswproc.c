@@ -1439,7 +1439,7 @@ mswin_update_inventory()
     logDebug("mswin_update_inventory()\n");
     if (iflags.perm_invent && program_state.something_worth_saving
         && iflags.window_inited && WIN_INVEN != WIN_ERR)
-        display_inventory(NULL, FALSE, 0);
+        display_inventory(NULL, FALSE, SHOWWEIGHTS_NONE);
 }
 
 /*
@@ -1489,10 +1489,50 @@ mswin_cliparound(int x, int y, BOOLEAN_P force)
     }
 }
 
+STATIC_VAR double saved_zoom = 1.0;
 void
 mswin_issue_gui_command(int cmd_id, int cmd_param, int cmd_param2, const char* cmd_str)
 {
-    return;
+    switch (cmd_id)
+    {
+    case GUI_CMD_ZOOM_NORMAL:
+        flags.screen_scale_adjustment = flags.preferred_screen_scale <= 0 ? 0.0
+            : max(MIN_SCREEN_SCALE_ADJUSTMENT, min(MAX_SCREEN_SCALE_ADJUSTMENT, (((double)flags.preferred_screen_scale) / 100.0 - 1.0)));
+        break;
+    case GUI_CMD_ZOOM_IN:
+    {
+        double scale_level = round(flags.screen_scale_adjustment / KEYBOARD_SCREEN_SCALE_ADJUSTMENT_STEP);
+        flags.screen_scale_adjustment = (scale_level + 1) * KEYBOARD_SCREEN_SCALE_ADJUSTMENT_STEP;
+        if (flags.screen_scale_adjustment > MAX_SCREEN_SCALE_ADJUSTMENT)
+            flags.screen_scale_adjustment = MAX_SCREEN_SCALE_ADJUSTMENT;
+        break;
+    }
+    case GUI_CMD_ZOOM_OUT:
+    {
+        double scale_level = round(flags.screen_scale_adjustment / KEYBOARD_SCREEN_SCALE_ADJUSTMENT_STEP);
+        flags.screen_scale_adjustment = (scale_level - 1) * KEYBOARD_SCREEN_SCALE_ADJUSTMENT_STEP;
+        if (flags.screen_scale_adjustment < MIN_SCREEN_SCALE_ADJUSTMENT)
+            flags.screen_scale_adjustment = MIN_SCREEN_SCALE_ADJUSTMENT;
+        break;
+    }
+    case GUI_CMD_ZOOM_MINI:
+        flags.screen_scale_adjustment = -1.0; /* In fact fit-to-screen */
+        break;
+    case GUI_CMD_ZOOM_HALF:
+        flags.screen_scale_adjustment = -0.5;
+        break;
+    case GUI_CMD_ZOOM_TO_SCALE:
+        flags.screen_scale_adjustment = (double)cmd_param / 10000;
+        break;
+    case GUI_CMD_SAVE_ZOOM:
+        saved_zoom = flags.screen_scale_adjustment;
+        break;
+    case GUI_CMD_RESTORE_ZOOM:
+        flags.screen_scale_adjustment = saved_zoom;
+        break;
+    default:
+        break;
+    }
 }
 
 /*
@@ -2367,15 +2407,19 @@ mswin_getmsghistory_ex(char** attrs_ptr, char** colors_ptr, BOOLEAN_P init)
         next_message = 0;
         next_message_attrs = 0;
         next_message_colors = 0;
-        *attrs_ptr = (char*)0;
-        *colors_ptr = (char*)0;
+        if (attrs_ptr)
+            *attrs_ptr = (char*)0;
+        if (colors_ptr)
+            *colors_ptr = (char*)0;
         return (char *) 0;
     } 
     else
     {
         char *retval = next_message;
-        *attrs_ptr = next_message_attrs;
-        *colors_ptr = next_message_colors;
+        if (attrs_ptr)
+            *attrs_ptr = next_message_attrs;
+        if (colors_ptr)
+            *colors_ptr = next_message_colors;
 
         char *p;
         next_message = p = strchr(next_message, '\n');
@@ -3839,6 +3883,7 @@ mswin_init_platform(VOID_ARGS)
 void
 mswin_exit_platform(int status)
 {
+    saved_zoom = 1.0;
     StopGdiplus();
     (void)close_fmod_studio();
 }
@@ -3904,7 +3949,7 @@ mswin_toggle_animation_timer(int timertype, int timerid, int state, int x, int y
         animation_timers.special_effect_animation_counter_on[timerid] = !!state;
         animation_timers.spef_action_animation_x[timerid] = x;
         animation_timers.spef_action_animation_y[timerid] = y;
-        animation_timers.spef_action_animation_layer[timerid] = (enum animation_timer_types)layer;
+        animation_timers.spef_action_animation_layer[timerid] = (enum layer_types)layer;
         break;
     default:
         break;
@@ -3948,71 +3993,71 @@ mswin_ui_has_input(VOID_ARGS)
 }
 
 
-void
-convertUTF8toTCHAR(buf, bufsize)
-char* buf;
-size_t bufsize;
-{
-    if (!buf || !*buf)
-        return;
-
-    char* bp, * wp;
-    char copybuf[BUFSZ * 8] = "";
-    wp = copybuf;
-    boolean was_unicode = FALSE;
-    uchar uc;
-
-    for (bp = buf; *bp && bp < bp + bufsize && wp < copybuf + sizeof(copybuf); bp++)
-    {
-        uc = (uchar)(*bp);
-        if (uc >= (uchar)0x80)
-        {
-            if (uc == (uchar)0xc3) /* A replaceble character */
-            {
-                bp++;
-                uc = (uchar)(*bp);
-                if (0xa5 == uc)
-                    *wp = (char)'å'; /* å */
-                else if (0xa4 == uc)
-                    *wp = (char)'ä';  /* ä */
-                else if (0xb6 == uc)
-                    *wp = (char)'ö'; /* ö */
-                else if (0x85 == uc)
-                    *wp = (char)'Å'; /* Å */
-                else if (0x84 == uc)
-                    *wp = (char)'Ä'; /* Ä */
-                else if (0x96 == uc)
-                    *wp = (char)'Ö'; /* Ö */
-                else
-                    *wp = (char)'?';
-
-                wp++;
-            }
-            else
-            {
-                if (!was_unicode)
-                {
-                    *wp = (char)'?';
-                    wp++;
-                }
-            }
-
-            was_unicode = TRUE;
-        }
-        else
-        {
-            *wp = *bp;
-            wp++;
-            was_unicode = FALSE;
-        }
-    }
-
-    if (wp < copybuf + sizeof(copybuf))
-        *wp = (char)'\0';
-    else
-        copybuf[sizeof(copybuf) - 1] = (char)'\0';
-
-    Strcpy(buf, copybuf);
-}
+//void
+//convertUTF8toTCHAR(buf, bufsize)
+//char* buf;
+//size_t bufsize;
+//{
+//    if (!buf || !*buf)
+//        return;
+//
+//    char* bp, * wp;
+//    char copybuf[BUFSZ * 8] = "";
+//    wp = copybuf;
+//    boolean was_unicode = FALSE;
+//    uchar uc;
+//
+//    for (bp = buf; *bp && bp < bp + bufsize && wp < copybuf + sizeof(copybuf); bp++)
+//    {
+//        uc = (uchar)(*bp);
+//        if (uc >= (uchar)0x80)
+//        {
+//            if (uc == (uchar)0xc3) /* A replaceble character */
+//            {
+//                bp++;
+//                uc = (uchar)(*bp);
+//                if (0xa5 == uc)
+//                    *wp = (char)'å'; /* å */
+//                else if (0xa4 == uc)
+//                    *wp = (char)'ä';  /* ä */
+//                else if (0xb6 == uc)
+//                    *wp = (char)'ö'; /* ö */
+//                else if (0x85 == uc)
+//                    *wp = (char)'Å'; /* Å */
+//                else if (0x84 == uc)
+//                    *wp = (char)'Ä'; /* Ä */
+//                else if (0x96 == uc)
+//                    *wp = (char)'Ö'; /* Ö */
+//                else
+//                    *wp = (char)'?';
+//
+//                wp++;
+//            }
+//            else
+//            {
+//                if (!was_unicode)
+//                {
+//                    *wp = (char)'?';
+//                    wp++;
+//                }
+//            }
+//
+//            was_unicode = TRUE;
+//        }
+//        else
+//        {
+//            *wp = *bp;
+//            wp++;
+//            was_unicode = FALSE;
+//        }
+//    }
+//
+//    if (wp < copybuf + sizeof(copybuf))
+//        *wp = (char)'\0';
+//    else
+//        copybuf[sizeof(copybuf) - 1] = (char)'\0';
+//
+//    Strcpy(buf, copybuf);
+//}
 
 

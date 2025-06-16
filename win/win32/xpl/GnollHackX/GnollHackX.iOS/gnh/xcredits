@@ -1,5 +1,5 @@
               GNOLLHACK CROSS-PLATFORM GRAPHICAL USER INTERFACE
-                 (Copyright 2020-2024 Hyvän mielen pelit ry)
+                 (Copyright 2020-2025 Hyvän mielen pelit ry)
 
 Game Design:     Tommi Gustafsson, Janne Gustafsson
 UI Design:       Tommi Gustafsson, Janne Gustafsson
@@ -13,16 +13,19 @@ Tile Graphics:   Riikka Laakkonen (Players, monsters, various graphics)
                  Milla Hautapaakkanen (Spells, items, various graphics)
                  Heta Kohonen (Additional monster and item graphics)
                  Gribby Bullock (Doodad, monster and item graphics)
+                 Marika Velin (Additional graphics)
                  Alex Sundell (Additional graphics)
                  Jenni Berg (Additional monster graphics)
                  Pinja Mansikkaviita (Additional graphics)
                  Benjamin Tuppurainen (Additional graphics)
                  Kim Tuppurainen (Additional graphics)
+                 Miika Tuppurainen (Additional graphics)
+                 Erika Meade (Additional graphics)
                  Marianne Bekker (Monster and environment graphics)
                  Laura Hölttä (Additional monster graphics)
                  Joona Korhonen (Additional monster graphics)
                  Miro Pääkkönen (Additional monster graphics)
-                 Marika Velin (Additional monster graphics)
+                 Remy Peura (Additional monster graphics)
                  Milo Uusitalo (Additional monster and item graphics)
                  Robert Santala (Additional item graphics)
                  Anna-Marija Sabo (Additional item graphics)
@@ -52,6 +55,11 @@ Sound middleware:  FMOD Studio by Firelight Technologies Pty Ltd.
 Eric Matyas (soundimage.org)
 Avalkis (jukkaeronen.com)
 Yolanda Mott (www.yolandamott.com): A Elbereth Gilthoniel
+
+
+                            COMMUNITY CONTRIBUTORS
+
+Karn (Stormbringer and Mournblade graphics)
 
 
                                     OTHER

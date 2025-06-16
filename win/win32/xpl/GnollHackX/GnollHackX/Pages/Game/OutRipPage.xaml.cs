@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
+
 #if GNH_MAUI
 using GnollHackX;
 using Microsoft.Maui.Controls.PlatformConfiguration;
@@ -14,6 +15,7 @@ using Xamarin.Forms;
 using Xamarin.Forms.PlatformConfiguration;
 using Xamarin.Forms.PlatformConfiguration.iOSSpecific;
 using Xamarin.Forms.Xaml;
+using Xamarin.Essentials;
 
 namespace GnollHackX.Pages.Game
 #endif
@@ -31,8 +33,8 @@ namespace GnollHackX.Pages.Game
             InitializeComponent();
             On<iOS>().SetUseSafeArea(true);
             UIUtils.AdjustRootLayout(RootGrid);
-            GHApp.SetPageThemeOnHandler(this, GHApp.DarkMode);
-            GHApp.SetViewCursorOnHandler(RootGrid, GameCursorType.Normal);
+            UIUtils.SetPageThemeOnHandler(this, GHApp.DarkMode);
+            UIUtils.SetViewCursorOnHandler(RootGrid, GameCursorType.Normal);
 
             _gamePage = gamePage;
             _window = window;
@@ -61,8 +63,38 @@ namespace GnollHackX.Pages.Game
             {
                 _tapHide = true;
                 OutRipGrid.IsEnabled = false;
-                await GHApp.Navigation.PopModalAsync();
+                var page = await GHApp.Navigation.PopModalAsync();
                 _gamePage.GenericButton_Clicked(sender, e, GHConstants.CancelChar);
+                GHApp.DisconnectIViewHandlers(page);
+            }
+        }
+
+        public void CloseOutrip()
+        {
+            try
+            {
+                MainThread.BeginInvokeOnMainThread(async () =>
+                {
+                    try
+                    {
+                        if (!_playingReplay)
+                        {
+                            _tapHide = true;
+                            OutRipGrid.IsEnabled = false;
+                            var page = await GHApp.Navigation.PopModalAsync();
+                            _gamePage.GenericButton_Clicked(this, new EventArgs(), GHConstants.CancelChar);
+                            GHApp.DisconnectIViewHandlers(page);
+                        }
+                    }
+                    catch (Exception ex)
+                    {
+                        System.Diagnostics.Debug.WriteLine(ex);
+                    }
+                });
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine(ex);
             }
         }
 

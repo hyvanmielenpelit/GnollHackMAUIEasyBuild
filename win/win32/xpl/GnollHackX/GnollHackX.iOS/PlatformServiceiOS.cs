@@ -14,6 +14,8 @@ using Foundation;
 using UIKit;
 using StoreKit;
 using GameController;
+using System.IO;
+using System.Threading.Tasks;
 
 #if GNH_MAUI
 namespace GnollHackM
@@ -28,6 +30,18 @@ namespace GnollHackX.iOS
         {
             NSObject ver = NSBundle.MainBundle.InfoDictionary["CFBundleShortVersionString"];
             return ver.ToString();
+        }
+
+        public bool IsRunningOnDesktop()
+        {
+            try
+            {
+                return NSProcessInfo.ProcessInfo?.IsiOSApplicationOnMac ?? false;
+            }
+            catch 
+            { 
+                return false;
+            }
         }
 
         public ulong GetDeviceMemoryInBytes()
@@ -70,6 +84,26 @@ namespace GnollHackX.iOS
             }
         }
 
+        public float GetPlatformScreenScale()
+        {
+            try
+            {
+                //var nativeScale = UIKit.UIScreen.MainScreen.NativeScale;
+                //var scale = UIKit.UIScreen.MainScreen.Scale;
+
+                //if (nativeScale == scale || nativeScale == 0 || scale == 0)
+                //    return 1.0f;
+
+                //float platformScale = (float)(scale / nativeScale);
+                //return platformScale;
+                return 1.0f;
+            }
+            catch
+            {
+                return 1.0f;
+            }
+        }
+
         public void CloseApplication()
         {
             RevertAnimatorDuration(true);
@@ -78,6 +112,21 @@ namespace GnollHackX.iOS
 #else
             /* Do nothing; fall back to Xamarin.Forms termination after this call */
 #endif
+        }
+
+        public Task<Stream> GetPlatformAssetsStreamAsync(string directory, string fileName)
+        {
+            return Task.Run(() => GetPlatformAssetsStream(directory, fileName));
+        }
+
+        private Stream GetPlatformAssetsStream(string directory, string fileName)
+        {
+            string extension = Path.GetExtension(fileName);
+            if (extension != null && extension.Length > 0)
+                extension = extension.Substring(1); /* Remove . from the start */
+            string fname = Path.GetFileNameWithoutExtension(fileName);
+            string fullFilePath = NSBundle.MainBundle.PathForResource(fname, extension, directory);
+            return File.OpenRead(fullFilePath);
         }
 
         public void SetStatusBarHidden(bool ishidden)
@@ -126,7 +175,7 @@ namespace GnollHackX.iOS
 
         }
 
-        public async void RequestAppReview(ContentPage page)
+        public async Task RequestAppReview(ContentPage page)
         {
             try
             {

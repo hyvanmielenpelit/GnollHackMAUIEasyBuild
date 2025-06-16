@@ -24,7 +24,7 @@ namespace GnollHackX.Pages.MainScreen
 #endif
 {
     [XamlCompilation(XamlCompilationOptions.Compile)]
-    public partial class ResetPage : ContentPage
+    public partial class ResetPage : ContentPage, ICloseablePage
     {
         private MainPage _mainPage;
         public ResetPage(MainPage mainPage)
@@ -35,8 +35,8 @@ namespace GnollHackX.Pages.MainScreen
             InitializeComponent();
             On<iOS>().SetUseSafeArea(true);
             UIUtils.AdjustRootLayout(RootGrid);
-            GHApp.SetPageThemeOnHandler(this, GHApp.DarkMode);
-            GHApp.SetViewCursorOnHandler(RootGrid, GameCursorType.Normal);
+            UIUtils.SetPageThemeOnHandler(this, GHApp.DarkMode);
+            UIUtils.SetViewCursorOnHandler(RootGrid, GameCursorType.Normal);
             if (GHApp.DarkMode)
             {
                 lblHeader.TextColor = GHColors.White;
@@ -51,7 +51,7 @@ namespace GnollHackX.Pages.MainScreen
         {
             ResetGrid.IsEnabled = false;
             GHApp.PlayButtonClickedSound();
-            bool answer = await DisplayAlert("Delete GnollHack Core Files?", "Are you sure to delete GnollHack core files?", "Yes", "No");
+            bool answer = await GHApp.DisplayMessageBox(this, "Delete GnollHack Core Files?", "Are you sure to delete GnollHack core files?", "Yes", "No");
             if (answer)
             {
                 GHApp.GnollHackService.ClearCoreFiles();
@@ -66,7 +66,7 @@ namespace GnollHackX.Pages.MainScreen
         {
             ResetGrid.IsEnabled = false;
             GHApp.PlayButtonClickedSound();
-            bool answer = await DisplayAlert("Delete Saved Games?", "Are you sure to delete all saved games?", "Yes", "No");
+            bool answer = await GHApp.DisplayMessageBox(this, "Delete Saved Games?", "Are you sure to delete all saved games?", "Yes", "No");
             if (answer)
             {
                 GHApp.GnollHackService.ClearSavedGames();
@@ -80,7 +80,7 @@ namespace GnollHackX.Pages.MainScreen
         {
             ResetGrid.IsEnabled = false;
             GHApp.PlayButtonClickedSound();
-            bool answer = await DisplayAlert("Delete Top Scores?", "Are you sure to delete all top scores and associated dumplogs?", "Yes", "No");
+            bool answer = await GHApp.DisplayMessageBox(this, "Delete Top Scores?", "Are you sure to delete all top scores and associated dumplogs?", "Yes", "No");
             if (answer)
             {
                 GHApp.GnollHackService.ClearTopScores();
@@ -95,7 +95,7 @@ namespace GnollHackX.Pages.MainScreen
         {
             ResetGrid.IsEnabled = false;
             GHApp.PlayButtonClickedSound();
-            bool answer = await DisplayAlert("Delete Bones Files?", "Are you sure to delete all bones files?", "Yes", "No");
+            bool answer = await GHApp.DisplayMessageBox(this, "Delete Bones Files?", "Are you sure to delete all bones files?", "Yes", "No");
             if (answer)
             {
                 GHApp.GnollHackService.ClearBones();
@@ -109,7 +109,7 @@ namespace GnollHackX.Pages.MainScreen
         {
             ResetGrid.IsEnabled = false;
             GHApp.PlayButtonClickedSound();
-            bool answer = await DisplayAlert("Delete All Main Files?", "Are you sure to delete all files in the main directory?", "Yes", "No");
+            bool answer = await GHApp.DisplayMessageBox(this, "Delete All Main Files?", "Are you sure to delete all files in the main directory?", "Yes", "No");
             if (answer)
             {
                 GHApp.GnollHackService.ClearAllFilesInMainDirectory();
@@ -123,7 +123,7 @@ namespace GnollHackX.Pages.MainScreen
         {
             ResetGrid.IsEnabled = false;
             GHApp.PlayButtonClickedSound();
-            bool answer = await DisplayAlert("Delete Downloaded Files?", "Are you sure to delete all downloaded files on restart?", "Yes", "No");
+            bool answer = await GHApp.DisplayMessageBox(this, "Delete Downloaded Files?", "Are you sure to delete all downloaded files on restart?", "Yes", "No");
             if (answer)
             {
                 Preferences.Set("ResetExternalFiles", true);
@@ -137,7 +137,7 @@ namespace GnollHackX.Pages.MainScreen
         {
             ResetGrid.IsEnabled = false;
             GHApp.PlayButtonClickedSound();
-            bool answer = await DisplayAlert("Delete App Preferences?", "Are you sure to delete all app preference settings?", "Yes", "No");
+            bool answer = await GHApp.DisplayMessageBox(this, "Delete App Preferences?", "Are you sure to delete all app preference settings?", "Yes", "No");
             if (answer)
             {
                 bool has_resetatstart = Preferences.ContainsKey("ResetAtStart");
@@ -198,7 +198,7 @@ namespace GnollHackX.Pages.MainScreen
         {
             ResetGrid.IsEnabled = false;
             GHApp.PlayButtonClickedSound();
-            bool answer = await DisplayAlert("Delete All User Data?", "Are you sure to delete all files in the " + GHConstants.UserDataDirectory + " directory?", "Yes", "No");
+            bool answer = await GHApp.DisplayMessageBox(this, "Delete All User Data?", "Are you sure to delete all files in the " + GHConstants.UserDataDirectory + " directory?", "Yes", "No");
             if (answer)
             {
                 try
@@ -221,11 +221,42 @@ namespace GnollHackX.Pages.MainScreen
 
         private async void Button_Clicked(object sender, EventArgs e)
         {
+            await CloseCore();
+        }
+
+        public void ClosePage()
+        {
+            try
+            {
+                MainThread.BeginInvokeOnMainThread(async () =>
+                {
+                    try
+                    {
+                        if (ResetGrid.IsEnabled)
+                            await CloseCore();
+                    }
+                    catch (Exception ex)
+                    {
+                        System.Diagnostics.Debug.WriteLine(ex);
+                    }
+
+                });
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine(ex);
+            }
+        }
+
+        private async Task CloseCore()
+        {
             ResetGrid.IsEnabled = false;
             GHApp.PlayButtonClickedSound();
-            GHApp.CurrentMainPage?.InvalidateCarousel(); 
-            await GHApp.Navigation.PopModalAsync();
+            GHApp.CurrentMainPage?.InvalidateCarousel();
+            var page = await GHApp.Navigation.PopModalAsync();
+            GHApp.DisconnectIViewHandlers(page);
         }
+
 
         private bool _backPressed = false;
         private async Task<bool> BackButtonPressed(object sender, EventArgs e)
@@ -235,7 +266,8 @@ namespace GnollHackX.Pages.MainScreen
                 _backPressed = true;
                 ResetGrid.IsEnabled = false;
                 GHApp.CurrentMainPage?.InvalidateCarousel();
-                await GHApp.Navigation.PopModalAsync();
+                var page = await GHApp.Navigation.PopModalAsync();
+                GHApp.DisconnectIViewHandlers(page);
             }
             return false;
         }
@@ -297,7 +329,7 @@ namespace GnollHackX.Pages.MainScreen
                 {
                     if (!_cancellationTokenSource.Token.IsCancellationRequested)
                     {
-                        await DisplayAlert("Download Error", "A download error occurred: " + ex.Message, "OK");
+                        await GHApp.DisplayMessageBox(this, "Download Error", "A download error occurred: " + ex.Message, "OK");
                         trouble = true;
                     }
                 }
@@ -314,7 +346,7 @@ namespace GnollHackX.Pages.MainScreen
                 }
                 catch (Exception ex)
                 {
-                    await DisplayAlert("File Process Error", "A file processing error occurred: " + ex.Message, "OK");
+                    await GHApp.DisplayMessageBox(this, "File Process Error", "A file processing error occurred: " + ex.Message, "OK");
                     trouble = true;
                 }
 
@@ -335,7 +367,7 @@ namespace GnollHackX.Pages.MainScreen
                 }
             }
 #else
-            await DisplayAlert("Command Unavailable", "This command is unavailable in Release mode.", "OK");
+            await GHApp.DisplayMessageBox(this, "Command Unavailable", "This command is unavailable in Release mode.", "OK");
 #endif
             ResetGrid.IsEnabled = true;
         }
@@ -351,13 +383,13 @@ namespace GnollHackX.Pages.MainScreen
             {
                 // Prompt the user to turn on in settings
                 // On iOS once a permission has been denied it may not be requested again from the application
-                await DisplayAlert("Permission Needed", "GnollHack needs the file write permission to create a zip file. Please turn it on in Settings.", "OK");
+                await GHApp.DisplayMessageBox(this, "Permission Needed", "GnollHack needs the file write permission to create a zip file. Please turn it on in Settings.", "OK");
                 return status;
             }
 
             if (Permissions.ShouldShowRationale<Permissions.StorageWrite>())
             {
-                await DisplayAlert("Permission Needed", "GnollHack needs the file write permission to create a zip file.", "OK");
+                await GHApp.DisplayMessageBox(this, "Permission Needed", "GnollHack needs the file write permission to create a zip file.", "OK");
             }
 
             status = await Permissions.RequestAsync<Permissions.StorageWrite>();
@@ -376,13 +408,13 @@ namespace GnollHackX.Pages.MainScreen
             {
                 // Prompt the user to turn on in settings
                 // On iOS once a permission has been denied it may not be requested again from the application
-                await DisplayAlert("Permission Needed", "GnollHack needs the file read permission to work with a zip file. Please turn it on in Settings.", "OK");
+                await GHApp.DisplayMessageBox(this, "Permission Needed", "GnollHack needs the file read permission to work with a zip file. Please turn it on in Settings.", "OK");
                 return status;
             }
 
             if (Permissions.ShouldShowRationale<Permissions.StorageRead>())
             {
-                await DisplayAlert("Permission Needed", "GnollHack needs the file read permission to work with a zip file.", "OK");
+                await GHApp.DisplayMessageBox(this, "Permission Needed", "GnollHack needs the file read permission to work with a zip file.", "OK");
             }
 
             status = await Permissions.RequestAsync<Permissions.StorageRead>();
@@ -485,11 +517,11 @@ namespace GnollHackX.Pages.MainScreen
                                 Directory.Delete(tempdirpath, true);
                                 Directory.Delete(temp2dirpath, true);
                                 if (extractedfiles.Length == 0)
-                                    await DisplayAlert("No Files in Zip", "There are no files in \'" + ziptargetfilename + "\'.", "OK");
+                                    await GHApp.DisplayMessageBox(this, "No Files in Zip", "There are no files in \'" + ziptargetfilename + "\'.", "OK");
                                 else if (nextracted > 0)
-                                    await DisplayAlert("Files from Zip", nextracted + " file" + (nextracted != 1 ? "s" : "") + " from \'" + ziptargetfilename + "\' have been saved to the GnollHack directory.", "OK");
+                                    await GHApp.DisplayMessageBox(this, "Files from Zip", nextracted + " file" + (nextracted != 1 ? "s" : "") + " from \'" + ziptargetfilename + "\' have been saved to the GnollHack directory.", "OK");
                                 else
-                                    await DisplayAlert("No Files in Zip", "No files from \'" + ziptargetfilename + "\' were saved to the GnollHack directory.", "OK");
+                                    await GHApp.DisplayMessageBox(this, "No Files in Zip", "No files from \'" + ziptargetfilename + "\' were saved to the GnollHack directory.", "OK");
                             }
                             else
                             {
@@ -501,7 +533,7 @@ namespace GnollHackX.Pages.MainScreen
                                 {
                                     s.CopyTo(t);
                                 }
-                                await DisplayAlert("File Saved", "File \'" + file.FileName + "\' has been saved to the GnollHack directory.", "OK");
+                                await GHApp.DisplayMessageBox(this, "File Saved", "File \'" + file.FileName + "\' has been saved to the GnollHack directory.", "OK");
                             }
                         }
                     }
@@ -509,10 +541,10 @@ namespace GnollHackX.Pages.MainScreen
             }
             catch (Exception ex)
             {
-                await DisplayAlert("Error", "An error occurred while trying to import files: " + ex.Message, "OK");
+                await GHApp.DisplayMessageBox(this, "Error", "An error occurred while trying to import files: " + ex.Message, "OK");
             }
 #else
-            await DisplayAlert("Command Unavailable", "This command is unavailable in Release mode.", "OK");
+            await GHApp.DisplayMessageBox(this, "Command Unavailable", "This command is unavailable in Release mode.", "OK");
 #endif
             ResetGrid.IsEnabled = true;
         }
@@ -562,7 +594,7 @@ namespace GnollHackX.Pages.MainScreen
                 }
             }
 
-            bool answer = await DisplayAlert("Clear All Post Queues?", 
+            bool answer = await GHApp.DisplayMessageBox(this, "Clear All Post Queues?", 
                 "Are you sure to delete all files in the " + 
                 GHConstants.ForumPostQueueDirectory + " (" + nofiles1 + " file" + (nofiles1 == 1 ? "" : "s" ) + "), " +
                 GHConstants.XlogPostQueueDirectory + " (" + nofiles2 + " file" + (nofiles2 == 1 ? "" : "s") + "), " +
@@ -602,7 +634,7 @@ namespace GnollHackX.Pages.MainScreen
         {
             ResetGrid.IsEnabled = false;
             GHApp.PlayButtonClickedSound();
-            bool answer = await DisplayAlert("Delete App Log?", "Are you sure to delete all files in the " + GHConstants.AppLogDirectory + " directory?", "Yes", "No");
+            bool answer = await GHApp.DisplayMessageBox(this, "Delete App Log?", "Are you sure to delete all files in the " + GHConstants.AppLogDirectory + " directory?", "Yes", "No");
             if (answer)
             {
                 try

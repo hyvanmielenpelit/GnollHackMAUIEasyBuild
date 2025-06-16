@@ -4956,8 +4956,8 @@ render_status(VOID_ARGS)
                 } 
                 else if((idx == BL_PARTYSTATS || idx == BL_PARTYSTATS2 || idx == BL_PARTYSTATS3 || idx == BL_PARTYSTATS4 || idx == BL_PARTYSTATS5) && flags.partylinecolor)
                 {
-                     char printbuf[BUFSZ];
-                     (void) strcpy(printbuf, text);
+                     char printbuf[BUFSZ * 2];
+                     Strcpy(printbuf, text);
                      char* bp = 0, *bp2 = 0, *bp3 = 0, *startbp = printbuf;
                      do
                      {
@@ -4969,26 +4969,26 @@ render_status(VOID_ARGS)
 
                          if (bp && bp2 && bp3)
                          {
-                             char restbuf[BUFSZ];
-                             (void) strcpy(restbuf, bp2);
+                             char restbuf[BUFSZ * 2];
+                             Strcpy(restbuf, bp2);
                              restbuf[1] = '\0'; /* Print just one character */
                              *bp2 = '\0';
 
                              *bp3 = '\0';
                              char maxbuf[BUFSZ];
-                             (void) strcpy(maxbuf, bp2 + 1);
+                             Strcpy(maxbuf, bp2 + 1);
                              int hpmax = atoi(maxbuf);
                              *bp3 = ')';
 
                              char hpbuf[BUFSZ];
-                             (void) strcpy(hpbuf, bp + 3);
+                             Strcpy(hpbuf, bp + 3);
                              char hpbuf2[BUFSZ];
-                             (void) strcpy(hpbuf2, bp);
+                             Strcpy(hpbuf2, bp);
                              *bp = '\0';
                              int hp = atoi(hpbuf);
 
-                             char startbuf[BUFSZ];
-                             (void) strcpy(startbuf, startbp);
+                             char startbuf[BUFSZ * 2];
+                             Strcpy(startbuf, startbp);
 
                              print_rest_partyline(startbuf, &x, &y);
                              //tty_putstatusfield(startbuf, x, y);
