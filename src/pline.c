@@ -11,6 +11,8 @@
 #define BIGBUFSZ (5 * BUFSZ) /* big enough to format a 4*BUFSZ string (from
                               * config file parsing) with modest decoration;
                               * result will then be truncated to BUFSZ-1 */
+#define VERYBIGBUFSZ (BIGBUFSZ + 11 * BUFSZ) /* Equals 4096, so it is the same size as GNH_FILEPATH_SIZ */
+
 
                               /* `prefix' must be a string literal, not a pointer */
 #define YouPrefix(pointer, prefix, text) \
@@ -211,11 +213,11 @@ VA_DECL(const char *, line)
 #endif /* USE_STDARG | USE_VARARG */
 {       /* start of vpline() or of nested block in USE_OLDARG's pline() */
     static int in_pline = 0;
-    char pbuf[BIGBUFSZ]; /* will get chopped down to BUFSZ-1 if longer */
+    char pbuf[VERYBIGBUFSZ]; /* will get chopped down to BUFSZ-1 if longer */
     int ln;
     int msgtyp;
     boolean no_repeat;
-    char multi_line[BIGBUFSZ], combined_line[BIGBUFSZ], attrs[BIGBUFSZ], colors[BIGBUFSZ];
+    char multi_line[BIGBUFSZ], combined_line[VERYBIGBUFSZ], attrs[BIGBUFSZ], colors[BIGBUFSZ];
     multi_line[0] = 0;
     combined_line[0] = 0;
     attrs[0] = 0;
@@ -1198,9 +1200,14 @@ VA_DECL(const char *, s)
         panic("%s", pbuf);
         return;
     }
-    pline_ex(ATR_NONE, CLR_MSG_ERROR, "impossible: %s", VA_PASS1(pbuf));
     if (issue_gui_command)
-        issue_gui_command(GUI_CMD_POST_DIAGNOSTIC_DATA, DIAGNOSTIC_DATA_IMPOSSIBLE, 0, pbuf);
+    {
+        char dbufs[BUFSZ * 18];
+        Sprintf(dbufs, "impossible: %s, P1:%s, P2:%s, P3:%s, P4:%s, B1:%s, B2:%s, B3:%s, B4:%s", pbuf, priority_debug_buf_1, priority_debug_buf_2, priority_debug_buf_3, priority_debug_buf_4, debug_buf_1, debug_buf_2, debug_buf_3, debug_buf_4);
+        issue_gui_command(GUI_CMD_POST_DIAGNOSTIC_DATA, DIAGNOSTIC_DATA_IMPOSSIBLE, 0, dbufs);
+    }
+
+    pline_ex(ATR_NONE, CLR_MSG_ERROR, "impossible: %s", VA_PASS1(pbuf));
 
     /* reuse pbuf[] */
     Strcpy(pbuf, "Program in disorder!");

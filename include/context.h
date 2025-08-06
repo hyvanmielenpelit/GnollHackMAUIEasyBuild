@@ -257,8 +257,8 @@ struct context_info
     unsigned quick_zap_wand_oid;
     int quick_cast_spell_no;
     boolean quick_cast_spell_set;
-    boolean reserved_boolA;
-    boolean reserved_boolB;
+    boolean suppress_container_deletion_warning;
+    boolean save_checkpoint;
     boolean reserved_boolC;
     boolean reserved_boolD;
     boolean reserved_boolE;
@@ -271,7 +271,8 @@ struct context_info
     int64_t reserved_int64_3;
     int64_t reserved_int64_4;
     
-    int reserved_int1;
+    int yeenaghu_wishes;
+
     int reserved_int2;
     int reserved_int3;
     int reserved_int4;
@@ -296,6 +297,12 @@ struct context_info
 };
 
 extern NEARDATA struct context_info context;
+
+#define RUNCONTEXT_NONE     0
+#define RUNCONTEXT_DEFAULT  1
+#define RUNCONTEXT_RUSH     2
+#define RUNCONTEXT_RUN      3
+#define RUNCONTEXT_TRAVEL   8
 
 #define QUEST_FLAGS_HEARD_OF_BELL                       0x00000001UL
 #define QUEST_FLAGS_HEARD_OF_BOOK                       0x00000002UL

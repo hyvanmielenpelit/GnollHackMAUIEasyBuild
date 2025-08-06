@@ -26,6 +26,10 @@
 #define C(c) (0x40 & (c) ? 0x1f & (c) : (0x80 | (0x1f & (c))))
 #endif
 
+#define unctrl(c) ((((c) & 0xE0) == 0) ? (0x60 | (c)) : (((c) & 0x80) != 0 && ((c) & 0x40) == 0) ? (0x20 | (0x7f & (c))) : (c))
+#define unmeta(c) (0x7f & (c))
+
+
 #ifdef ALTMETA
 STATIC_VAR boolean alt_esc = FALSE;
 #endif
@@ -173,6 +177,7 @@ STATIC_PTR int NDECL(wiz_detect);
 #if defined(DEBUG)
 STATIC_PTR int NDECL(wiz_panic);
 STATIC_PTR int NDECL(wiz_debug);
+STATIC_PTR int NDECL(wiz_deleteitem);
 #endif
 STATIC_PTR int NDECL(wiz_polyself);
 STATIC_PTR int NDECL(wiz_level_tele);
@@ -226,6 +231,7 @@ STATIC_DCL boolean FDECL(cause_known, (int));
 STATIC_DCL char *FDECL(attrval, (int, int, char *));
 STATIC_DCL void FDECL(background_enlightenment, (int, int));
 STATIC_DCL void FDECL(basics_enlightenment, (int, int));
+STATIC_DCL void FDECL(game_enlightenment, (int, int));
 STATIC_DCL void FDECL(characteristics_enlightenment, (int, int));
 STATIC_DCL void FDECL(one_characteristic, (int, int, int));
 STATIC_DCL void FDECL(status_enlightenment, (int, int));
@@ -292,13 +298,13 @@ reset_occupations(VOID_ARGS)
  * function times out by its own means.
  */
 void
-set_occupation(fn, txt, soundset_id, occ_type, sound_type, xtime)
+set_occupation(fn, txt, attr, color, soundset_id, occ_type, sound_type, xtime)
 int NDECL((*fn));
 const char *txt;
 enum object_soundset_types soundset_id;
 enum object_occupation_types occ_type;
 enum occupation_sound_types sound_type;
-int xtime;
+int xtime, attr, color;
 {
     if (xtime) 
     {
@@ -309,6 +315,8 @@ int xtime;
         occupation = fn;
 
     occtxt = txt;
+    occattr = attr;
+    occclr = color;
     occtime = 0;
     occsoundset = soundset_id;
     occtyp = occ_type;
@@ -1104,7 +1112,7 @@ doability(VOID_ARGS)
         else
             return 0;
     } while (!res);
-
+    issue_gui_command(GUI_CMD_COLLECT_GARBAGE, 1, 0, (char*)0);
     return res;
 }
 
@@ -1508,9 +1516,9 @@ int abilitynum;
                 struct attack* mattk = attacktype_fordmg(u.usteed->data, AT_BREA, AD_ANY);
                 int typ = get_ray_adtyp(mattk->adtyp);
                 if (typ == AD_SLEE)
-                    Sprintf(cooldownbuf, "%dd%d+%d", MONSTER_BREATH_WEAPON_SLEEP_COOLDOWN_DICE, MONSTER_BREATH_WEAPON_SLEEP_COOLDOWN_DIESIZE, MONSTER_BREATH_WEAPON_SLEEP_COOLDOWN_CONSTANT);
+                    printdice(cooldownbuf, MONSTER_BREATH_WEAPON_SLEEP_COOLDOWN_DICE, MONSTER_BREATH_WEAPON_SLEEP_COOLDOWN_DIESIZE, MONSTER_BREATH_WEAPON_SLEEP_COOLDOWN_CONSTANT);
                 else
-                    Sprintf(cooldownbuf, "%dd%d+%d", MONSTER_BREATH_WEAPON_NORMAL_COOLDOWN_DICE, MONSTER_BREATH_WEAPON_NORMAL_COOLDOWN_DIESIZE, MONSTER_BREATH_WEAPON_NORMAL_COOLDOWN_CONSTANT);
+                    printdice(cooldownbuf, MONSTER_BREATH_WEAPON_NORMAL_COOLDOWN_DICE, MONSTER_BREATH_WEAPON_NORMAL_COOLDOWN_DIESIZE, MONSTER_BREATH_WEAPON_NORMAL_COOLDOWN_CONSTANT);
                 const char* steedbreathefmt = ((windowprocs.wincap2 & WC2_SPECIAL_SYMBOLS) != 0) ?
                     "%s (&cool; %s after use)" : "%s (%s round cooldown after use)";
                 Sprintf(available_ability_list[abilitynum].name, steedbreathefmt, "Command the steed to use breath weapon", cooldownbuf);
@@ -1664,7 +1672,7 @@ wiz_identify(VOID_ARGS)
            display_pickinv() and xname() see override_ID as nonzero */
         if (!iflags.override_ID)
             iflags.override_ID = C('I');
-        (void) display_inventory((char *) 0, FALSE, 0);
+        (void) display_inventory((char *) 0, FALSE, SHOWWEIGHTS_NONE);
         iflags.override_ID = 0;
         update_inventory();
     } else
@@ -1719,7 +1727,7 @@ wiz_makemap(VOID_ARGS)
         dmonsfree(); /* purge dead monsters from 'fmon' */
         /* keep steed and other adjacent pets after releasing them
            from traps, stopping eating, &c as if hero were ascending */
-        keepdogs(TRUE, TRUE); /* (pets-only; normally we'd be using 'FALSE' here) */
+        move_monsters_to_mydogs(TRUE, TRUE); /* (pets-only; normally we'd be using 'FALSE' here) */
 
         /* discard current level; "saving" is used to release dynamic data */
         savelev(-1, ledger_no(&u.uz), FREE_SAVE);
@@ -1735,8 +1743,8 @@ wiz_makemap(VOID_ARGS)
            on levels which have such; we don't force stairs, just area */
         u_on_rndspot((u.uhave.amulet ? 1 : 0) /* 'going up' flag */
                      | (was_in_W_tower ? 2 : 0));
-        losedogs();
-        /* u_on_rndspot() might pick a spot that has a monster, or losedogs()
+        arrival_from_mydogs_and_migrating_mons();
+        /* u_on_rndspot() might pick a spot that has a monster, or arrival_from_mydogs_and_migrating_mons()
            might pick the hero's spot (only if there isn't already a monster
            there), so we might have to move hero or the co-located monster */
         if ((mtmp = m_at(u.ux, u.uy)) != 0)
@@ -1903,7 +1911,7 @@ wiz_debug(VOID_ARGS)
 {
     if (wizard)
     {
-        int wiz_debug_cmd_idx = 0;
+        int wiz_debug_cmd_idx = 2;
         switch (wiz_debug_cmd_idx)
         {
         case 0:
@@ -1924,6 +1932,102 @@ wiz_debug(VOID_ARGS)
             pline("%d obj%s found. u at (%d,%d)", cnt, plur(cnt), u.ux, u.uy);
             break;
         }
+        case 1:
+        {
+            context.suppress_container_deletion_warning = 1;
+            int i;
+            issue_debuglog(DEBUGLOG_DEBUG_ONLY, "Starting mimics");
+            for (i = 0; i < 2000; i++)
+            {
+                context.suppress_container_deletion_warning = 1;
+                struct monst* mon = makemon(&mons[PM_SMALL_MIMIC], u.ux, u.uy, MM_ADJACENTOK | MM_NOCOUNTBIRTH);
+                if (mon)
+                {
+                    const char* firstmatch = "unknown";
+                    coord cc;
+                    char descbuf[BUFSZ * 5];
+                    *descbuf = 0;
+                    nhsym ch = 0;
+                    int color = 0;
+                    uint64_t special;
+                    cc.x = mon->mx;
+                    cc.y = mon->my;
+                    int subset = TER_MAP | TER_TRP | TER_OBJ | TER_MON;
+                    int default_glyph = base_cmap_to_glyph(level.flags.arboreal ? S_tree : S_unexplored);
+                    int glyph = reveal_terrain_getglyph(cc.x, cc.y, FALSE, u.uswallow,
+                        default_glyph, subset);
+
+                    struct layer_info layers = nul_layerinfo;
+                    layers.glyph = glyph;
+                    (void) mapglyph(layers, &ch, &color, &special, cc.x, cc.y);
+
+                    Sprintf(descbuf, "Mimic %d, m_ap_type=%d, mappearance=%d, has_mobj=%d, otyp=%d, mobj_corpsenm=%d, MCORPSENM=%d", i, mon->m_ap_type, mon->mappearance, has_mobj(mon), has_mobj(mon) ? MOBJ(mon)->otyp : 0, has_mobj(mon) ? MOBJ(mon)->corpsenm : -2, has_mcorpsenm(mon) ? MCORPSENM(mon) : -2);
+                    issue_debuglog(DEBUGLOG_DEBUG_ONLY, descbuf);
+                    *descbuf = 0;
+                    (void) do_screen_description(cc, TRUE, ch, descbuf, &firstmatch, (struct permonst**)0);
+                    context.suppress_container_deletion_warning = 1;
+                    mongone(mon);
+                }
+            }
+            issue_debuglog(DEBUGLOG_DEBUG_ONLY, "Starting items");
+            for (i = 0; i < 3000; i++)
+            {
+                context.suppress_container_deletion_warning = 1;
+                struct obj* otmp = mkobj_at(RANDOM_CLASS, u.ux + 1 + -2 * rn2(2), u.uy + 1 + -2 * rn2(2), TRUE);
+                if (otmp)
+                {
+                    coord cc;
+                    cc.x = otmp->ox;
+                    cc.y = otmp->oy;
+                    if (isok(cc.x, cc.y))
+                    {
+                        const char* firstmatch = "unknown";
+                        char descbuf[BUFSZ * 5];
+                        *descbuf = 0;
+                        nhsym ch = 0;
+                        int color = 0;
+                        uint64_t special;
+                        int subset = TER_MAP | TER_TRP | TER_OBJ | TER_MON;
+                        int default_glyph = base_cmap_to_glyph(level.flags.arboreal ? S_tree : S_unexplored);
+                        int glyph = reveal_terrain_getglyph(cc.x, cc.y, FALSE, u.uswallow,
+                            default_glyph, subset);
+
+                        struct layer_info layers = nul_layerinfo;
+                        layers.glyph = glyph;
+                        (void) mapglyph(layers, &ch, &color, &special, cc.x, cc.y);
+
+                        Sprintf(descbuf, "Item %d, otyp=%d", i, otmp->otyp);
+                        issue_debuglog(DEBUGLOG_DEBUG_ONLY, descbuf);
+                        *descbuf = 0;
+                        (void) do_screen_description(cc, TRUE, ch, descbuf, &firstmatch, (struct permonst**)0);
+                        context.suppress_container_deletion_warning = 1;
+                        useupf(otmp, otmp->quan);
+                    }
+                }
+            }            
+            pline1("Debug test 1 done.");
+            context.suppress_container_deletion_warning = 0;
+            break;
+        }
+        case 2:
+        {
+            pline1("Starting debug test 2.");
+            int i, otyp, glyph;
+            for (i = 1; i <= 200000; i++)
+            {
+                glyph = -100000 + i - 1;
+                otyp = glyph_to_otyp(glyph);
+                if (otyp < 0 || otyp >= NUM_OBJECTS)
+                {
+                    pline("Detected otyp %d using glyph %d!", otyp, glyph);
+                    break;
+                }
+                if (i % 100000 == 0)
+                    pline("Debug test 2 progressing at %d...", i);
+            }
+            pline1("Debug test 2 done.");
+            break;
+        }
         default:
             pline1(Never_mind);
             break;
@@ -1931,6 +2035,23 @@ wiz_debug(VOID_ARGS)
     }
     else
         pline(unavailcmd, visctrl((int)cmd_from_func(wiz_debug)));
+    return 0;
+}
+STATIC_PTR int
+wiz_deleteitem(VOID_ARGS)
+{
+    if (wizard)
+    {
+        struct obj* obj = getobj(getobj_allobj, "delete", 0, "");
+        if (!obj)
+            return 0;
+        char* objname = upstart(thecxname(obj));
+        Sprintf(priority_debug_buf_3, "wiz_deleteitem: %d", obj->otyp);
+        useupall(obj);
+        pline("%s has been deleted.", objname);
+    }
+    else
+        pline(unavailcmd, visctrl((int)cmd_from_func(wiz_deleteitem)));
     return 0;
 }
 #endif
@@ -3234,10 +3355,10 @@ int propindx; /* index of a property which can be conveyed by worn item */
 
     for (o = invent; o; o = o->nobj) 
     {
-        if (!object_stats_known(o))
-            continue;
+        //if (!object_stats_known(o))
+        //    continue;
 
-        if (item_is_giving_power(o, propindx))
+        if (item_is_giving_known_power(o, propindx))
             return TRUE;
     }
     return FALSE;
@@ -3250,7 +3371,7 @@ struct obj* obj;
     if (!obj)
         return FALSE;
 
-    boolean statsknown = ((!obj->oartifact && objects[obj->otyp].oc_name_known) || (obj->oartifact && obj->aknown && obj->nknown));
+    boolean statsknown = obj->oartifact ? obj->aknown && obj->nknown : objects[obj->otyp].oc_name_known;
     boolean dknown = obj->dknown;
     return (statsknown && dknown);
 }
@@ -3273,7 +3394,7 @@ char resultbuf[]; /* should be at least [7] to hold "18/100\0" */
 
 void
 enlightenment(mode, final)
-int mode;  /* BASICENLIGHTENMENT | MAGICENLIGHTENMENT (| both) */
+int mode;  /* BASICENLIGHTENMENT | MAGICENLIGHTENMENT | GAMEENLIGHTENMENT  */
 int final; /* ENL_GAMEINPROGRESS:0, ENL_GAMEOVERALIVE, ENL_GAMEOVERDEAD */
 {
     char buf[BUFSZ], tmpbuf[BUFSZ];
@@ -3324,25 +3445,36 @@ int final; /* ENL_GAMEINPROGRESS:0, ENL_GAMEOVERALIVE, ENL_GAMEOVERDEAD */
         attributes_enlightenment(mode, final);
     }
 
-    if (!en_via_menu) {
+    if (mode & GAMEENLIGHTENMENT) {
+        /* game status */
+        game_enlightenment(mode, final);
+    }
+
+    if (!en_via_menu) 
+    {
         display_nhwindow(en_win, TRUE);
-    } else {
+    }
+    else 
+    {
         menu_item *selected = 0;
-#ifdef GNH_MOBILE
-        Sprintf(buf, "%s the %s", tmpbuf,
-            (Ufemale && urole.name.f)
-            ? urole.name.f
-            : urole.name.m);
+        if ((windowprocs.wincap2 & WC2_MENU_PROPER_SUBTITLE) != 0)
+        {
+            Sprintf(buf, "%s the %s", tmpbuf,
+                (Ufemale && urole.name.f)
+                ? urole.name.f
+                : urole.name.m);
 
-        /* title */
-        //enlght_out(buf, ATR_TITLE); /* "Conan the Archaeologist" */
-    //    Sprintf(buf, "Attributes");
-    //    enlght_out(buf, ATR_SUBTITLE); /* "Attributes" */
+            /* title */
+            //enlght_out(buf, ATR_TITLE); /* "Conan the Archaeologist" */
+            //Sprintf(buf, "Attributes");
+            //enlght_out(buf, ATR_SUBTITLE); /* "Attributes" */
 
-        end_menu_ex(en_win, "Attributes", buf);
-#else
-        end_menu(en_win, (char *) 0);
-#endif
+            end_menu_ex(en_win, "Attributes", buf);
+        }
+        else
+        {
+            end_menu(en_win, (char*)0);
+        }
         if (select_menu(en_win, PICK_NONE, &selected) > 0)
             free((genericptr_t) selected);
         en_via_menu = FALSE;
@@ -3542,6 +3674,9 @@ int final;
         }
         you_have(buf, "");
     }
+
+    Sprintf(buf, "%lld", (long long)get_current_game_score());
+    enl_msg("Your game score ", "is ", "was ", buf, "");
 }
 
 /* hit points, energy points, armor class -- essential information which
@@ -3588,7 +3723,7 @@ int final;
             Strcpy(buf, "1 hit die");
             break;
         default:
-            Sprintf(buf, "%d hit dice", mons[u.umonnum].mlevel);
+            Sprintf(buf, "%d hit dice", (int)mons[u.umonnum].mlevel);
             break;
         }
         you_have(buf, "");
@@ -3634,6 +3769,17 @@ int final;
     else
         Strcpy(buf, "off");
     enl_msg("Autopickup ", "is ", "was ", buf, "");
+}
+
+STATIC_OVL void
+game_enlightenment(mode, final)
+int mode UNUSED;
+int final;
+{
+    char buf[BUFSZ];
+
+    enlght_out(" ", ATR_HALF_SIZE); /* separator after background */
+    enlght_out("Game:", ATR_SUBHEADING);
 
     const char* game_dif_text = get_game_difficulty_text(context.game_difficulty);
     Strcpy(buf, game_dif_text);
@@ -3650,12 +3796,39 @@ int final;
     Sprintf(modebuf, " mode (%s)", get_game_mode_description());
     enl_msg("You ", "are playing in ", "were playing in ", get_game_mode_text(TRUE), modebuf);
 
-    Sprintf(buf, "%lld", (long long)get_current_game_score());
-    enl_msg("Your game score ", "is ", "was ", buf, "");
-
     print_realtime(modebuf, get_current_game_duration());
     Sprintf(buf, "%s", modebuf);
     enl_msg("You ", "have been playing the game for ", "had been playing the game for ", buf, "");
+
+    if (iflags.save_file_secure)
+    {
+        enl_msg("You ", "are ", "were ", "playing the game on a secure server", "");
+    }
+    else
+    {
+        if (!iflags.save_file_tracking_supported)
+            enl_msg("Save file tracking ", "is ", "was ", "not supported on your platform", "");
+        else
+        {
+            if (wizard || discover || CasualMode)
+            {
+                enl_msg("Your game mode ", "is ", "was ", "not eligible for save file tracking", "");
+            }
+            else
+            {
+                if (!iflags.save_file_tracking_needed)
+                {
+                    enl_msg("Save file tracking ", "is ", "was ", "supported but not needed on your platform", "");
+                }
+                else
+                {
+                    enl_msg("Save file tracking ", "is ", "was ", "supported and needed on your platform", "");
+                    enl_msg("Save file tracking ", "is ", "was ", iflags.save_file_tracking_on ? "on" : "off", "");
+                }
+                enl_msg("Your save file ", "has been ", "had been ", flags.save_file_tracking_value ? "successfully " : "unsuccessfully ", "tracked");
+            }
+        }
+    }
 }
 
 /* characteristics: expanded version of bottom line strength, dexterity, &c */
@@ -4471,6 +4644,8 @@ int final;
         you_are("stun resistant", from_what(STUN_RESISTANCE));
     if (Slime_resistance)
         you_are("sliming resistant", from_what(SLIME_RESISTANCE));
+    if (Polymorph_resistance)
+        you_are("polymorph resistant", from_what(POLYMORPH_RESISTANCE));
     if (Bisection_resistance)
         you_cannot("be bisected", from_what(BISECTION_RESISTANCE));
     if (Halluc_resistance)
@@ -4825,8 +5000,7 @@ int final;
         you_are("receiving double spell damage", from_what(DOUBLE_SPELL_DAMAGE));
     /* polymorph and other shape change */
     if (Protection_from_shape_changers)
-        you_are("protected from shape changers",
-                from_what(PROT_FROM_SHAPE_CHANGERS));
+        you_are("protected from shape changers", from_what(PROT_FROM_SHAPE_CHANGERS));
     if (Unchanging) {
         const char *what = 0;
 
@@ -5207,7 +5381,7 @@ doviewpetstatistics(struct monst* mon)
 STATIC_PTR int
 doattributes(VOID_ARGS)
 {
-    int mode = BASICENLIGHTENMENT;
+    int mode = BASICENLIGHTENMENT | GAMEENLIGHTENMENT;
 
     /* show more--as if final disclosure--for wizard and explore modes */
     if ((wizard && yn_query("Enforce magic enlightenment?") == 'y') || discover)
@@ -5950,11 +6124,23 @@ int final;
     {
         struct item_score_count_result artifacts = count_artifacts(invent);
         struct item_score_count_result artifacts2 = count_artifacts(magic_objs);
-        int64_t score_percentage = ((artifacts.score + artifacts2.score + (int64_t)u.uachieve.role_achievement * ARCHAEOLOGIST_ROLE_ACHIEVEMENT_SCORE) * 100) / MAXIMUM_ROLE_SCORE;
+        struct item_score_count_result statues = count_historic_statues(invent);
+        struct item_score_count_result statues2 = count_historic_statues(magic_objs);
+        struct item_score_count_result artobjects = count_valuable_art_objects(invent);
+        struct item_score_count_result artobjects2 = count_valuable_art_objects(magic_objs);
+        int64_t score_percentage = ((artifacts.score + artifacts2.score + statues.score + statues2.score + (artobjects.score + artobjects2.score) * ARCHAEOLOGIST_ART_OBJECT_SCORE_MULTIPLIER + (int64_t)u.uachieve.role_achievement * ARCHAEOLOGIST_ROLE_ACHIEVEMENT_SCORE) * 100) / MAXIMUM_ROLE_SCORE;
         score_percentage = min(100, score_percentage);
         Sprintf(goalbuf, "%lld %sartifact%s with you", (long long)artifacts.quantity, program_state.gameover ? "" : "known ", plur(artifacts.quantity));
         you_have(goalbuf, "");
         Sprintf(goalbuf, "%lld %sartifact%s in your %s", (long long)artifacts2.quantity, program_state.gameover ? "" : "known ", plur(artifacts2.quantity), chest_name);
+        you_have(goalbuf, "");
+        Sprintf(goalbuf, "%lld historic statue%s with you", (long long)statues.quantity, plur(statues.quantity));
+        you_have(goalbuf, "");
+        Sprintf(goalbuf, "%lld historic statue%s in your %s", (long long)statues2.quantity, plur(statues2.quantity), chest_name);
+        you_have(goalbuf, "");
+        Sprintf(goalbuf, "%lld %s worth of art objects with you", (long long)artobjects.score, currency(artobjects.score));
+        you_have(goalbuf, "");
+        Sprintf(goalbuf, "%lld %s worth of art objects in your %s", (long long)artobjects2.score, currency(artobjects2.score), chest_name);
         you_have(goalbuf, "");
         Sprintf(goalbuf, "gained %lld%% of your maximum role score", (long long)score_percentage);
         you_have(goalbuf, "");
@@ -6016,8 +6202,10 @@ int final;
     }
     else if (Role_if(PM_ROGUE))
     {
-        int64_t valuableworth = money_cnt(invent) + hidden_gold() + carried_gem_value();
-        int64_t valuableworth2 =  magic_gold() + magic_gem_value();
+        struct item_score_count_result cnt = count_valuable_art_objects(invent);
+        struct item_score_count_result cnt2 = count_valuable_art_objects(magic_objs);
+        int64_t valuableworth = money_cnt(invent) + hidden_gold() + carried_gem_value() + cnt.score;
+        int64_t valuableworth2 =  magic_gold() + magic_gem_value() + cnt2.score;
         int64_t score_percentage = ((valuableworth + valuableworth2 + (int64_t)u.uachieve.role_achievement * ROGUE_ROLE_ACHIEVEMENT_SCORE) * 100) / MAXIMUM_ROLE_SCORE;
         score_percentage = min(100, score_percentage);
         Sprintf(goalbuf, "%lld %s worth of %svaluables with you", (long long)valuableworth, currency(valuableworth), program_state.gameover ? "" : "known ");
@@ -6121,21 +6309,21 @@ struct ext_func_tab extcmdlist[] = {
     { 'A', "ability", "view and use skills and abilities", doability, IFBURIED | AUTOCOMPLETE },
     { M('a'), "adjust", "adjust inventory letters", doorganize, IFBURIED | AUTOCOMPLETE | INCMDMENU },
     { M('A'), "annotate", "name current level", donamelevel, IFBURIED | AUTOCOMPLETE },
-    { 'a', "apply", "apply (use) a tool (pick-axe, key, lamp...)", doapply, SINGLE_OBJ_CMD_SPECIFIC, 0, 0, "use or apply" },
+    { 'a', "apply", "apply (use) a tool (pick-axe, key, lamp...)", doapply, SINGLE_OBJ_CMD_SPECIFIC, ATR_NONE, NO_COLOR, 0, 0, "use or apply" },
     { M(2), "attributes", "show your attributes", doattributes, IFBURIED | AUTOCOMPLETE },
     { '@', "autopickup", "toggle the pickup option on/off", dotogglepickup, IFBURIED },
     { M(15), "autostash", "auto-stash specific item types", doautostash, AUTOCOMPLETE },
 #if defined (USE_TILES) && !defined(GNH_MOBILE)
     { M('b'), "bars", "toggle tile hit point bars on/off", dotogglehpbars, IFBURIED | AUTOCOMPLETE },
 #endif
-    { C('b'), "break", "break something", dobreak, AUTOCOMPLETE | INCMDMENU | SINGLE_OBJ_CMD_GENERAL, 0, 0, "break" },
+    { C('b'), "break", "break something", dobreak, AUTOCOMPLETE | INCMDMENU | SINGLE_OBJ_CMD_GENERAL, ATR_NONE, NO_COLOR, 0, 0, "break" },
 #if defined (USE_TILES) && !defined(GNH_MOBILE)
-    { M('y'), "bufftimers", "toggle tile buff timers on/off", dotogglebufftimers, IFBURIED | AUTOCOMPLETE },
+    { M('Y'), "bufftimers", "toggle tile buff timers on/off", dotogglebufftimers, IFBURIED | AUTOCOMPLETE },
 #endif
-    { C('c'), "call", "call (name) something", docallcmd, IFBURIED | AUTOCOMPLETE, 0, getobj_callable, "call" },
+    { C('c'), "call", "call (name) something", docallcmd, IFBURIED | AUTOCOMPLETE, ATR_NONE, NO_COLOR, 0, getobj_callable, "call" },
     { 'Z', "cast", "cast a spell", docast, AUTOCOMPLETE | IFBURIED | INSPELLMENU },
     { M(26), "castquick", "cast the quick spell", docastquick, AUTOCOMPLETE | IFBURIED | INSPELLMENU },
-    { 'C', "chat", "talk to someone", dotalk, IFBURIED | AUTOCOMPLETE },
+    { 'C', "chat", "talk to or interact with someone", dotalk, IFBURIED | AUTOCOMPLETE },
     { M(10), "chatsteed", "talk to steed", dotalksteed, IFBURIED },
     { M(11), "chatnearby", "talk to someone nearby", dotalknearby, IFBURIED },
     { M(13), "chronicle", "show journal of major events", do_gamelog, IFBURIED | AUTOCOMPLETE | GENERALCMD },
@@ -6145,19 +6333,19 @@ struct ext_func_tab extcmdlist[] = {
     { '\0', "decorations", "toggle display of decorations on and off", dotoggledecorations, IFBURIED | AUTOCOMPLETE },
     { M(6), "deletesavedgame", "delete saved game if it exists", dodeletesavedgame, IFBURIED | CASUALMODECMD | AUTOCOMPLETE },
     { C('g'), "dig", "dig the ground", dodig, INCMDMENU },
-    { M('d'), "dip", "dip an object into something", dodip, AUTOCOMPLETE | INCMDMENU | SINGLE_OBJ_CMD_GENERAL, 0, getobj_allowall, "dip" },
+    { M('d'), "dip", "dip an object into something", dodip, AUTOCOMPLETE | INCMDMENU | SINGLE_OBJ_CMD_GENERAL, ATR_NONE, NO_COLOR, 0, getobj_allowall, "dip" },
     { '>', "down", "go down a staircase", dodown },
-    { 'd', "drop", "drop an item", dodrop, SINGLE_OBJ_CMD_GENERAL, 0, getobj_drop_types, "drop"},
+    { 'd', "drop", "drop an item", dodrop, SINGLE_OBJ_CMD_GENERAL, ATR_NONE, NO_COLOR, 0, getobj_drop_types, "drop"},
     { '%', "dropmany", "drop many items", dodropmany },
     { 'D', "droptype", "drop specific item types", doddrop },
-    { 'e', "eat", "eat something", doeat, SINGLE_OBJ_CMD_SPECIFIC, 0, getobj_allobj, "eat" },
-    { 'E', "engrave", "engrave writing on the floor", doengrave, SINGLE_OBJ_CMD_SPECIFIC, 0, getobj_styluses, "write with" },
+    { 'e', "eat", "eat something", doeat, SINGLE_OBJ_CMD_SPECIFIC, ATR_NONE, NO_COLOR, 0, getobj_allobj, "eat" },
+    { 'E', "engrave", "engrave writing on the floor", doengrave, SINGLE_OBJ_CMD_SPECIFIC, ATR_NONE, NO_COLOR, 0, getobj_styluses, "write with" },
     { '\0', "enhance", "advance or check weapon and spell skills", enhance_weapon_skill, IFBURIED | AUTOCOMPLETE },
     { M('x'), "examine", "describe an item", 
-        doitemdescriptions, IFBURIED | AUTOCOMPLETE | SINGLE_OBJ_CMD_INFO | ALLOW_RETURN_TO_INVENTORY | ALLOW_RETURN_TO_CMD_MENU | CMD_MENU_AUTO_CLICK_OK, 0, 
+        doitemdescriptions, IFBURIED | AUTOCOMPLETE | SINGLE_OBJ_CMD_INFO | ALLOW_RETURN_TO_INVENTORY | ALLOW_RETURN_TO_CMD_MENU | CMD_MENU_AUTO_CLICK_OK, ATR_NONE, NO_COLOR, 0,
         getobj_allobj, "examine" },
     { '\0', "exploremode", "enter explore (discovery) mode", enter_explore_mode, IFBURIED },
-    { 'f', "fire", "fire ammunition from quiver", dofire, SINGLE_OBJ_CMD_SPECIFIC, 0, getobj_allowall, "fire" },
+    { 'f', "fire", "fire ammunition from quiver", dofire, SINGLE_OBJ_CMD_SPECIFIC, ATR_NONE, NO_COLOR, 0, getobj_allowall, "fire" },
     { M('f'), "force", "force a lock", doforce, AUTOCOMPLETE | INCMDMENU },
     { M('g'), "genocided", "list genocided monsters", dogenocidedmonsters, IFBURIED },
     { '\'', "glance", "show what type of thing a map symbol corresponds to", doquickwhatis, IFBURIED | GENERALCMD },
@@ -6170,8 +6358,10 @@ struct ext_func_tab extcmdlist[] = {
     { 'i', "inventory", "show your inventory", ddoinv, IFBURIED },
     { 'I', "inventtype", "inventory specific item types", dotypeinv, IFBURIED },
     { M('i'), "invoke", "invoke an object's special powers", 
-        doinvoke, IFBURIED | AUTOCOMPLETE | INCMDMENU | SINGLE_OBJ_CMD_SPECIFIC, 0, 
+        doinvoke, IFBURIED | AUTOCOMPLETE | INCMDMENU | SINGLE_OBJ_CMD_SPECIFIC, ATR_NONE, NO_COLOR, 0,
         getobj_invoke_types, "invoke" },
+    { 'B', "itemsin", "put items into a container", doputitemsin, SINGLE_OBJ_CMD_SPECIFIC, ATR_NONE, NO_COLOR, 0, 0, "put items in", "put items in" },
+    { 'b', "itemsout", "take items out of a container", dotakeitemsout, SINGLE_OBJ_CMD_SPECIFIC, ATR_NONE, NO_COLOR, 0, 0, "take items out of", "take items out" },
     { M('j'), "jump", "jump to another location", dojump, AUTOCOMPLETE | INCMDMENU },
     { C('d'), "kick", "kick something", dokick, AUTOCOMPLETE | INCMDMENU },
     { M('k'), "killed", "list killed monsters", dokilledmonsters, IFBURIED },
@@ -6183,12 +6373,14 @@ struct ext_func_tab extcmdlist[] = {
     { ':', "look", "look at what is here", dolook, IFBURIED },
     { 'L', "lookat", "show what type of thing a symbol corresponds to", dowhatis, IFBURIED | GENERALCMD },
     { M('l'), "loot", "loot a box on the floor", doloot, AUTOCOMPLETE },
+    { 'Y', "lootin", "put items into a container on the floor", dolootin},
+    { 'y', "lootout", "take items out of a container on the floor", dolootout },
     { '\0', "managespell", "manage spells", dospellmanage, AUTOCOMPLETE | IFBURIED | INSPELLMENU },
     { M(8), "favorite", "mark an item as favorite",
-        dofavorite, SINGLE_OBJ_CMD_GENERAL | ALLOW_RETURN_TO_INVENTORY, 0,
+        dofavorite, SINGLE_OBJ_CMD_GENERAL | ALLOW_RETURN_TO_INVENTORY, ATR_NONE, NO_COLOR, 0,
         getobj_favorites, "mark as favorite", "mark as favorite" },
     { M(9), "unfavorite", "unmark an item as favorite",
-        dounfavorite, SINGLE_OBJ_CMD_GENERAL | ALLOW_RETURN_TO_INVENTORY, 0,
+        dounfavorite, SINGLE_OBJ_CMD_GENERAL | ALLOW_RETURN_TO_INVENTORY, ATR_NONE, NO_COLOR, 0,
         getobj_favorites, "unmark as favorite", "unmark as favorite" },
 #ifdef DEBUG_MIGRATING_MONS
     { '\0', "migratemons", "migrate N random monsters", wiz_migrate_mons, IFBURIED | AUTOCOMPLETE | WIZMODECMD },
@@ -6197,13 +6389,13 @@ struct ext_func_tab extcmdlist[] = {
     { M('M'), "monster", "use monster ability or skill", domonsterability, IFBURIED | AUTOCOMPLETE },
     { 'N', "name", "name a monster or an object", docallcmd, IFBURIED | AUTOCOMPLETE },
     { '\0', "namespecificitem", "name a specific object",
-            doname_specific_object, IFBURIED | AUTOCOMPLETE | SINGLE_OBJ_CMD_GENERAL, 0, 
+            doname_specific_object, IFBURIED | AUTOCOMPLETE | SINGLE_OBJ_CMD_GENERAL, ATR_NONE, NO_COLOR, 0,
             getobj_callable, "name", "name this specific object" },
     { '\0', "nameitemtype", "name a type of object",
-            doname_type_of_object, IFBURIED | AUTOCOMPLETE | SINGLE_OBJ_CMD_GENERAL, 0, 
+            doname_type_of_object, IFBURIED | AUTOCOMPLETE | SINGLE_OBJ_CMD_GENERAL, ATR_NONE, NO_COLOR, 0,
             getobj_callable, "name the type for", "name the type of this object" },
     { M('o'), "offer", "offer a sacrifice to the gods",
-            dosacrifice, AUTOCOMPLETE | INCMDMENU | SINGLE_OBJ_CMD_SPECIFIC, 0, 
+            dosacrifice, AUTOCOMPLETE | INCMDMENU | SINGLE_OBJ_CMD_SPECIFIC, ATR_NONE, NO_COLOR, 0,
             getobj_offerfodder, "sacrifice" },
     { 'o', "open", "open a door", doopen },
     { 'O', "options", "show option settings, possibly change them", doset, IFBURIED | GENERALCMD },
@@ -6218,19 +6410,19 @@ struct ext_func_tab extcmdlist[] = {
     { M('p'), "pray", "pray to the gods for help", dopray, IFBURIED | AUTOCOMPLETE | INCMDMENU },
     { C('p'), "prevmsg", "view recent game messages", doprev_message, IFBURIED | GENERALCMD },
     { M('P'), "prevwep", "wield a previously wielded weapon", dowieldprevwep}, /* For wielding back weapons that were wielded before wielding a pick-axe or a saw */
-    { 'P', "puton", "put on an accessory (ring, amulet, etc)", doputon, SINGLE_OBJ_CMD_SPECIFIC, 0, getobj_accessories, "put on", "put on" },
-    { 'q', "quaff", "quaff (drink) something", dodrink, SINGLE_OBJ_CMD_SPECIFIC, 0, getobj_beverages, "drink", "drink" },
+    { 'P', "puton", "put on an accessory (ring, amulet, etc)", doputon, SINGLE_OBJ_CMD_SPECIFIC, ATR_NONE, NO_COLOR, 0, getobj_accessories, "put on", "put on" },
+    { 'q', "quaff", "quaff (drink) something", dodrink, SINGLE_OBJ_CMD_SPECIFIC, ATR_NONE, NO_COLOR, 0, getobj_beverages, "drink", "drink" },
     { M('q'), "quit", "exit without saving current game", done2, IFBURIED | AUTOCOMPLETE | GENERALCMD },
-    { 'Q', "quiver", "select ammunition for quiver", dowieldquiver, SINGLE_OBJ_CMD_SPECIFIC, 0, 0, "ready" },
-    { 'r', "read", "read a scroll or spellbook", doread, SINGLE_OBJ_CMD_SPECIFIC, 0, getobj_readable, "read" },
+    { 'Q', "quiver", "select ammunition for quiver", dowieldquiver, SINGLE_OBJ_CMD_SPECIFIC, ATR_NONE, NO_COLOR, 0, 0, "ready" },
+    { 'r', "read", "read a scroll or spellbook", doread, SINGLE_OBJ_CMD_SPECIFIC, ATR_NONE, NO_COLOR, 0, getobj_readable, "read" },
     { C('r'), "redraw", "redraw screen", doredraw, IFBURIED | GENERALCMD },
-    { 'R', "remove", "remove an accessory (ring, amulet, etc)", doremring, SINGLE_OBJ_CMD_SPECIFIC, 0, getobj_accessories, "remove" },
+    { 'R', "remove", "remove an accessory (ring, amulet, etc)", doremring, SINGLE_OBJ_CMD_SPECIFIC, ATR_NONE, NO_COLOR, 0, getobj_accessories, "remove" },
     { '\0', "reorderspells", "reorder known spells", dovspell, AUTOCOMPLETE | IFBURIED | INSPELLMENU },
     { M('R'), "ride", "mount or dismount a saddled steed", doride, AUTOCOMPLETE },
     { M(12), "ridenearby", "mount or dismount a saddled steed nearby", doridenearby, 0 },
-    { M('r'), "rub", "rub a lamp or a stone", dorub, AUTOCOMPLETE | INCMDMENU | SINGLE_OBJ_CMD_SPECIFIC, 0, getobj_cuddly, "rub" },
+    { M('r'), "rub", "rub a lamp or a stone", dorub, AUTOCOMPLETE | INCMDMENU | SINGLE_OBJ_CMD_SPECIFIC, ATR_NONE, NO_COLOR, 0, getobj_cuddly, "rub" },
     { M('s'), "save", "save the game and exit", dosave, IFBURIED | AUTOCOMPLETE | GENERALCMD },
-    { 's', "search", "search for traps and secret doors", dosearch, IFBURIED, "searching" },
+    { 's', "search", "search for traps and secret doors", dosearch, IFBURIED, ATR_NONE, CLR_MSG_ATTENTION, "searching" },
     { '*', "seeall", "show all equipment in use", doprinuse, IFBURIED },
     { AMULET_SYM, "seeamulet", "show the amulet currently worn", dopramulet, IFBURIED },
     { ARMOR_SYM, "seearmor", "show the armor currently worn", doprarm, IFBURIED },
@@ -6244,10 +6436,10 @@ struct ext_func_tab extcmdlist[] = {
     { ILLOBJ_SYM, "seeworn", "show the currently worn items", doseeworn, IFBURIED },
     { M(4), "setquickspell", "set quick spell", dosetquickspell, IFBURIED | AUTOCOMPLETE | INSPELLMENU },
     { '\0', "setquickwand", "set quick wand", 
-        dosetquickwand, IFBURIED | SINGLE_OBJ_CMD_SPECIFIC, 0, 
+        dosetquickwand, IFBURIED | SINGLE_OBJ_CMD_SPECIFIC, ATR_NONE, NO_COLOR, 0,
         getobj_zap_syms, "set as quick wand", "set as quick wand" },
     { '\0', "unsetquickwand", "unset quick wand", 
-        dounsetquickwand, IFBURIED | SINGLE_OBJ_CMD_SPECIFIC, 0, 
+        dounsetquickwand, IFBURIED | SINGLE_OBJ_CMD_SPECIFIC, ATR_NONE, NO_COLOR, 0,
         getobj_zap_syms, "unset as quick wand", "unset as quick wand" },
     { '!', "shell", "do a shell escape", dosh_core, IFBURIED | GENERALCMD
 #ifndef SHELL
@@ -6265,10 +6457,10 @@ struct ext_func_tab extcmdlist[] = {
 #endif
     { '\0', "sortspells", "sort known spells", dosortspell, AUTOCOMPLETE | IFBURIED | INSPELLMENU },
     { M(7), "stash", "stash an item into a container",
-        dostash, SINGLE_OBJ_CMD_GENERAL, 0, 
+        dostash, SINGLE_OBJ_CMD_GENERAL, ATR_NONE, NO_COLOR, 0,
         getobj_stash_objs, "stash", "stash into a container" },
     { M(14), "stashfloor", "stash an item into a container on the floor", 
-        dostashfloor, SINGLE_OBJ_CMD_GENERAL, 0, 
+        dostashfloor, SINGLE_OBJ_CMD_GENERAL, ATR_NONE, NO_COLOR, 0,
         getobj_stash_objs, "stash into a container on the floor", "stash into a container on the floor" },
     { '\0', "stats", "show memory statistics", wiz_show_stats, IFBURIED | AUTOCOMPLETE | WIZMODECMD },
     { C('z'), "suspend", "suspend the game", dosuspend_core, IFBURIED | GENERALCMD
@@ -6277,7 +6469,7 @@ struct ext_func_tab extcmdlist[] = {
 #endif /* SUSPEND */
     },
     { 'x', "swap", "swap wielded and secondary weapons", doswapweapon_right_or_both, INCMDMENU },
-    { 'T', "takeoff", "take off one piece of armor", dotakeoff, SINGLE_OBJ_CMD_SPECIFIC, 0, getobj_clothes, "take off", "take off" },
+    { 'T', "takeoff", "take off one piece of armor", dotakeoff, SINGLE_OBJ_CMD_SPECIFIC, ATR_NONE, NO_COLOR, 0, getobj_clothes, "take off", "take off" },
     { M('t')/*'A'*/, "takeoffall", "remove all armor", doddoremarm },
 #if defined (USE_TILES) && !defined(GNH_MOBILE)
     { M(';'), "targeting", "toggle tile targeting graphics on/off", dotogglemonstertargeting, IFBURIED | AUTOCOMPLETE },
@@ -6287,9 +6479,9 @@ struct ext_func_tab extcmdlist[] = {
     { '\0', "therecmdmenu",
             "menu of commands you can do from here to adjacent spot",
             dotherecmdmenu },
-    { 't', "throw", "throw something", dothrow, SINGLE_OBJ_CMD_GENERAL, 0, getobj_toss_objs, "throw" },
+    { 't', "throw", "throw something", dothrow, SINGLE_OBJ_CMD_GENERAL, ATR_NONE, NO_COLOR, 0, getobj_toss_objs, "throw" },
     { '\0', "timeout", "look at timeout queue and hero's timed intrinsics", wiz_timeout_queue, IFBURIED | AUTOCOMPLETE | WIZMODECMD },
-    { M('T'), "tip", "empty a container", dotip, AUTOCOMPLETE | INCMDMENU | SINGLE_OBJ_CMD_SPECIFIC, 0, getobj_tippables, "tip" },
+    { M('T'), "tip", "empty a container", dotip, AUTOCOMPLETE | INCMDMENU | SINGLE_OBJ_CMD_SPECIFIC, ATR_NONE, NO_COLOR, 0, getobj_tippables, "tip" },
     { '_', "travel", "travel to a specific location on the map", dotravel },
  //   { M('t'), "turn", "turn undead away", doturn, IFBURIED | AUTOCOMPLETE }, //Replaced by holy symbol
     { C('x'), "twoweapon", "toggle two-weapon combat", dotwoweapon, AUTOCOMPLETE | INCMDMENU },
@@ -6306,25 +6498,25 @@ struct ext_func_tab extcmdlist[] = {
     { 'V', "history", "show long version and game history", dohistory, IFBURIED | GENERALCMD },
     { M('z'), "viewspell", "view spells", dospellview, IFBURIED | AUTOCOMPLETE | INSPELLMENU },
     { '\0', "vision", "show vision array", wiz_show_vision, IFBURIED | AUTOCOMPLETE | WIZMODECMD },
-    { '.', "wait", "rest one move while doing nothing", donull, IFBURIED, "waiting" },
-    { 'W', "wear", "wear a piece of armor", dowear, SINGLE_OBJ_CMD_SPECIFIC, 0, getobj_clothes, "wear" },
+    { '.', "wait", "rest one move while doing nothing", donull, IFBURIED, ATR_NONE, CLR_MSG_ATTENTION, "waiting" },
+    { 'W', "wear", "wear a piece of armor", dowear, SINGLE_OBJ_CMD_SPECIFIC, ATR_NONE, NO_COLOR, 0, getobj_clothes, "wear" },
     { M('w'), "wearall", "wear many pieces of armor", ddowear, AUTOCOMPLETE },
     { '&', "whatdoes", "tell what a command does", dowhatdoes, IFBURIED },
     { '/', "whatis", "show what type of thing a symbol corresponds to", dowhatis, IFBURIED | GENERALCMD },
-    { 'w', "wield", "wield (put in use) a weapon", dowield, SINGLE_OBJ_CMD_SPECIFIC, 0, getobj_wield_objs, "wield" },
+    { 'w', "wield", "wield (put in use) a weapon", dowield, SINGLE_OBJ_CMD_SPECIFIC, ATR_NONE, NO_COLOR, 0, getobj_wield_objs, "wield" },
     { M('e'), "wipe", "wipe off your face", dowipe, AUTOCOMPLETE | INCMDMENU },
-    { M(5), "unwield", "unwield a weapon", dounwield, SINGLE_OBJ_CMD_SPECIFIC, 0, getobj_unwield_objs, "unwield"},
+    { M(5), "unwield", "unwield a weapon", dounwield, SINGLE_OBJ_CMD_SPECIFIC, ATR_NONE, NO_COLOR, 0, getobj_unwield_objs, "unwield"},
     { C('y'), "yell", "yell for your companions", doyell, IFBURIED | AUTOCOMPLETE | INCMDMENU },
     { '}', "you", "describe your character", docharacterstatistics, IFBURIED | AUTOCOMPLETE },
-    { 'z', "zap", "zap a wand", dozap, SINGLE_OBJ_CMD_SPECIFIC, 0, getobj_zap_syms, "zap" },
-    { M(27), "zapquick", "zap the quick wand", dozapquick, 0, 0, getobj_zap_syms, "zap" },
-#if defined (USE_TILES) && !defined(GNH_MOBILE)
+    { 'z', "zap", "zap a wand", dozap, SINGLE_OBJ_CMD_SPECIFIC, ATR_NONE, NO_COLOR, 0, getobj_zap_syms, "zap" },
+    { M(27), "zapquick", "zap the quick wand", dozapquick, 0, ATR_NONE, NO_COLOR, 0, getobj_zap_syms, "zap" },
+#if defined (USE_TILES)
     { M('.'), "zoomnormal", "revert to normal zoom level", dozoomnormal, IFBURIED | AUTOCOMPLETE },
     { M('+'), "zoomin", "zoom map out", dozoomin, IFBURIED | AUTOCOMPLETE },
     { M('-'), "zoomout", "zoom map in", dozoomout, IFBURIED | AUTOCOMPLETE },
     { M(','), "zoommini", "zoom map to fit to screen", dozoommini, IFBURIED | AUTOCOMPLETE },
-    { C(','), "zoomhalf", "zoom map out to 50% of normal", dozoomhalf, IFBURIED | AUTOCOMPLETE },
-#endif
+    { M('/'), "zoomhalf", "zoom map out to 50% of normal", dozoomhalf, IFBURIED | AUTOCOMPLETE },
+#endif //USE_TILES
 #ifdef GNH_MOBILE
     { '{', "viewpet", "view currently active pet", doviewpet, IFBURIED },
 #endif
@@ -6334,6 +6526,8 @@ struct ext_func_tab extcmdlist[] = {
             wiz_debug_cmd_bury, IFBURIED | AUTOCOMPLETE | WIZMODECMD },
     { '\0', "wizdebug", "choose and execute a debug command",
             wiz_debug, IFBURIED | AUTOCOMPLETE | WIZMODECMD },
+    { '\0', "wizdeleteitem", "delete an item from inventory",
+            wiz_deleteitem, IFBURIED | AUTOCOMPLETE | WIZMODECMD },
 #endif
     { C('e'), "wizdetect", "reveal hidden things within a small radius",
             wiz_detect, IFBURIED | AUTOCOMPLETE | WIZMODECMD },
@@ -6388,7 +6582,7 @@ struct ext_func_tab extcmdlist[] = {
             wiz_wish, IFBURIED | AUTOCOMPLETE | WIZMODECMD },
     { '\0', "wmode", "show wall modes",
             wiz_show_wmodes, IFBURIED | AUTOCOMPLETE | WIZMODECMD },
-    { '\0', (char *) 0, (char *) 0, donull, 0, (char *) 0 } /* sentinel */
+    { '\0', (char *) 0, (char *) 0, donull, 0, ATR_NONE, NO_COLOR, (char *) 0 } /* sentinel */
 };
 
 int extcmdlist_length = SIZE(extcmdlist) - 1;
@@ -6488,14 +6682,15 @@ commands_init(VOID_ARGS)
     (void) bind_key(M('n'), "name");
     (void) bind_key(M('N'), "name");
     (void) bind_key('u',    "untrap"); /* if number_pad is on */
+    (void) bind_key(M('y'), "yell"); /* if number_pad is on */
 
-#ifdef USE_TILES
-    (void) bind_key(C('0'), "zoommini");
-    (void) bind_key(C('1'), "zoomnormal");
-    (void) bind_key(C('.'), "zoomnormal");
-    (void) bind_key(C('+'), "zoomin");
-    (void) bind_key(C('-'), "zoomout");
-#endif
+//#ifdef USE_TILES
+//    (void) bind_key(C('0'), "zoommini");
+//    (void) bind_key(C('1'), "zoomnormal");
+//    (void) bind_key(C('.'), "zoomnormal");
+//    (void) bind_key(C('+'), "zoomin");
+//    (void) bind_key(C('-'), "zoomout");
+//#endif
 
     /* alt keys: */
     (void) bind_key(M('O'), "overview");
@@ -6506,6 +6701,19 @@ commands_init(VOID_ARGS)
     (void) bind_key(M('4'), "targeting");
     (void) bind_key(M('*'), "targeting");
 #endif
+    /* M('A') is annotate */
+    (void)bind_key(M('B'), "break"); /* backup for C('b') */
+    (void)bind_key(M('C'), "lootin"); /* backup for 'Y' */
+    (void)bind_key(M('D'), "lootout"); /* backup for 'y' */
+    (void)bind_key(M('E'), "itemsin"); /* backup for 'B' */
+    (void)bind_key(M('F'), "itemsout"); /* backup for 'b' */
+    (void)bind_key(M('I'), "light"); /* backup for C('l') */
+    /* M('M') is monster ability */
+    /* M('N') is name */
+    /* M('O') is overview */
+    /* M('P') is previous weapon */
+    /* M('R') is ride nearby */
+    /* M('Y') is toggle buff timers */
 
     update_bindings_list();
 }
@@ -6689,6 +6897,36 @@ int NDECL((*fn));
             return (char) i;
     return '\0';
 }
+
+char
+cmd_unctrl(c)
+char c;
+{
+    // C(c) (0x40 & (c) ? 0x1f & (c) : (0x80 | (0x1f & (c))))
+    if (c > 0 && c < 32) /* 1-26 are letters, map them back to small letters */
+        return c + 96;
+
+    int i = (int)c;
+    if (i <= -97) /*  char is signed char: 32-63 have been mapped to -128 - -97 */
+        return (char)(c + 160);
+    else if (i > 127 && i < 160) /* char is unsigned char: 32-63 have been mapped to 128-159  */
+        return (char)(i - 96);
+
+    return c;
+}
+
+char
+nondir_cmd_from_func(fn)
+int NDECL((*fn));
+{
+    int i;
+
+    for (i = 0; i < 256; ++i)
+        if (Cmd.commands[i] && Cmd.commands[i]->ef_funct == fn && !index(Cmd.dirchars, lowc(cmd_unctrl((char)i))))
+            return (char)i;
+    return '\0';
+}
+
 
 /*
  * wizard mode sanity_check code
@@ -7159,9 +7397,6 @@ wiz_migrate_mons()
     return 0;
 }
 #endif
-
-#define unctrl(c) ((((c) & 0xE0) == 0) ? (0x60 | (c)) : (((c) & 0x80) != 0 && ((c) & 0x40) == 0) ? (0x20 | (0x7f & (c))) : (c))
-#define unmeta(c) (0x7f & (c))
 
 struct {
     int nhkf;
@@ -7645,12 +7880,21 @@ register char *cmd;
     check_mobbed_hint();
     check_closed_for_inventory_hint();
 
+    if (context.save_checkpoint)
+    {
+        context.save_checkpoint = FALSE;
+#ifdef INSURANCE
+        save_currentstate();
+#endif
+    }
+
     iflags.menu_requested = FALSE;
 #ifdef SAFERHANGUP
     if (program_state.done_hup)
         end_of_input();
 #endif
-    if (firsttime) {
+    if (firsttime) 
+    {
         context.nopick = 0;
         cmd = parse();
     }
@@ -7707,7 +7951,7 @@ register char *cmd;
     switch (spkey) {
     case NHKF_RUSH:
         if (movecmd(cmd[1])) {
-            context.run = 2;
+            context.run = RUNCONTEXT_RUSH;
             mark_spotted_monsters_in_run();
             domove_attempting |= DOMOVE_RUSH;
         } else
@@ -7719,7 +7963,7 @@ register char *cmd;
         /*FALLTHRU*/
     case NHKF_RUN:
         if (movecmd(lowc(cmd[1]))) {
-            context.run = 3;
+            context.run = RUNCONTEXT_RUN;
             mark_spotted_monsters_in_run();
             domove_attempting |= DOMOVE_RUSH;
         } else
@@ -7743,7 +7987,7 @@ register char *cmd;
         break;
     case NHKF_NOPICKUP:
         if (movecmd(cmd[1]) || u.dz) {
-            context.run = 0;
+            context.run = RUNCONTEXT_NONE;
             context.nopick = 1;
             if (!u.dz)
                 domove_attempting |= DOMOVE_WALK;
@@ -7754,7 +7998,7 @@ register char *cmd;
         break;
     case NHKF_RUN_NOPICKUP:
         if (movecmd(lowc(cmd[1]))) {
-            context.run = 1;
+            context.run = RUNCONTEXT_DEFAULT;
             context.nopick = 1;
             mark_spotted_monsters_in_run();
             domove_attempting |= DOMOVE_RUSH;
@@ -7804,7 +8048,7 @@ register char *cmd;
         if (flags.travelcmd) {
             context.travel = 1;
             context.travel1 = 1;
-            context.run = 8;
+            context.run = RUNCONTEXT_TRAVEL;
             context.nopick = (spkey == NHKF_TRAVEL ? 1 : 0);
             domove_attempting |= DOMOVE_RUSH;
             context.travel_mode = (spkey == NHKF_TRAVEL_WALK) ? TRAVEL_MODE_WALK : TRAVEL_MODE_NORMAL;
@@ -7829,20 +8073,20 @@ register char *cmd;
     default:
         if (movecmd(*cmd))
         { /* ordinary movement */
-            context.run = 0; /* only matters here if it was 8 */
+            context.run = RUNCONTEXT_NONE; /* only matters here if it was 8 */
             domove_attempting |= DOMOVE_WALK;
         } 
         else if (Cmd.gnh_layout ? ((!digit(*cmd) && movecmd(lowc(*cmd))) || (digit(unmeta(*cmd)) && movecmd(unmeta(*cmd)))) :
             movecmd(Cmd.num_pad ? unmeta(*cmd) : lowc(*cmd))) 
         {
-            context.run = 1;
+            context.run = RUNCONTEXT_DEFAULT;
             mark_spotted_monsters_in_run();
             domove_attempting |= DOMOVE_RUSH;
         } 
         else if (Cmd.gnh_layout ? (digit(unctrl(*cmd)) && movecmd(unctrl(*cmd))) :
             movecmd(unctrl(*cmd))) 
         {
-            context.run = 3;
+            context.run = RUNCONTEXT_RUN;
             mark_spotted_monsters_in_run();
             domove_attempting |= DOMOVE_RUSH;
         }
@@ -7939,7 +8183,7 @@ register char *cmd;
                 {
                     context.first_time_cmd = TRUE;
                     if (tlist->f_text && !occupation && multi)
-                        set_occupation(func, tlist->f_text, 0, 0, 0, multi);
+                        set_occupation(func, tlist->f_text, tlist->attr, tlist->color, 0, 0, 0, multi);
                     res = (*func)(); /* perform the command */
                     context.first_time_cmd = FALSE;
                 }
@@ -8132,7 +8376,8 @@ retry:
         || dirsym == Cmd.spkeys[NHKF_GETDIR_SELF2])
     {
         u.dx = u.dy = u.dz = 0;
-    } else if (!(is_mov = movecmd(dirsym)) && !u.dz) 
+    } 
+    else if (!(is_mov = movecmd(dirsym)) && !u.dz) 
     {
         boolean did_help = FALSE, help_requested;
 
@@ -8480,7 +8725,7 @@ int x, y;
             add_herecmd_menuitem(win, doopen, "Open the door"), ++K;
             /* unfortunately there's no lknown flag for doors to
                remember the locked/unlocked state */
-            key_or_pick = (carrying(SKELETON_KEY) || carrying(LOCK_PICK));
+            key_or_pick = (carrying(SKELETON_KEY) || carrying(MASTER_KEY) || carrying(LOCK_PICK));
             card = (carrying(CREDIT_CARD) != 0);
             if (key_or_pick || card) {
                 Sprintf(buf, "%sunlock the door",
@@ -9823,57 +10068,40 @@ dosh_core(VOID_ARGS)
 int
 dozoomnormal(VOID_ARGS)
 {
-    flags.screen_scale_adjustment = flags.preferred_screen_scale <= 0 ? 0.0 
-        : max(MIN_SCREEN_SCALE_ADJUSTMENT, min(MAX_SCREEN_SCALE_ADJUSTMENT, (((double)flags.preferred_screen_scale) / 100.0 - 1.0) ));
-
+    issue_simple_gui_command(GUI_CMD_ZOOM_NORMAL);
     stretch_window();
-
     return 0;
 }
 
 int
 dozoomin(VOID_ARGS)
 {
-    double scale_level = round(flags.screen_scale_adjustment / KEYBOARD_SCREEN_SCALE_ADJUSTMENT_STEP);
-    flags.screen_scale_adjustment = (scale_level + 1) * KEYBOARD_SCREEN_SCALE_ADJUSTMENT_STEP;
-    if(flags.screen_scale_adjustment > MAX_SCREEN_SCALE_ADJUSTMENT)
-        flags.screen_scale_adjustment = MAX_SCREEN_SCALE_ADJUSTMENT;
-    
+    issue_simple_gui_command(GUI_CMD_ZOOM_IN);
     stretch_window();
-
     return 0;
 }
 
 int
 dozoomout(VOID_ARGS)
 {
-    double scale_level = round(flags.screen_scale_adjustment / KEYBOARD_SCREEN_SCALE_ADJUSTMENT_STEP);
-    flags.screen_scale_adjustment = (scale_level - 1) * KEYBOARD_SCREEN_SCALE_ADJUSTMENT_STEP;
-    if (flags.screen_scale_adjustment < MIN_SCREEN_SCALE_ADJUSTMENT)
-        flags.screen_scale_adjustment = MIN_SCREEN_SCALE_ADJUSTMENT;
-
+    issue_simple_gui_command(GUI_CMD_ZOOM_OUT);
     stretch_window();
-
     return 0;
 }
 
 int
 dozoommini(VOID_ARGS)
 {
-    flags.screen_scale_adjustment = -1.0; /* In fact fit-to-screen */
-
+    issue_simple_gui_command(GUI_CMD_ZOOM_MINI);
     stretch_window();
-
     return 0;
 }
 
 int
 dozoomhalf(VOID_ARGS)
 {
-    flags.screen_scale_adjustment = -0.5;
-
+    issue_simple_gui_command(GUI_CMD_ZOOM_HALF);
     stretch_window();
-
     return 0;
 }
 
@@ -9881,7 +10109,7 @@ void
 zoomtoscale(scale)
 double scale;
 {
-    flags.screen_scale_adjustment = scale;
+    issue_gui_command(GUI_CMD_ZOOM_TO_SCALE, (int)(scale * 10000), 0, (char*)0);
     stretch_window();
 }
 
@@ -9898,7 +10126,12 @@ doviewpet(VOID_ARGS)
                 if (abs(mtmp->mx - u.ux) <= 1 && abs(mtmp->my - u.uy) <= 1 && !mtmp->meating && mon_can_move(mtmp))
                     return dochatmon(mtmp);
                 else
-                    return doviewpetstatistics(mtmp);
+                {
+                    int res = doviewpetstatistics(mtmp);
+                    if (!res)
+                        issue_gui_command(GUI_CMD_COLLECT_GARBAGE, 1, 0, (char*)0);
+                    return res;
+                }
             }
         }
     }
@@ -10081,6 +10314,9 @@ void
 create_context_menu(menu_type)
 enum create_context_menu_types menu_type;
 {
+    if (!clear_context_menu)
+        return;
+
     clear_context_menu();
 
     switch (menu_type)
@@ -10145,24 +10381,25 @@ enum create_context_menu_types menu_type;
 
         struct obj* otmp = level.objects[u.ux][u.uy];
         struct rm* lev = &levl[u.ux][u.uy];
+        int levtyp = lev ? lev->typ : UNDEFINED_LOCATION;
         struct trap* t = t_at(u.ux, u.uy);
-        if (IS_ALTAR(lev->typ))
+        if (IS_ALTAR(levtyp))
         {
-            add_context_menu(M('o'), cmd_from_func(dosacrifice), CONTEXT_MENU_STYLE_GENERAL, back_to_glyph(u.ux, u.uy), "Offer", 0, 0, NO_COLOR);
-            add_context_menu(M('p'), cmd_from_func(dopray), CONTEXT_MENU_STYLE_GENERAL, back_to_glyph(u.ux, u.uy), "Pray", 0, 0, NO_COLOR);
+            add_context_menu(M('o'), nondir_cmd_from_func(dosacrifice), CONTEXT_MENU_STYLE_GENERAL, back_to_glyph(u.ux, u.uy), "Offer", 0, 0, NO_COLOR);
+            add_context_menu(M('p'), nondir_cmd_from_func(dopray), CONTEXT_MENU_STYLE_GENERAL, back_to_glyph(u.ux, u.uy), "Pray", 0, 0, NO_COLOR);
         }
-        else if (IS_FOUNTAIN(lev->typ) || IS_SINK(lev->typ))
+        else if (IS_FOUNTAIN(levtyp) || IS_SINK(levtyp))
         {
-            add_context_menu('q', cmd_from_func(dodrink), CONTEXT_MENU_STYLE_GENERAL, back_to_glyph(u.ux, u.uy), "Drink", 0, 0, NO_COLOR);
-            add_context_menu(M('d'), cmd_from_func(dodip), CONTEXT_MENU_STYLE_GENERAL, back_to_glyph(u.ux, u.uy), "Dip", 0, 0, NO_COLOR);
+            add_context_menu('q', nondir_cmd_from_func(dodrink), CONTEXT_MENU_STYLE_GENERAL, back_to_glyph(u.ux, u.uy), "Drink", 0, 0, NO_COLOR);
+            add_context_menu(M('d'), nondir_cmd_from_func(dodip), CONTEXT_MENU_STYLE_GENERAL, back_to_glyph(u.ux, u.uy), "Dip", 0, 0, NO_COLOR);
         }
-        else if (IS_POOL(lev->typ))
+        else if (IS_POOL(levtyp))
         {
-            add_context_menu(M('d'), cmd_from_func(dodip), CONTEXT_MENU_STYLE_GENERAL, back_to_glyph(u.ux, u.uy), "Dip", 0, 0, NO_COLOR);
+            add_context_menu(M('d'), nondir_cmd_from_func(dodip), CONTEXT_MENU_STYLE_GENERAL, back_to_glyph(u.ux, u.uy), "Dip", 0, 0, NO_COLOR);
         }
-        else if (IS_THRONE(lev->typ))
+        else if (IS_THRONE(levtyp))
         {
-            add_context_menu(C('s'), cmd_from_func(dosit), CONTEXT_MENU_STYLE_GENERAL, back_to_glyph(u.ux, u.uy), "Sit", "on Throne", 0, NO_COLOR);
+            add_context_menu(C('s'), nondir_cmd_from_func(dosit), CONTEXT_MENU_STYLE_GENERAL, back_to_glyph(u.ux, u.uy), "Sit", "on Throne", 0, NO_COLOR);
         }
         else if ((u.ux == xupstair && u.uy == yupstair)
             || (u.ux == sstairs.sx && u.uy == sstairs.sy && sstairs.up)
@@ -10203,7 +10440,7 @@ enum create_context_menu_types menu_type;
         }
         else if (t && t->tseen && is_lever(t->ttyp))
         {
-            add_context_menu('a', cmd_from_func(doapply), CONTEXT_MENU_STYLE_GENERAL, back_to_glyph(u.ux, u.uy), "Apply", "the Lever", 0, NO_COLOR);
+            add_context_menu('a', nondir_cmd_from_func(doapply), CONTEXT_MENU_STYLE_GENERAL, back_to_glyph(u.ux, u.uy), "Apply", "the Lever", 0, NO_COLOR);
         }
 
         struct monst* shkp = can_pay_to_shkp();
@@ -10212,7 +10449,7 @@ enum create_context_menu_types menu_type;
             struct eshk* eshkp = ESHK(shkp);
             if (eshkp->robbed || eshkp->debit || eshkp->billct)
             {
-                add_context_menu('p', cmd_from_func(dopay), CONTEXT_MENU_STYLE_GENERAL, any_mon_to_glyph(shkp, rn2_on_display_rng), "Pay", 0, 0, NO_COLOR);
+                add_context_menu('p', nondir_cmd_from_func(dopay), CONTEXT_MENU_STYLE_GENERAL, any_mon_to_glyph(shkp, rn2_on_display_rng), "Pay", 0, 0, NO_COLOR);
             }
         }
 
@@ -10260,22 +10497,22 @@ enum create_context_menu_types menu_type;
 
         if (addchatmenu && chatmtmp)
         {
-            add_context_menu('C', cmd_from_func(dotalknearby), CONTEXT_MENU_STYLE_GENERAL, any_mon_to_glyph(chatmtmp, rn2_on_display_rng), "Chat", Monnam(chatmtmp), 0, NO_COLOR);
+            add_context_menu('C', nondir_cmd_from_func(dotalknearby), CONTEXT_MENU_STYLE_GENERAL, any_mon_to_glyph(chatmtmp, rn2_on_display_rng), "Chat", Monnam(chatmtmp), 0, NO_COLOR);
         }
         if (addridemenu && steedmtmp)
         {
-            add_context_menu(M('R'), cmd_from_func(doridenearby), CONTEXT_MENU_STYLE_GENERAL, any_mon_to_glyph(steedmtmp, rn2_on_display_rng), "Mount", Monnam(steedmtmp), 0, NO_COLOR);
+            add_context_menu(M('R'), nondir_cmd_from_func(doridenearby), CONTEXT_MENU_STYLE_GENERAL, any_mon_to_glyph(steedmtmp, rn2_on_display_rng), "Mount", Monnam(steedmtmp), 0, NO_COLOR);
         }
         //if (addkickmenu)
         //{
         //    if(kickotmp)
-        //        add_context_menu(C('d'), cmd_from_func(dokicknearby), CONTEXT_MENU_STYLE_GENERAL, obj_to_glyph(kickotmp, rn2_on_display_rng), "Kick", The(cxname(kickotmp)), 0, NO_COLOR);
+        //        add_context_menu(C('d'), nondir_cmd_from_func(dokicknearby), CONTEXT_MENU_STYLE_GENERAL, obj_to_glyph(kickotmp, rn2_on_display_rng), "Kick", The(cxname(kickotmp)), 0, NO_COLOR);
         //}
 
         if (u.usteed)
         {
-            add_context_menu(M('R'), cmd_from_func(doride), CONTEXT_MENU_STYLE_GENERAL, any_mon_to_glyph(u.usteed, rn2_on_display_rng), "Dismount", Monnam(u.usteed), 0, NO_COLOR);
-            add_context_menu('C', cmd_from_func(dotalksteed), CONTEXT_MENU_STYLE_GENERAL, any_mon_to_glyph(u.usteed, rn2_on_display_rng), "Steed", Monnam(u.usteed), 0, NO_COLOR);
+            add_context_menu(M('R'), nondir_cmd_from_func(doride), CONTEXT_MENU_STYLE_GENERAL, any_mon_to_glyph(u.usteed, rn2_on_display_rng), "Dismount", Monnam(u.usteed), 0, NO_COLOR);
+            add_context_menu('C', nondir_cmd_from_func(dotalksteed), CONTEXT_MENU_STYLE_GENERAL, any_mon_to_glyph(u.usteed, rn2_on_display_rng), "Steed", Monnam(u.usteed), 0, NO_COLOR);
         }
 
         struct obj* otmp_here;
@@ -10289,23 +10526,48 @@ enum create_context_menu_types menu_type;
 
         if (showpickup)
         {
-            add_context_menu(',', cmd_from_func(dopickup), CONTEXT_MENU_STYLE_GENERAL, otmp->gui_glyph, "Pick Up", cxname(otmp), 0, NO_COLOR);
+            add_context_menu(',', nondir_cmd_from_func(dopickup), CONTEXT_MENU_STYLE_GENERAL, otmp->gui_glyph, "Pick Up", cxname(otmp), 0, NO_COLOR);
             if(count_bags_for_stashing(invent, otmp, FALSE, TRUE) > 0)
-                add_context_menu(';', cmd_from_func(doput2bag), CONTEXT_MENU_STYLE_GENERAL, otmp->gui_glyph, "Pick & Stash", cxname(otmp), 0, NO_COLOR);
+                add_context_menu(';', nondir_cmd_from_func(doput2bag), CONTEXT_MENU_STYLE_GENERAL, otmp->gui_glyph, "Pick & Stash", cxname(otmp), 0, NO_COLOR);
             boolean eat_added = FALSE;
             boolean loot_added = FALSE;
+            boolean loot_out_added = FALSE;
+            boolean loot_in_added = FALSE;
             for (otmp_here = otmp; otmp_here; otmp_here = otmp_here->nexthere)
             {
                 if (!eat_added && is_edible(otmp_here))
                 {
-                    add_context_menu('e', cmd_from_func(doeat), CONTEXT_MENU_STYLE_GENERAL, otmp_here->gui_glyph, "Eat", cxname(otmp_here), 0, NO_COLOR);
+                    add_context_menu('e', nondir_cmd_from_func(doeat), CONTEXT_MENU_STYLE_GENERAL, otmp_here->gui_glyph, "Eat", cxname(otmp_here), 0, NO_COLOR);
                     eat_added = TRUE;
                 }
 
-                if (!loot_added && Is_container(otmp_here))
+                if (Is_container(otmp_here))
                 {
-                    add_context_menu('l', cmd_from_func(doloot), CONTEXT_MENU_STYLE_GENERAL, otmp_here->gui_glyph, "Loot", cxname(otmp_here), 0, NO_COLOR);
-                    loot_added = TRUE;
+                    if (!loot_added)
+                    {
+                        add_context_menu('l', nondir_cmd_from_func(doloot), CONTEXT_MENU_STYLE_GENERAL, otmp_here->gui_glyph, "Loot", cxname(otmp_here), 0, NO_COLOR);
+                        loot_added = TRUE;
+                    }
+
+                    boolean is_known_improper = (objects[otmp_here->otyp].oc_name_known && !Is_proper_container(otmp_here));
+                    if (!loot_out_added && !is_known_improper)
+                    {
+                        boolean isknownempty = FALSE;
+                        if (otmp_here->cknown && (otmp_here->otyp == BAG_OF_TRICKS ? (otmp_here->charges == 0) : !Has_contained_contents(otmp_here)))
+                            isknownempty = TRUE;
+
+                        if (!isknownempty)
+                        {
+                            add_context_menu('b', nondir_cmd_from_func(dolootout), CONTEXT_MENU_STYLE_GENERAL, otmp_here->gui_glyph, "Take out", cxname(otmp_here), 0, NO_COLOR);
+                            loot_out_added = TRUE;
+                        }
+                    }
+
+                    if (!loot_in_added && invent && !is_known_improper)
+                    {
+                        add_context_menu('B', nondir_cmd_from_func(dolootin), CONTEXT_MENU_STYLE_GENERAL, otmp_here->gui_glyph, "Put in", cxname(otmp_here), 0, NO_COLOR);
+                        loot_in_added = TRUE;
+                    }
                 }
             }
         }
@@ -10316,14 +10578,14 @@ enum create_context_menu_types menu_type;
 
         if (Blind || displ_style == 2)
         {
-            add_context_menu(':', cmd_from_func(dolook), CONTEXT_MENU_STYLE_GENERAL, NO_GLYPH, "Look Here", "", 0, NO_COLOR);
+            add_context_menu(':', nondir_cmd_from_func(dolook), CONTEXT_MENU_STYLE_GENERAL, NO_GLYPH, "Look Here", "", 0, NO_COLOR);
         }
 
         if (context.last_picked_obj_oid > 0 && context.last_picked_obj_show_duration_left > 0)
         {
             struct obj* lpobj;
             if ((lpobj = o_on(context.last_picked_obj_oid, invent)) != 0)
-                add_context_menu(M('<'), cmd_from_func(dolastpickeditem), CONTEXT_MENU_STYLE_GENERAL, lpobj ? lpobj->gui_glyph : 0, "Last Item", lpobj ? cxname(lpobj) : "", 0, NO_COLOR);
+                add_context_menu(M('<'), nondir_cmd_from_func(dolastpickeditem), CONTEXT_MENU_STYLE_GENERAL, lpobj ? lpobj->gui_glyph : 0, "Last Item", lpobj ? cxname(lpobj) : "", 0, NO_COLOR);
         }
         break;
     }

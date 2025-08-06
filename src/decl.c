@@ -77,6 +77,8 @@ NEARDATA boolean ransacked = 0;
 NEARDATA uint64_t n_game_recoveries = 0;
 
 const char *occtxt = DUMMY;
+int occattr = ATR_NONE;
+int occclr = NO_COLOR;
 enum object_soundset_types occsoundset = OBJECT_SOUNDSET_NONE; /* defined when occupation != NULL */
 enum object_occupation_types occtyp = OCCUPATION_NONE; /* defined when occupation != NULL */
 
@@ -365,6 +367,10 @@ NEARDATA const char getobj_favorites[] = {
     ROCK_CLASS,      BALL_CLASS,   CHAIN_CLASS,  SPBOOK_CLASS, 0
 };
 
+NEARDATA const char getobj_enchant_weapon_objects[] = { ALL_CLASSES, WEAPON_CLASS, TOOL_CLASS, 0 };
+NEARDATA const char getobj_enchant_armor_objects[] = { ALL_CLASSES, ARMOR_CLASS, 0 };
+NEARDATA const char getobj_enchant_accessory_objects[] = { ALL_CLASSES, RING_CLASS, MISCELLANEOUS_CLASS, 0 };
+
 /* originally from dog.c */
 NEARDATA char dogname[PL_PSIZ] = DUMMY;
 NEARDATA char catname[PL_PSIZ] = DUMMY;
@@ -583,6 +589,11 @@ NEARDATA char debug_buf_1[BUFSZ * 2] = "";
 NEARDATA char debug_buf_2[BUFSZ * 2] = "";
 NEARDATA char debug_buf_3[BUFSZ * 2] = "";
 NEARDATA char debug_buf_4[BUFSZ * 2] = "";
+
+NEARDATA char priority_debug_buf_1[BUFSZ * 2] = "";
+NEARDATA char priority_debug_buf_2[BUFSZ * 2] = "";
+NEARDATA char priority_debug_buf_3[BUFSZ * 2] = "";
+NEARDATA char priority_debug_buf_4[BUFSZ * 2] = "";
 
 /* dummy routine used to force linkage */
 void

@@ -309,7 +309,8 @@ struct obj* obj;
             otmp->speflags |= SPEFLAGS_CLONED_ITEM; /* This item will disappear when Aleax dies / is gone */
         }
         otmp->owt = weight(otmp);
-        (void)mpickobj(mtmp, otmp);
+        if (mpickobj(mtmp, otmp))
+            otmp = 0;
     }
 
     return otmp;
@@ -816,6 +817,7 @@ register struct monst *mtmp;
                     else
                     {
                         /* free object */
+                        Sprintf(priority_debug_buf_4, "m_initweap: %d", otmp->otyp);
                         obfree(otmp, (struct obj*) 0);
                     }
                 }
@@ -1338,7 +1340,7 @@ register struct monst *mtmp;
             for (i = 0; i < num; i++)
             {
                 if (!rn2(2))
-                    otmp = mongets(mtmp, randomtruegem());
+                    (void) mongets(mtmp, randomtruegem());
                 else
                 {
                     otmp = mkobj(GEM_CLASS, TRUE, 0);
@@ -1500,7 +1502,8 @@ register struct monst *mtmp;
             if (ptr == &mons[PM_HIGH_PRIEST])
             {
                 otmp = mongets(mtmp, !rn2(2) ? ROBE_OF_STARRY_WISDOM : GOWN_OF_THE_ARCHBISHOPS);
-                otmp->enchantment = max(otmp->enchantment, rn2(3));
+                if (otmp)
+                    otmp->enchantment = max(otmp->enchantment, rn2(3));
             }
             else
             {
@@ -1604,6 +1607,7 @@ register struct monst *mtmp;
                     else
                     {
                         /* free object */
+                        Sprintf(priority_debug_buf_4, "m_initweap2: %d", otmp->otyp);
                         obfree(otmp, (struct obj*) 0);
                     }
                 }
@@ -1822,10 +1826,13 @@ register struct monst *mtmp;
         if (!rn2(2))
         {
             otmp = mksobj(rn2(4) ? TALLOW_CANDLE : WAX_CANDLE, TRUE, FALSE, FALSE);
-            otmp->quan = 1;
-            otmp->owt = weight(otmp);
-            if (!mpickobj(mtmp, otmp) && !otmp->lamplit && !levl[mtmp->mx][mtmp->my].lit)
-                begin_burn(otmp, FALSE);
+            if (otmp)
+            {
+                otmp->quan = 1;
+                otmp->owt = weight(otmp);
+                if (!mpickobj(mtmp, otmp) && !otmp->lamplit && !levl[mtmp->mx][mtmp->my].lit)
+                    begin_burn(otmp, FALSE);
+            }
         }
 
         if (!rn2(2))
@@ -1934,6 +1941,7 @@ register struct monst *mtmp;
                otherwise it's given a rot timer; weight is now ordinary */
             if ((catcorpse = mksobj(CORPSE, TRUE, FALSE, FALSE)) != 0) {
                 otmp->speflags |= SPEFLAGS_SCHROEDINGERS_BOX; /* flag for special SchroedingersBox */
+                catcorpse->speflags |= SPEFLAGS_SCHROEDINGERS_BOX; /* Schroedinger's cat in fact */
                 set_corpsenm(catcorpse, PM_HOUSECAT);
                 (void)stop_timer(ROT_CORPSE, obj_to_any(catcorpse));
                 add_to_container(otmp, catcorpse);
@@ -2171,10 +2179,13 @@ register struct monst *mtmp;
         if (!rn2((In_mines(&u.uz) && in_mklev) ? 20 : 60)) 
         {
             otmp = mksobj(rn2(4) ? TALLOW_CANDLE : WAX_CANDLE, TRUE, FALSE, FALSE);
-            otmp->quan = 1;
-            otmp->owt = weight(otmp);
-            if (!mpickobj(mtmp, otmp) && !otmp->lamplit && !levl[mtmp->mx][mtmp->my].lit)
-                begin_burn(otmp, FALSE);
+            if (otmp)
+            {
+                otmp->quan = 1;
+                otmp->owt = weight(otmp);
+                if (!mpickobj(mtmp, otmp) && !otmp->lamplit && !levl[mtmp->mx][mtmp->my].lit)
+                    begin_burn(otmp, FALSE);
+            }
         }
         break;
     case S_OGRE:
@@ -2509,7 +2520,7 @@ uint64_t mmflags;
     int hp = 0;
     int basemaxhp = 0;
 
-    mon->m_lev = use_normalhd ? ptr->mlevel : adj_lev(ptr, level_adjustment);
+    mon->m_lev = (uchar)(use_normalhd ? (int)ptr->mlevel : adj_lev(ptr, level_adjustment));
 
     if (mon->m_lev <= 0) 
     {
@@ -2715,7 +2726,8 @@ aligntyp alignment;
     boolean maybe_extinct = ((mmflags2 & MM2_MAYBE_ALLOW_EXTINCT) != 0);
     boolean reviving = ((mmflags2 & MM2_REVIVING) != 0);
     boolean randomize_subtype = ((mmflags2 & MM2_RANDOMIZE_SUBTYPE) != 0);
-    
+    boolean mon_name_known = ((mmflags2 & MM2_NAME_KNOWN) != 0);
+
     uint64_t gpflags = (mmflags & MM_IGNOREWATER) ? MM_IGNOREWATER : 0;
     int origin_x = x, origin_y = y;
     
@@ -2986,7 +2998,7 @@ aligntyp alignment;
     {
         if (mons[mndx].mflags6 & M6_USES_CAT_SUBTYPES)
         {
-            if(!rn2(4))
+            if(!rn2(flags.friday13 ? 2 : 4))
                 mtmp->subtype = CAT_BREED_BLACK;
             else if (!rn2(9))
                 mtmp->subtype = rn2(NUM_CAT_BREEDS);
@@ -3216,6 +3228,8 @@ aligntyp alignment;
 #endif
 
     m_init_background(mtmp);
+    if (mon_name_known && has_mname(mtmp))
+        mtmp->u_know_mname = TRUE;
 
     if (allow_minvent)
     {
@@ -3913,13 +3927,13 @@ int manual_adj;
         /* does not depend on other strengths, but does get stronger
          * every time he is killed
          */
-        tmp = ptr->mlevel + mvitals[PM_WIZARD_OF_YENDOR].died;
+        tmp = (int)ptr->mlevel + (int)mvitals[PM_WIZARD_OF_YENDOR].died;
         if (tmp > MAX_MONSTER_LEVEL)
             tmp = MAX_MONSTER_LEVEL;
         return tmp;
     }
 
-    tmp = ptr->mlevel + manual_adj;
+    tmp = (int)ptr->mlevel + manual_adj;
     if (tmp > MAX_MONSTER_LEVEL)
         return MAX_MONSTER_LEVEL; /* "special" demons/devils */
     tmp2 = (level_difficulty() - tmp);
@@ -3928,7 +3942,7 @@ int manual_adj;
     else
         tmp += (tmp2 / 5); /* else increment 1 per five diff */
 
-    tmp2 = (u.ulevel - ptr->mlevel); /* adjust vs. the player */
+    tmp2 = (u.ulevel - (int)ptr->mlevel); /* adjust vs. the player */
     if (tmp2 > 0)
         tmp += (tmp2 / 4); /* level as well */
 
@@ -3975,7 +3989,7 @@ struct monst *mtmp, *victim;
 
         lev_limit = 3 * (int) ptr->mlevel / 2; /* same as adj_lev() */
         /* If they can grow up, be sure the level is high enough for that */
-        if (oldtype != newtype && mons[newtype].mlevel > lev_limit)
+        if (oldtype != newtype && (int)mons[newtype].mlevel > lev_limit)
             lev_limit = (int) mons[newtype].mlevel;
         /* number of hit points to gain; unlike for the player, we put
            the limit at the bottom of the next level rather than the top */
@@ -4007,7 +4021,7 @@ struct monst *mtmp, *victim;
     else if (lev_limit > MAX_MONSTER_LEVEL)
         lev_limit = MAX_MONSTER_LEVEL; //(ptr->mlevel > 49 ? 50 : 49);
 
-    if ((int) ++mtmp->m_lev >= mons[newtype].mlevel && newtype != oldtype)
+    if ((int) ++mtmp->m_lev >= (int)mons[newtype].mlevel && newtype != oldtype)
     {
         ptr = &mons[newtype];
         /* new form might force gender change */
@@ -4249,7 +4263,8 @@ uchar material;
             otmp->special_tileset = levl[mtmp->mx][mtmp->my].use_special_tileset ? levl[mtmp->mx][mtmp->my].special_tileset : get_current_cmap_type_index();
         }
 
-        (void) mpickobj(mtmp, otmp); /* might free otmp */
+        if (mpickobj(mtmp, otmp))
+            otmp = 0; /* might free otmp */
     }
 
     return otmp;
@@ -4494,8 +4509,6 @@ int otyp;
     struct obj* otmp = mksobj(otyp, TRUE, FALSE, 0);
     if (otmp)
     {
-        if (otyp == GOLD_PIECE)
-            set_random_gold_amount(otmp);
         if (has_mobj(mtmp))
             free_mobj(mtmp);
         if (!has_mobj(mtmp))
@@ -4512,9 +4525,20 @@ int otyp;
                 MOBJ(mtmp)->o_id = context.ident++;
             if (otmp->oextra)
                 copy_oextra(MOBJ(mtmp), otmp);
+            MOBJ(mtmp)->timed = 0;
+            MOBJ(mtmp)->lamplit = 0;
+            MOBJ(mtmp)->makingsound = 0;
+            MOBJ(mtmp)->ox = mtmp->mx;
+            MOBJ(mtmp)->oy = mtmp->my;
+            //MOBJ(mtmp)->where = OBJ_FLOOR;
+            if (MOBJ(mtmp)->otyp == GOLD_PIECE)
+                set_random_gold_amount(MOBJ(mtmp));
         }
         /* make sure container contents are free'ed */
+        Sprintf(priority_debug_buf_4, "set_mimic_new_mobj: %d", otmp->otyp);
+        context.suppress_container_deletion_warning = 1;
         obfree(otmp, (struct obj*)0);
+        context.suppress_container_deletion_warning = 0;
     }
 }
 
@@ -4544,6 +4568,12 @@ struct obj* otmp;
             MOBJ(mtmp)->o_id = context.ident++;
         if (otmp->oextra)
             copy_oextra(MOBJ(mtmp), otmp);
+        MOBJ(mtmp)->timed = 0;
+        MOBJ(mtmp)->lamplit = 0;
+        MOBJ(mtmp)->makingsound = 0;
+        MOBJ(mtmp)->ox = mtmp->mx;
+        MOBJ(mtmp)->oy = mtmp->my;
+        //MOBJ(mtmp)->where = OBJ_FLOOR;
         if (MOBJ(mtmp)->otyp == GOLD_PIECE)
             set_random_gold_amount(MOBJ(mtmp));
     }
@@ -4576,11 +4606,14 @@ register struct monst *mtmp;
     else
         rt = 0; /* roomno < 0 case for GCC_WARN */
 
-    if (OBJ_AT(mx, my)) {
+    if (OBJ_AT(mx, my)) 
+    {
         ap_type = M_AP_OBJECT;
         appear = level.objects[mx][my]->otyp;
         set_mimic_existing_mobj(mtmp, level.objects[mx][my]);
-    } else if (IS_DOOR(typ) || IS_WALL(typ) || typ == SDOOR || typ == SCORR) {
+    } 
+    else if (IS_DOOR(typ) || IS_WALL(typ) || typ == SDOOR || typ == SCORR) 
+    {
         ap_type = M_AP_FURNITURE;
         /*
          *  If there is a wall to the left that connects to this
@@ -4599,25 +4632,38 @@ register struct monst *mtmp;
             appear = Is_really_rogue_level(&u.uz) ? S_hwall : S_hcdoor;
         else
             appear = Is_really_rogue_level(&u.uz) ? S_vwall : S_vcdoor;
-    } else if (level.flags.is_maze_lev && !In_sokoban(&u.uz) && rn2(2)) {
+    } 
+    else if (level.flags.is_maze_lev && !In_sokoban(&u.uz) && rn2(2)) 
+    {
         ap_type = M_AP_OBJECT;
         appear = STATUE;
-    } else if (roomno < 0 && !t_at(mx, my)) {
+    } 
+    else if (roomno < 0 && !t_at(mx, my)) 
+    {
         ap_type = M_AP_OBJECT;
         appear = BOULDER;
-    } else if (rt == ZOO || rt == VAULT) {
+    } 
+    else if (rt == ZOO || rt == VAULT) 
+    {
         ap_type = M_AP_OBJECT;
         appear = GOLD_PIECE;
         set_mimic_new_mobj(mtmp, appear);
-    } else if (rt == DELPHI) {
-        if (rn2(2)) {
+    }
+    else if (rt == DELPHI) 
+    {
+        if (rn2(2))
+        {
             ap_type = M_AP_OBJECT;
             appear = STATUE;
-        } else {
+        }
+        else
+        {
             ap_type = M_AP_FURNITURE;
             appear = S_fountain;
         }
-    } else if (rt == TEMPLE) {
+    } 
+    else if (rt == TEMPLE)
+    {
         ap_type = M_AP_FURNITURE;
         appear = S_altar;
         /*
@@ -4625,16 +4671,22 @@ register struct monst *mtmp;
          * since they shouldn't contain too many mimics anyway...
          */
     }
-    else if (rt == SMITHY) {
+    else if (rt == SMITHY) 
+    {
         ap_type = M_AP_FURNITURE;
         appear = S_anvil;
-    } else if (rt >= SHOPBASE) {
+    } 
+    else if (rt >= SHOPBASE) 
+    {
         s_sym = get_shop_item(rt - SHOPBASE);
-        if (s_sym < 0) {
+        if (s_sym < 0) 
+        {
             ap_type = M_AP_OBJECT;
             appear = -s_sym;
             set_mimic_new_mobj(mtmp, appear);
-        } else {
+        }
+        else
+        {
             if (s_sym == RANDOM_CLASS)
             {
                 roll = rn2((int)sizeof(syms) - 2) + 2;
@@ -4642,42 +4694,63 @@ register struct monst *mtmp;
             }
             goto assign_sym;
         }
-    } else {
+    }
+    else
+    {
         roll = rn2((int)sizeof(syms));
         s_sym = syms[roll];
  assign_sym:
-        if (s_sym == MAX_OBJECT_CLASSES || s_sym == MAX_OBJECT_CLASSES + 1) {
+        if (s_sym == MAX_OBJECT_CLASSES || s_sym == MAX_OBJECT_CLASSES + 1) 
+        {
             ap_type = M_AP_FURNITURE;
             appear = (s_sym == MAX_OBJECT_CLASSES) ? S_upstair : S_dnstair;
-        } else {
+        }
+        else 
+        {
             ap_type = M_AP_OBJECT;
-            if (s_sym == S_MIMIC_DEF) {
+            if (s_sym == S_MIMIC_DEF) 
+            {
                 appear = STRANGE_OBJECT;
-            } else if (s_sym == COIN_CLASS) {
+            }
+            else if (s_sym == COIN_CLASS) 
+            {
                 appear = GOLD_PIECE;
-            } else {
+                set_mimic_new_mobj(mtmp, appear);
+            } 
+            else 
+            {
+                appear = STRANGE_OBJECT;
                 otmp = mkobj((char) s_sym, FALSE, FALSE);
-                appear = otmp->otyp;
-                set_mimic_existing_mobj(mtmp, otmp);
-                if (has_mobj(mtmp))
-                    free_mobj(mtmp);
-                if(!has_mobj(mtmp))
-                    newmobj(mtmp);
-                if (has_mobj(mtmp))
+                if (otmp)
                 {
-                    *MOBJ(mtmp) = *otmp;
-                    MOBJ(mtmp)->oextra = 0;
-                    MOBJ(mtmp)->nobj = 0;
-                    MOBJ(mtmp)->nexthere = 0;
-                    MOBJ(mtmp)->cobj = 0;
-                    MOBJ(mtmp)->o_id = context.ident++;
-                    if (!MOBJ(mtmp)->o_id) /* ident overflowed */
-                        MOBJ(mtmp)->o_id = context.ident++;
-                    if (otmp->oextra)
-                        copy_oextra(MOBJ(mtmp), otmp);
+                    appear = otmp->otyp;
+                    set_mimic_existing_mobj(mtmp, otmp);
+                    //if (has_mobj(mtmp))
+                    //    free_mobj(mtmp);
+                    //if(!has_mobj(mtmp))
+                    //    newmobj(mtmp);
+                    //if (has_mobj(mtmp))
+                    //{
+                    //    *MOBJ(mtmp) = *otmp;
+                    //    MOBJ(mtmp)->oextra = 0;
+                    //    MOBJ(mtmp)->nobj = 0;
+                    //    MOBJ(mtmp)->nexthere = 0;
+                    //    MOBJ(mtmp)->cobj = 0;
+                    //    MOBJ(mtmp)->o_id = context.ident++;
+                    //    if (!MOBJ(mtmp)->o_id) /* ident overflowed */
+                    //        MOBJ(mtmp)->o_id = context.ident++;
+                    //    if (otmp->oextra)
+                    //        copy_oextra(MOBJ(mtmp), otmp);
+                    //    MOBJ(mtmp)->ox = mtmp->mx;
+                    //    MOBJ(mtmp)->oy = mtmp->my;
+                    //    MOBJ(mtmp)->where = OBJ_FLOOR;
+                    //}
+                    /* make sure container contents are free'ed */
+                    Sprintf(priority_debug_buf_4, "set_mimic_sym: %d", otmp->otyp);
+                    context.suppress_container_deletion_warning = 1;
+                    obfree(otmp, (struct obj*)0);
+                    context.suppress_container_deletion_warning = 0;
                 }
-                /* make sure container contents are free'ed */
-                obfree(otmp, (struct obj *) 0);
             }
         }
     }
@@ -4694,7 +4767,7 @@ register struct monst *mtmp;
         else
         {
             mndx = rndmonnum();
-            int nocorpse_ndx = (mvitals[mndx].mvflags & MV_NOCORPSE) != 0;
+            int nocorpse_ndx = mndx >= LOW_PM && (mvitals[mndx].mvflags & MV_NOCORPSE) != 0;
 
             if (appear == CORPSE && nocorpse_ndx)
                 mndx = rn1(PM_WIZARD - PM_ARCHAEOLOGIST + 1, PM_ARCHAEOLOGIST);
@@ -4702,8 +4775,10 @@ register struct monst *mtmp;
                 || (appear == TIN && nocorpse_ndx))
                 mndx = NON_PM; /* revert to generic egg or empty tin */
         }
+        if ((appear == STATUE || appear == FIGURINE || appear == CORPSE) && mndx == NON_PM)
+            mndx = LOW_PM; /* Insurance */
         newmcorpsenm(mtmp);
-        if(has_mcorpsenm(mtmp))
+        if(has_mextra_for_mcorpsenm(mtmp))
             MCORPSENM(mtmp) = mndx;
     }
 
@@ -4917,6 +4992,7 @@ struct monst* mon_mmonst;
         mtmp2->nmon = (struct monst*)0;
         //mtmp2->data = (struct permonst *) 0; /* This sounds very dangerous to set to zero */
         mtmp2->minvent = (struct obj*)0;
+        mtmp2->mw = (struct obj*)0;
         if (mon_mmonst->mextra)
             copy_mextra(mtmp2, mon_mmonst);
     }
@@ -4939,6 +5015,9 @@ boolean copyof;
         if (copyof) {
             mnew = newmonst();
             *mnew = *mon_mmonst;
+            mnew->m_id = context.ident++;
+            if (!mnew->m_id) /* ident overflowed */
+                mnew->m_id = context.ident++;
             mnew->mextra = (struct mextra*)0;
             if (mon_mmonst->mextra)
                 copy_mextra(mnew, mon_mmonst);
@@ -4970,11 +5049,8 @@ struct obj* obj_mobj;
         obj2->oextra = (struct oextra*)0;
 
         /* invalidate pointers */
-        /* m_id is needed to know if this is a revived quest leader */
-        /* but m_id must be cleared when loading bones */
         obj2->nobj = (struct obj*)0;
         obj2->nexthere = (struct obj*)0;
-        //mtmp2->data = (struct permonst *) 0; /* This sounds very dangerous to set to zero */
         obj2->cobj = (struct obj*)0;
         if (obj_mobj->oextra)
             copy_oextra(obj2, obj_mobj);
@@ -4998,6 +5074,9 @@ boolean copyof;
         if (copyof) {
             onew = newobj();
             *onew = *obj_mobj;
+            onew->o_id = context.ident++;
+            if (!onew->o_id) /* ident overflowed */
+                onew->o_id = context.ident++;
             onew->oextra = (struct oextra*)0;
             if (obj_mobj->oextra)
                 copy_oextra(onew, obj_mobj);

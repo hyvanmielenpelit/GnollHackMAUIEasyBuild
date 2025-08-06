@@ -46,6 +46,7 @@
 STATIC_DCL void FDECL(init_rumors, (dlb *));
 STATIC_DCL void FDECL(init_oracles, (dlb *));
 STATIC_DCL void FDECL(couldnt_open_file, (const char *));
+STATIC_DCL int NDECL(num_oracles);
 STATIC_DCL int NDECL(count_remaining_major_consultations);
 
 /* rumor size variables are signed so that value -1 can be used as a flag */
@@ -431,6 +432,32 @@ dlb *fp;
 }
 
 STATIC_OVL int
+num_oracles(VOID_ARGS)
+{
+    int res = 0;
+    boolean is_dlb_init = dlb_is_initialized();
+    if (!is_dlb_init)
+        dlb_init();
+    dlb* fp = dlb_fopen(ORACLEFILE, "r");
+    if (fp)
+    {
+        char line[BUFSZ];
+        int cnt = 0;
+
+        /* this assumes we're only called once */
+        (void)dlb_fgets(line, sizeof line, fp); /* skip "don't edit" comment*/
+        (void)dlb_fgets(line, sizeof line, fp);
+        if (sscanf(line, "%5d\n", &cnt) == 1 && cnt > 0)
+            res = cnt - 1; /* Do not count special at zero */
+        (void)dlb_fclose(fp);
+    }
+    if (!is_dlb_init)
+        dlb_cleanup();
+    return res;
+}
+
+
+STATIC_OVL int
 count_remaining_major_consultations(VOID_ARGS)
 {
     int cnt = 0;
@@ -441,6 +468,15 @@ count_remaining_major_consultations(VOID_ARGS)
             cnt++;
     }
     return cnt;
+}
+
+int
+get_number_of_oracle_major_consultations(VOID_ARGS)
+{
+    if (!oracle_cnt)
+        return num_oracles();
+    else
+        return (int)oracle_cnt;
 }
 
 void
@@ -556,11 +592,14 @@ int oraclesstyle; /* 0 = cookie, 1 = oracle, 2 = spell */
         if (mtmp && oraclesstyle == 1)
             play_voice_oracle_major_consultation(mtmp, (int)used_oracle_idx - 1);
 
+        char titlebuf[BUFSZ] = "";
         while (dlb_fgets(line, COLNO, oracles) && strcmp(line, "---\n"))
         {
             if ((endp = index(line, '\n')) != 0)
                 *endp = 0;
             char* xcryptbuf = xcrypt(line, xbuf);
+            if (!*titlebuf)
+                Strcpy(titlebuf, xcryptbuf);
             putstr(tmpwin, 0, xcryptbuf);
             if(!u.uevent.elbereth_known && strstri(xcryptbuf, "Elbereth"))
                 u.uevent.elbereth_known = 1;
@@ -571,6 +610,8 @@ int oraclesstyle; /* 0 = cookie, 1 = oracle, 2 = spell */
                 context.quest_flags |= QUEST_FLAGS_HEARD_OF_BOOK | QUEST_FLAGS_HEARD_OF_BELL | QUEST_FLAGS_HEARD_OF_MENORAH | QUEST_FLAGS_HEARD_OF_VIBRATING_SQUARE | QUEST_FLAGS_HEARD_OF_AMULET_IN_SANCTUM | QUEST_FLAGS_HEARD_OF_AMULET_IN_GEHENNOM;
             }
         }
+        if (!special)
+            issue_gui_command(GUI_CMD_ORACLE_MAJOR_CONSULTATION, tmpwin, (int)used_oracle_idx, titlebuf);
         display_nhwindow(tmpwin, TRUE);
         destroy_nhwindow(tmpwin);
 
@@ -842,12 +883,16 @@ struct monst* oracl;
     Sprintf(qbuf, "\"Dost thou desire to enlighten yourself?\" (%lld %s)",
         (long long)enl_cost, currency(enl_cost));
     if (yn_query(qbuf) != 'y')
+    {
+        stop_all_dialogue_of_mon_on_mobile(oracl);
         return 0;
+    }
 
     if (umoney < enl_cost)
     {
         play_sfx_sound(SFX_NOT_ENOUGH_MONEY);
         You_ex1_popup("don't have enough money for that!", "Not Enough Money", ATR_NONE, CLR_MSG_FAIL, NO_GLYPH, POPUP_FLAGS_NONE);
+        stop_all_dialogue_of_mon_on_mobile(oracl);
         return 0;
     }
     u_pay = enl_cost;
@@ -860,6 +905,7 @@ struct monst* oracl;
     display_nhwindow(WIN_MESSAGE, FALSE);
     enlightenment(MAGICENLIGHTENMENT, ENL_GAMEINPROGRESS);
 
+    stop_all_dialogue_of_mon_on_mobile(oracl);
     return 1;
 }
 

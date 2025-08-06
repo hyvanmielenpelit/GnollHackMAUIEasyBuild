@@ -16,7 +16,7 @@
 STATIC_DCL void FDECL(simple_look, (struct obj *, BOOLEAN_P));
 STATIC_DCL boolean FDECL(query_classes, (char *, boolean *, boolean *,
                                          const char *, struct obj *,
-                                         BOOLEAN_P, int *));
+                                         BOOLEAN_P, int *, int));
 STATIC_DCL boolean FDECL(fatal_corpse_mistake, (struct obj *, BOOLEAN_P));
 STATIC_DCL void FDECL(check_here, (BOOLEAN_P));
 STATIC_DCL boolean FDECL(n_or_more, (struct obj *));
@@ -53,18 +53,19 @@ STATIC_PTR int FDECL(pickup_and_in_container_nobot, (struct obj*));
 STATIC_DCL void FDECL(removed_from_icebox, (struct obj *));
 STATIC_DCL int64_t FDECL(mbag_item_gone, (int, struct obj *));
 STATIC_DCL void FDECL(explain_container_prompt, (BOOLEAN_P));
-STATIC_DCL int FDECL(traditional_loot, (int, struct obj*, struct obj*));
-STATIC_DCL int FDECL(menu_loot, (int, int, struct obj*, struct obj*));
+STATIC_DCL int FDECL(traditional_loot, (int, struct obj*, struct obj*, int));
+STATIC_DCL int FDECL(menu_loot, (int, int, struct obj*, struct obj*, int));
 STATIC_DCL char FDECL(in_or_out_menu, (const char *, struct obj *, BOOLEAN_P,
-                                       BOOLEAN_P, BOOLEAN_P, BOOLEAN_P));
+                                       BOOLEAN_P, BOOLEAN_P, BOOLEAN_P, int));
 STATIC_DCL boolean FDECL(able_to_loot, (int, int, BOOLEAN_P));
 STATIC_DCL boolean NDECL(reverse_loot);
 //STATIC_DCL boolean FDECL(mon_beside, (int, int));
-STATIC_DCL int FDECL(do_loot_cont, (struct obj **, int, int));
+STATIC_DCL int FDECL(do_loot_cont, (struct obj **, int, int, int));
 STATIC_DCL void FDECL(tipcontainer, (struct obj *));
 STATIC_DCL void FDECL(loot_decoration, (int, int, int, boolean*));
 STATIC_OVL boolean FDECL(check_nonmergeable_nobj, (struct obj*));
 STATIC_DCL boolean FDECL(check_nonmergeable_pick_list, (menu_item*, int, int));
+STATIC_DCL int FDECL(doloot_core, (int));
 
 /* define for query_objlist() and autopickup() */
 #define FOLLOW(curr, flags) \
@@ -153,13 +154,14 @@ int *itemcount;
  *          (ie, treated as if it had just been "?a").
  */
 STATIC_OVL boolean
-query_classes(oclasses, one_at_a_time, everything, action, objs, here, menu_on_demand)
+query_classes(oclasses, one_at_a_time, everything, action, objs, here, menu_on_demand, applymode)
 char oclasses[];
 boolean *one_at_a_time, *everything;
 const char *action;
 struct obj *objs;
 boolean here;
 int *menu_on_demand;
+int applymode;
 {
     char ilets[BUFSZ], inbuf[BUFSZ] = DUMMY; /* FIXME: hardcoded ilets[] length */
     int iletct, oclassct;
@@ -221,9 +223,16 @@ int *menu_on_demand;
         oclasses[oclassct = 0] = '\0';
         *one_at_a_time = *everything = FALSE;
         not_everything = filtered = FALSE;
-        Sprintf(qbuf, "What kinds of thing do you want to %s?", action);
-        Sprintf(ebuf, "[%s]", ilets);
-        getlin_ex(GETLINE_GENERAL, ATR_NONE, NO_COLOR, qbuf, inbuf, (char*)0, ebuf, (char*)0);
+        if (applymode && index(ilets, 'a'))
+        {
+            Strcpy(inbuf, "a");
+        }
+        else
+        {
+            Sprintf(qbuf, "What kinds of thing do you want to %s?", action);
+            Sprintf(ebuf, "[%s]", ilets);
+            getlin_ex(GETLINE_GENERAL, ATR_NONE, NO_COLOR, qbuf, inbuf, (char*)0, ebuf, (char*)0);
+        }
         if (*inbuf == '\033')
             return FALSE;
 
@@ -246,7 +255,7 @@ int *menu_on_demand;
             }
             else if (sym == 'i') 
             {
-                (void) display_inventory((char *) 0, TRUE, 1);
+                (void) display_inventory((char *) 0, TRUE, SHOWWEIGHTS_INVENTORY);
                 goto ask_again;
             }
             else if (sym == 'm') 
@@ -305,7 +314,7 @@ struct obj *obj;
 boolean remotely;
 {
     if (uarmg || remotely || obj->otyp != CORPSE
-        || !touch_petrifies(&mons[obj->corpsenm]) || Stone_resistance)
+        || (obj->corpsenm >= LOW_PM && !touch_petrifies(&mons[obj->corpsenm])) || Stone_resistance)
         return FALSE;
 
     if (poly_when_stoned(youmonst.data) && polymon(PM_STONE_GOLEM)) {
@@ -354,12 +363,15 @@ boolean picked_some;
     }
 
     /* If there are objects here, take a look. */
-    if (ct) {
-        if (context.run)
+    if (ct) 
+    {
+        if (context.run && !(context.run == RUNCONTEXT_TRAVEL && flags.ignore_stopping))
             nomul(0);
         flush_screen(1);
         (void) look_here(ct, picked_some, FALSE);
-    } else {
+    }
+    else
+    {
         read_engr_at(u.ux, u.uy);
     }
 }
@@ -644,8 +656,7 @@ boolean do_auto_in_bag;
         }
 
         /* if there's anything here, stop running */
-        if (OBJ_AT(u.ux, u.uy) && context.run && context.run != 8
-            && !context.nopick)
+        if (OBJ_AT(u.ux, u.uy) && context.run && context.run != RUNCONTEXT_TRAVEL && !context.nopick)
             nomul(0);
     }
 
@@ -684,7 +695,7 @@ boolean do_auto_in_bag;
             Sprintf(qbuf, "Pick%s %d of what?", do_auto_in_bag ? " and out into bag" : "", count);
             val_for_n_or_more = count; /* set up callback selector */
             n = query_objlist(qbuf, objchain_p, traverse_how | OBJECT_COMPARISON,
-                              &pick_list, PICK_ONE, n_or_more, 2);
+                              &pick_list, PICK_ONE, n_or_more, SHOWWEIGHTS_PICKUP);
             /* correct counts, if any given */
             for (i = 0; i < n; i++)
                 pick_list[i].count = count;
@@ -693,7 +704,7 @@ boolean do_auto_in_bag;
         {
             n = query_objlist(do_auto_in_bag ? "Pick up and auto-stash what?" : "Pick up what?", objchain_p,
                               (traverse_how | FEEL_COCKATRICE | OBJECT_COMPARISON),
-                              &pick_list, PICK_ANY, all_but_uchain, 2);
+                              &pick_list, PICK_ANY, all_but_uchain, SHOWWEIGHTS_PICKUP);
         }
 
     menu_pickup:
@@ -701,7 +712,7 @@ boolean do_auto_in_bag;
         for (n_picked = i = 0; i < n; i++) 
         {
             uchar obj_gone = FALSE;
-            res = pickup_object(pick_list[i].item.a_obj, pick_list[i].count, FALSE, do_auto_in_bag, &obj_gone);
+            res = pickup_object(pick_list[i].item.a_obj, pick_list[i].count, FALSE, do_auto_in_bag || (autopickup && flags.stash_on_autopickup && (!flags.pickup_thrown || !pick_list[i].item.a_obj->was_thrown)), &obj_gone);
             if (res < 0)
                 break; /* can't continue */
             n_picked += res;
@@ -734,7 +745,7 @@ boolean do_auto_in_bag;
             obj = *objchain_p;
             lcount = min(obj->quan, (int64_t) count);
             n_tried++;
-            if (pickup_object(obj, lcount, FALSE, do_auto_in_bag, (uchar*)0) > 0)
+            if (pickup_object(obj, lcount, FALSE, do_auto_in_bag || (autopickup && flags.stash_on_autopickup && (!flags.pickup_thrown || !obj->was_thrown)), (uchar*)0) > 0)
                 n_picked++; /* picked something */
             goto end_query;
         } 
@@ -746,7 +757,7 @@ boolean do_auto_in_bag;
             if (!query_classes(oclasses, &selective, &all_of_a_type,
                 do_auto_in_bag ? "pick up and auto-stash" : "pick up", *objchain_p,
                                (traverse_how & BY_NEXTHERE) ? TRUE : FALSE,
-                               &via_menu)) 
+                               &via_menu, 0)) 
             {
                 if (!via_menu)
                     goto pickupdone;
@@ -755,7 +766,7 @@ boolean do_auto_in_bag;
                 n = query_objlist(do_auto_in_bag ? "Pick up and auto-stash what?" : "Pick up what?", objchain_p, traverse_how | OBJECT_COMPARISON,
                                   &pick_list, PICK_ANY,
                                   (via_menu == -2) ? allow_all
-                                                   : allow_category, 2);
+                                                   : allow_category, SHOWWEIGHTS_PICKUP);
                 goto menu_pickup;
             }
         }
@@ -807,7 +818,7 @@ boolean do_auto_in_bag;
                 lcount = obj->quan;
 
             n_tried++;
-            if ((res = pickup_object(obj, lcount, FALSE, do_auto_in_bag, (uchar*)0)) < 0)
+            if ((res = pickup_object(obj, lcount, FALSE, do_auto_in_bag || (autopickup && flags.stash_on_autopickup && (!flags.pickup_thrown || !obj->was_thrown)), (uchar*)0)) < 0)
                 break;
             n_picked += res;
         }
@@ -851,7 +862,7 @@ uchar noncoin_nonmergeable_found;
     {
         if (*used_container_ptr)
         {
-            if (!stash_obj_in_container(obj, *used_container_ptr))
+            if (stash_obj_in_container(obj, *used_container_ptr) <= 0) /* -1 if BoH blew up, 0 if couldn't do; stop in both cases */
                 return -1;
         }
         else if (i < n - 1 && inv_cnt(FALSE) >= 52)
@@ -861,22 +872,23 @@ uchar noncoin_nonmergeable_found;
                 if (flags.knapsack_prompt)
                 {
                     bot();
-                    Your_ex1(ATR_NONE, CLR_MSG_ATTENTION, "knapsack cannot accommodate any more items.");
+                    Your_ex1(ATR_NONE, CLR_MSG_ATTENTION, "inventory cannot accommodate any more items.");
                     char qbuf[QBUFSZ];
                     Sprintf(qbuf, "Stash %s and the remaining items into a container?", thecxname(obj));
-                    char ans = yn_function_es(YN_STYLE_KNAPSACK_FULL, ATR_NONE, CLR_MSG_ATTENTION, "Your Knapsack Is Full", qbuf, ynaqchars, 'a', ynaq3descs, (const char*)0);
+                    char ans = yn_function_es(YN_STYLE_KNAPSACK_FULL, ATR_NONE, CLR_MSG_ATTENTION, "Your Inventory Is Full", qbuf, ynaqchars, 'a', ynaq3descs, (const char*)0);
                     switch (ans)
                     {
                     default:
                     case 'a':
-                        (void)auto_bag_in(invent, obj, FALSE);
                         *do_auto_in_bag_ptr = TRUE;
+                        if (auto_bag_in(invent, obj, FALSE) <= 0) /* -1 if BoH blew up, 0 if couldn't do; stop in both cases */
+                            return -1;
                         break;
                     case 'y':
                         *used_container_ptr = select_other_container(invent, (struct obj*)0, FALSE);
                         if (*used_container_ptr)
                         {
-                            if (!stash_obj_in_container(obj, *used_container_ptr))
+                            if (stash_obj_in_container(obj, *used_container_ptr) <= 0) /* -1 if BoH blew up, 0 if couldn't do; stop in both cases */
                                 return -1;
                         }
                         else
@@ -886,10 +898,6 @@ uchar noncoin_nonmergeable_found;
                         return -1;
                     case 'q':
                         return -1;
-                    }
-                    if (ans == 'a')
-                    {
-                        *do_auto_in_bag_ptr = TRUE;
                     }
                 }
                 else
@@ -909,7 +917,7 @@ handle_knapsack_full(VOID_ARGS)
     if (cnt > 0)
     {
         /* Ask for putting things in a bag or drop items */
-        char ans = yn_function_es(YN_STYLE_KNAPSACK_FULL, ATR_NONE, CLR_MSG_ATTENTION, "Your Knapsack Is Full", "Stash items into a container or Drop them?", sadqchars, 'q', sadqdescs, (const char*)0);
+        char ans = yn_function_es(YN_STYLE_KNAPSACK_FULL, ATR_NONE, CLR_MSG_ATTENTION, "Your Inventory Is Full", "Stash items into a container or Drop them?", sadqchars, 'q', sadqdescs, (const char*)0);
         switch (ans)
         {
         case 's':
@@ -920,9 +928,9 @@ handle_knapsack_full(VOID_ARGS)
                     current_container = container;
                     add_valid_menu_class(0); /* reset */
                     if (flags.menu_style == MENU_TRADITIONAL)
-                        more_action |= traditional_loot(1, (struct obj*)0, (struct obj*)0);
+                        more_action |= traditional_loot(1, (struct obj*)0, (struct obj*)0, 2);
                     else
-                        more_action |= (menu_loot(0, 1, (struct obj*)0, (struct obj*)0) > 0);
+                        more_action |= (menu_loot(0, 1, (struct obj*)0, (struct obj*)0, 2) > 0);
                     add_valid_menu_class(0);
                     if (more_action)
                         update_inventory();
@@ -1049,6 +1057,27 @@ menu_item **pick_list; /* list of objects and counts to pick up */
     return n;
 }
 
+boolean
+loadstone_weight_shown_correctly(show_weights)
+int show_weights;
+{
+    boolean loadstonecorrectly = FALSE;
+
+    switch (show_weights)
+    {
+    case SHOWWEIGHTS_INVENTORY:
+    case SHOWWEIGHTS_DROP:
+        loadstonecorrectly = TRUE;
+        break;
+    case SHOWWEIGHTS_PICKUP:
+        loadstonecorrectly = (boolean)objects[LOADSTONE].oc_name_known;
+        break;
+    default:
+        break;
+    }
+    return loadstonecorrectly;
+}
+
 /*
  * Put up a menu using the given object list.  Only those objects on the
  * list that meet the approval of the allow function are displayed.  Return
@@ -1090,16 +1119,7 @@ int show_weights;
     unsigned sortflags;
     Loot *sortedolist, *srtoli;
     int wtcount = 0;
-
-    boolean loadstonecorrectly = FALSE;
-
-    if (show_weights == 1) // Inventory
-        loadstonecorrectly = TRUE;
-    else if (show_weights == 2) { // Pick up
-        loadstonecorrectly = (boolean)objects[LOADSTONE].oc_name_known;
-    }
-    else if (show_weights == 3) // Drop or sell
-        loadstonecorrectly = TRUE;
+    boolean loadstonecorrectly = loadstone_weight_shown_correctly(show_weights);
 
     *pick_list = (menu_item *) 0;
     if (!olist && !engulfer)
@@ -1204,7 +1224,7 @@ int show_weights;
                 memset(attrs, ATR_NONE, sizeof(attrs));
                 memset(colors, NO_COLOR, sizeof(colors));
                 Strcpy(objbuf, 
-                    show_weights > 0 ? 
+                    show_weights > SHOWWEIGHTS_NONE ? 
                     (flags.inventory_weights_last ? doname_with_price_and_weight_last(curr, loadstonecorrectly) : doname_with_price_and_weight_first(curr, loadstonecorrectly)) : 
                     doname_with_price(curr));
                 struct extended_menu_info eminfo = obj_to_extended_menu_info(curr);
@@ -1294,12 +1314,13 @@ int show_weights;
  *
  */
 int
-query_category(qstr, olist, qflags, pick_list, how)
+query_category(qstr, olist, qflags, pick_list, how, applymode)
 const char *qstr;      /* query string */
 struct obj *olist;     /* the list to pick from */
 int qflags;            /* behaviour modification flags */
 menu_item **pick_list; /* return list of items picked */
 int how;               /* type of query */
+int applymode;
 {
     int n;
     winid win;
@@ -1377,6 +1398,13 @@ int how;               /* type of query */
             debugpline0("query_category: no single object match");
         }
         return 0;
+    }
+
+    if (applymode && ((qflags & ALL_TYPES) != 0 || ccount == 1))
+    {
+        *pick_list = (menu_item*)alloc(sizeof(menu_item));
+        (*pick_list)->item.a_int = ALL_TYPES_SELECTED;
+        return 1;
     }
 
     win = create_nhwindow(NHW_MENU);
@@ -1777,7 +1805,7 @@ boolean telekinesis;
            "grandcaller" aren't prepared to skip stuff and then pickup
            just gold, so the best we can do here is vary the message */
         play_ui_sound(UI_SOUND_KNAPSACK_FULL);
-        Your_ex(ATR_NONE, CLR_MSG_ATTENTION, "knapsack cannot accommodate any more items%s.",
+        Your_ex(ATR_NONE, CLR_MSG_ATTENTION, "inventory cannot accommodate any more items%s.",
             /* floor follows by nexthere, otherwise container so by nobj */
             nxtobj(obj, GOLD_PIECE, (boolean)(obj->where == OBJ_FLOOR))
             ? " (except gold)" : "");        
@@ -1890,6 +1918,7 @@ uchar* obj_gone_ptr; /* 1 = merged, 2 = put in bag, 3 = gone */
             if (!(objects[SCR_SCARE_MONSTER].oc_name_known)
                 && !(objects[SCR_SCARE_MONSTER].oc_uname))
                 docall(obj, dcbuf);
+            Sprintf(priority_debug_buf_2, "pickup_object: %d", obj->otyp);
             useupf(obj, obj->quan);
             if (obj_gone_ptr) /* gone */
                 *obj_gone_ptr = 3;
@@ -1944,27 +1973,29 @@ boolean bynexthere;
     struct obj* bag_of_treasure_hauling = 0;
     struct obj* bag_of_wizardry = 0;
     struct obj* normal_bag = 0;
+    /* Note: If you know cancellation, then you know all other similar wands such as Rod of Disjunction / wand of disjunction */
+    boolean maybe_cancellation = (objects[obj->otyp].oc_name_known || objects[WAN_CANCELLATION].oc_name_known ? (objects[obj->otyp].oc_flags5 & O5_MBAG_DESTROYING_ITEM) != 0 : obj->oclass == WAND_CLASS);
 
     for (curr = objchn_container; curr; curr = (bynexthere ? curr->nexthere : curr->nobj))
     {
         if (objects[curr->otyp].oc_name_known && curr != obj && !curr->olocked)
         {
-            if (curr->otyp == BAG_OF_HOLDING && curr->bknown && !curr->cursed && obj->oclass != WAND_CLASS)
+            if (curr->otyp == BAG_OF_HOLDING && curr->bknown && !curr->cursed && !maybe_cancellation)
             {
                 if (!bag_of_holding || (curr->blessed && !bag_of_holding->blessed))
                     bag_of_holding = curr;
             }
-            else if (curr->otyp == BAG_OF_THE_GLUTTON && curr->bknown && !curr->cursed)
+            else if (curr->otyp == BAG_OF_THE_GLUTTON && curr->bknown && !curr->cursed && !maybe_cancellation)
             {
                 if (!bag_of_the_glutton || (curr->blessed && !bag_of_the_glutton->blessed))
                     bag_of_the_glutton = curr;
             }
-            else if (curr->otyp == BAG_OF_TREASURE_HAULING && curr->bknown && !curr->cursed)
+            else if (curr->otyp == BAG_OF_TREASURE_HAULING && curr->bknown && !curr->cursed && !maybe_cancellation)
             {
                 if (!bag_of_treasure_hauling || (curr->blessed && !bag_of_treasure_hauling->blessed))
                     bag_of_treasure_hauling = curr;
             }
-            else if (curr->otyp == BAG_OF_WIZARDRY && curr->bknown && !curr->cursed)
+            else if (curr->otyp == BAG_OF_WIZARDRY && curr->bknown && !curr->cursed && !maybe_cancellation)
             {
                 if (!bag_of_wizardry || (curr->blessed && !bag_of_wizardry->blessed))
                     bag_of_wizardry = curr;
@@ -1994,28 +2025,27 @@ boolean bynexthere;
     if (!num_choices)
         return 0;
 
-    boolean maybe_cancellation = (objects[obj->otyp].oc_name_known || objects[WAN_CANCELLATION].oc_name_known ? (objects[obj->otyp].oc_flags5 & O5_MBAG_DESTROYING_ITEM) != 0 : obj->oclass == WAND_CLASS);
     switch (flags.auto_bag_in_style)
     {
     case 0:
     default:
     {
         struct obj* used_container = 0;
-        if (!used_container && bag_of_treasure_hauling && is_obj_weight_reduced_by_treasure_hauling(obj) && !maybe_cancellation)
+        if (!used_container && bag_of_treasure_hauling && is_obj_weight_reduced_by_treasure_hauling(obj))
             used_container = bag_of_treasure_hauling;
-        if (!used_container && bag_of_wizardry && is_obj_weight_reduced_by_wizardry(obj) && !maybe_cancellation)
+        if (!used_container && bag_of_wizardry && is_obj_weight_reduced_by_wizardry(obj))
             used_container = bag_of_wizardry;
-        if (!used_container && bag_of_the_glutton && is_obj_weight_reduced_by_the_glutton(obj) && !maybe_cancellation)
+        if (!used_container && bag_of_the_glutton && is_obj_weight_reduced_by_the_glutton(obj))
             used_container = bag_of_the_glutton;
-        if (!used_container && bag_of_holding && !maybe_cancellation)
+        if (!used_container && bag_of_holding)
             used_container = bag_of_holding;
         if (!used_container && normal_bag)
             used_container = normal_bag;
-        if (!used_container && bag_of_treasure_hauling && !maybe_cancellation)
+        if (!used_container && bag_of_treasure_hauling)
             used_container = bag_of_treasure_hauling;
-        if (!used_container && bag_of_wizardry && !maybe_cancellation)
+        if (!used_container && bag_of_wizardry)
             used_container = bag_of_wizardry;
-        if (!used_container && bag_of_the_glutton && !maybe_cancellation)
+        if (!used_container && bag_of_the_glutton)
             used_container = bag_of_the_glutton;
         if (used_container)
             return stash_obj_in_container(obj, used_container);
@@ -2041,7 +2071,7 @@ boolean bynexthere_container, bynexthere_obj;
         if (!Is_container(curr) && !unfit_for_container(curr))
         {
             fitcnt++;
-            if (!(objects[curr->otyp].oc_name_known ? (objects[curr->otyp].oc_flags5 & O5_MBAG_DESTROYING_ITEM) != 0 : curr->oclass == WAND_CLASS))
+            if (!(objects[curr->otyp].oc_name_known || objects[WAN_CANCELLATION].oc_name_known ? (objects[curr->otyp].oc_flags5 & O5_MBAG_DESTROYING_ITEM) != 0 : curr->oclass == WAND_CLASS))
                 no_cancellation_cnt++;
         }
     }
@@ -2074,6 +2104,11 @@ boolean bynexthere_container, bynexthere_obj;
             {
                 cnt++;
             }
+        }
+        else if (curr->cknown && Is_proper_container(curr) && curr->bknown && !curr->cursed && no_cancellation_cnt > 0 && (objects[curr->otyp].oc_flags4 & (O4_CONTAINER_ACCEPTS_ONLY_SCROLLS_AND_BOOKS | O4_CONTAINER_ACCEPTS_ONLY_WEAPONS)) == 0)
+        {
+            /* Is a real container based on contents, but it may or may not be a magic bag, so we need to know that it is not cursed */
+            cnt++;
         }
     }
     return cnt;
@@ -2271,9 +2306,9 @@ int x, y;
 #endif
 
 int
-do_loot_cont(cobjp, cindex, ccount)
+do_loot_cont(cobjp, cindex, ccount, applymode)
 struct obj **cobjp;
-int cindex, ccount; /* index of this container (1..N), number of them (N) */
+int cindex, ccount, applymode; /* index of this container (1..N), number of them (N) */
 {
     if (!cobjp)
         return 0;
@@ -2337,8 +2372,11 @@ int cindex, ccount; /* index of this container (1..N), number of them (N) */
     }
     else if (cobj->otyp == POUCH_OF_ENDLESS_BOLTS || cobj->otyp == QUIVER_OF_INFINITE_ARROWS || cobj->otyp == BAG_OF_INFINITE_SLING_BULLETS) {
         You("carefully open %s...", the(xname(cobj)));
-        if(cobj->cooldownleft > 0)
+        if (cobj->cooldownleft > 0)
+        {
+            play_sfx_sound(SFX_GENERAL_THAT_DID_NOTHING);
             You("find nothing but void inside.");
+        }
         else
             (void)endlessarrows(cobj, (cobj->otyp == BAG_OF_INFINITE_SLING_BULLETS ? SLING_BULLET : cobj->otyp == POUCH_OF_ENDLESS_BOLTS ? CROSSBOW_BOLT : ARROW), rnd(10) + 10);
         abort_looting = TRUE;
@@ -2369,7 +2407,7 @@ int cindex, ccount; /* index of this container (1..N), number of them (N) */
         }
     }
 
-    return use_container(cobjp, 0, (boolean) (cindex < ccount));
+    return use_container(cobjp, 0, (boolean) (cindex < ccount), applymode);
 }
 
 boolean
@@ -2488,7 +2526,7 @@ boolean* got_something_ptr;
                 Strcpy(debug_buf_2, "loot_decoration");
                 obj_extract_self(newobj);
                 newobj = hold_another_object(newobj, "Oops!  %s out of your grasp!",
-                    The(aobjnam(newobj, "slip")), (const char*)0);
+                    The(aobjnam(newobj, "slip")), (const char*)0, TRUE);
             }
         }
     }
@@ -2508,7 +2546,7 @@ boolean* got_something_ptr;
                 *got_something_ptr = TRUE;
                 play_simple_object_sound_at_location(newobj, u.ux, u.uy, OBJECT_SOUND_TYPE_PICK_UP);
                 newobj = hold_another_object(newobj, "Oops!  %s out of your grasp!",
-                    The(aobjnam(newobj, "slip")), (const char*)0);
+                    The(aobjnam(newobj, "slip")), (const char*)0, TRUE);
             }
         }
     }
@@ -2516,7 +2554,29 @@ boolean* got_something_ptr;
 
 /* loot a container on the floor or loot saddle from mon. */
 int
-doloot()
+doloot(VOID_ARGS)
+{
+    int res = doloot_core(0);
+    return res;
+}
+
+int
+dolootout(VOID_ARGS)
+{
+    int res = doloot_core(1);
+    return res;
+}
+
+int
+dolootin(VOID_ARGS)
+{
+    int res = doloot_core(2);
+    return res;
+}
+
+STATIC_OVL int
+doloot_core(applymode)
+int applymode;
 {
     struct obj *cobj, *nobj;
     register int c = -1;
@@ -2534,22 +2594,26 @@ doloot()
 
     abort_looting = FALSE;
 
-    if (check_capacity((char *) 0)) {
+    if (check_capacity((char *) 0)) 
+    {
         /* "Can't do that while carrying so much stuff." */
         play_sfx_sound(SFX_GENERAL_CURRENTLY_UNABLE_TO_DO);
         return 0;
     }
 #if 0
-    if (nohands(youmonst.data) && !is_telekinetic_operator(youmonst.data)) {
+    if (nohands(youmonst.data) && !is_telekinetic_operator(youmonst.data)) 
+    {
         play_sfx_sound(SFX_GENERAL_CURRENT_FORM_DOES_NOT_ALLOW);
         You("have no hands!"); /* not `body_part(HAND)' */
         return 0;
     }
 #endif
-    if (Confusion) {
+    if (Confusion) 
+    {
         if (rn2(6) && reverse_loot())
             return 1;
-        if (rn2(2)) {
+        if (rn2(2)) 
+        {
             play_sfx_sound(SFX_GENERAL_NOTHING_THERE);
             pline_ex(ATR_NONE, CLR_MSG_FAIL, "Being confused, you find nothing to loot.");
             return 1; /* costs a turn */
@@ -2562,7 +2626,8 @@ doloot()
         goto lootmon;
 
  lootcont:
-    if ((num_conts = container_at(cc.x, cc.y, TRUE)) > 0) {
+    if ((num_conts = container_at(cc.x, cc.y, TRUE)) > 0) 
+    {
         boolean anyfound = FALSE;
 
         if (!able_to_loot(cc.x, cc.y, TRUE))
@@ -2571,13 +2636,14 @@ doloot()
             return 0;
         }
 
-        if (Blind && !uarmg) {
+        if (Blind && !uarmg) 
+        {
             /* if blind and without gloves, attempting to #loot at the
                location of a cockatrice corpse is fatal before asking
                whether to manipulate any containers */
-            for (nobj = sobj_at(CORPSE, cc.x, cc.y); nobj;
-                 nobj = nxtobj(nobj, CORPSE, TRUE))
-                if (will_feel_cockatrice(nobj, FALSE)) {
+            for (nobj = sobj_at(CORPSE, cc.x, cc.y); nobj; nobj = nxtobj(nobj, CORPSE, TRUE))
+                if (will_feel_cockatrice(nobj, FALSE)) 
+                {
                     feel_cockatrice(nobj, FALSE);
                     /* if life-saved (or poly'd into stone golem),
                        terminate attempt to loot */
@@ -2585,7 +2651,8 @@ doloot()
                 }
         }
 
-        if (num_conts > 1) {
+        if (num_conts > 1) 
+        {
             /* use a menu to loot many containers */
             int n, i;
             winid win;
@@ -2596,22 +2663,27 @@ doloot()
             win = create_nhwindow(NHW_MENU);
             start_menu_ex(win, GHMENU_STYLE_PICK_ITEM_LIST);
 
-            for (cobj = level.objects[cc.x][cc.y]; cobj;
-                 cobj = cobj->nexthere)
-                if (Is_container(cobj)) {
+            for (cobj = level.objects[cc.x][cc.y]; cobj; cobj = cobj->nexthere)
+                if (Is_container(cobj)) 
+                {
+                    int glyph = obj_to_glyph(cobj, rn2_on_display_rng);
+                    int gui_glyph = maybe_get_replaced_glyph(glyph, cc.x, cc.y, data_to_replacement_info(glyph, LAYER_OBJECT, cobj, (struct monst*)0, 0UL, 0UL, 0UL, MAT_NONE, 0));
+                    struct extended_menu_info eminfo = obj_to_extended_menu_info(cobj);
                     any.a_obj = cobj;
-                    add_menu(win, NO_GLYPH, &any, 0, 0, ATR_NONE, NO_COLOR,
-                             doname(cobj), MENU_UNSELECTED);
+                    add_extended_menu(win, gui_glyph, &any, 0, 0, ATR_NONE, NO_COLOR, doname(cobj), MENU_UNSELECTED, eminfo);
                 }
             end_menu(win, "Loot which containers?");
             n = select_menu(win, PICK_ANY, &pick_list);
             destroy_nhwindow(win);
 
-            if (n > 0) {
-                for (i = 1; i <= n; i++) {
+            if (n > 0) 
+            {
+                for (i = 1; i <= n; i++) 
+                {
                     cobj = pick_list[i - 1].item.a_obj;
-                    timepassed |= do_loot_cont(&cobj, i, n);
-                    if (abort_looting) {
+                    timepassed |= do_loot_cont(&cobj, i, n, applymode);
+                    if (abort_looting) 
+                    {
                         /* chest trap or magic bag explosion or <esc> */
                         free((genericptr_t) pick_list);
                         return timepassed;
@@ -2621,21 +2693,30 @@ doloot()
             }
             if (n != 0)
                 c = 'y';
-        } else {
-            for (cobj = level.objects[cc.x][cc.y]; cobj; cobj = nobj) {
+        } 
+        else 
+        {
+            for (cobj = level.objects[cc.x][cc.y]; cobj; cobj = nobj) 
+            {
                 nobj = cobj->nexthere;
 
-                if (Is_container(cobj)) {
-                    c = ynq(safe_qbuf(qbuf, "There is ", " here, loot it?",
-                                      cobj, doname, ansimpleoname,
-                                      "a container"));
+                if (Is_container(cobj)) 
+                {
+                    if (!applymode)
+                        c = ynq(safe_qbuf(qbuf, "There is ",
+                            applymode == 1 ? " here, take items out of it?" : applymode == 2 ? " here, put items into it?" : " here, loot it?",
+                            cobj, doname, ansimpleoname,
+                            "a container"));
+                    else
+                        c = 'y';
+
                     if (c == 'q')
                         return timepassed;
                     if (c == 'n')
                         continue;
                     anyfound = TRUE;
 
-                    timepassed |= do_loot_cont(&cobj, 1, 1);
+                    timepassed |= do_loot_cont(&cobj, 1, 1, applymode);
                     if (abort_looting)
                         /* chest trap or magic bag explosion or <esc> */
                         return timepassed;
@@ -2644,7 +2725,9 @@ doloot()
             if (anyfound)
                 c = 'y';
         }
-    } else if (IS_GRAVE(levl[cc.x][cc.y].typ)) {
+    } 
+    else if (IS_GRAVE(levl[cc.x][cc.y].typ)) 
+    {
         play_sfx_sound(SFX_GENERAL_ANOTHER_ACTION_NEEDED);
         You_ex(ATR_NONE, CLR_MSG_FAIL, "need to dig up the grave to effectively loot it...");
     }
@@ -2905,7 +2988,7 @@ reverse_loot()
          */
         for (n = inv_cnt(TRUE), otmp = invent; otmp; --n, otmp = otmp->nobj)
             if (!rn2(n + 1)) {
-                prinv("You find old loot:", otmp, 0L);
+                prinvc("You find old loot:", otmp, 0L);
                 return TRUE;
             }
         return FALSE;
@@ -3029,7 +3112,7 @@ boolean do_auto_in_bag;
 
             }
             otmp = hold_another_object(otmp, "You drop %s!", doname(otmp),
-                                       (const char *) 0);
+                                       (const char *) 0, TRUE);
             nhUse(otmp);
             timepassed = rnd(3);
             if (prev_loot)
@@ -3120,6 +3203,9 @@ int
 stash_obj_in_container(obj, container)
 struct obj* obj, *container;
 {
+    if (!obj || !container)
+        return -1;
+
     struct obj* saved_container = current_container;
     current_container = container;
     int res = in_container(obj);
@@ -3174,7 +3260,16 @@ boolean dobot;
             pline_ex(ATR_NONE, CLR_MSG_FAIL, "Putting %s into itself would be an interesting topological exercise.", thecxname(obj));
         goto default_incontainer_end_here;
     }
-    else if (obj->owornmask & (W_ARMOR | W_ACCESSORY)) 
+    else if (unfit_for_container(obj))
+    {
+        play_sfx_sound(SFX_GENERAL_CANNOT);
+        if (dobot)
+            pline_ex(ATR_NONE, CLR_MSG_FAIL, "That does not fit into %s.", thecxname(current_container));
+        else
+            You_cant_ex(ATR_NONE, CLR_MSG_FAIL, "put %s into %s; it is too big.", thecxname(obj), thecxname(current_container));
+        goto default_incontainer_end_here;
+    }
+    else if (obj->owornmask & (W_ARMOR | W_ACCESSORY))
     {
         play_sfx_sound(SFX_GENERAL_CANNOT);
         if (dobot)
@@ -3283,7 +3378,7 @@ boolean dobot;
 
     /* boxes, boulders, and big statues can't fit into any container */
     if (obj->otyp == ICE_BOX || obj->otyp == BOOKSHELF || Is_box(obj) || obj->otyp == BOULDER
-        || (obj->otyp == STATUE && bigmonst(&mons[obj->corpsenm]))) 
+        || (obj->otyp == STATUE && obj->corpsenm >= LOW_PM && bigmonst(&mons[obj->corpsenm])))
     {
         /*
          *  xname() uses a static result array.  Save obj's name
@@ -3357,7 +3452,11 @@ boolean dobot;
 
         boolean destroyobj = !(is_obj_indestructible(obj) || obj->oartifact);
         if (destroyobj)
-            obfree(obj, (struct obj *) 0);
+        {
+            Sprintf(priority_debug_buf_4, "in_container_core1: %d, %d", current_container->otyp, obj->otyp);
+            obfree(obj, (struct obj*)0);
+            obj = 0;
+        }
 
         /* if carried, shop goods will be flagged 'unpaid' and obfree() will
            handle bill issues, but if on floor, we need to put them on bill
@@ -3385,29 +3484,35 @@ boolean dobot;
         }
 
         /* The artifact flies out last */
-        if (!destroyobj)
+        if (!destroyobj && obj)
         {
             dropy(obj);
             (void)scatter(obj->ox, obj->oy, 3, VIS_EFFECTS | MAY_HIT | MAY_DESTROY | MAY_FRACTURE, obj);
         }
 
+        Sprintf(priority_debug_buf_2, "in_container_core2: %d, %d", current_container->otyp, saved_otyp);
+        Sprintf(priority_debug_buf_3, "in_container_core2: %d, %d", current_container->otyp, saved_otyp);
+        Sprintf(priority_debug_buf_4, "in_container_core2: %d, %d", current_container->otyp, saved_otyp);
+        context.suppress_container_deletion_warning = 1;
         if (!floor_container)
             useup(current_container);
         else if (obj_here(current_container, u.ux, u.uy))
             useupf(current_container, current_container->quan);
         else
         {
+            context.suppress_container_deletion_warning = 0;
             panic("in_container:  bag not found.");
             return 0;
         }
+        context.suppress_container_deletion_warning = 0;
 
         losehp(adjust_damage(d(6, 6), (struct monst*)0, &youmonst, AD_PHYS, ADFLAGS_SPELL_DAMAGE), "magical explosion", KILLED_BY_AN);
         current_container = 0; /* baggone = TRUE; */
 
-        standard_hint("Putting a wand of cancellation into a magical bag will typically cause it explode. To avoid doing this accidently, put unidentified wands into a non-magical bag.", &u.uhint.bag_destroyed_by_cancellation);
+        standard_hint("Putting a wand of cancellation into a magical bag will typically cause it to explode. To avoid doing this accidently, put unidentified wands into a non-magical bag.", &u.uhint.bag_destroyed_by_cancellation);
     }
 
-    if (current_container) 
+    if (current_container && obj) 
     {
         Strcpy(buf, the(xname(current_container)));
         You("put %s into %s.", doname(obj), buf);
@@ -3416,6 +3521,8 @@ boolean dobot;
             play_object_container_in_sound(obj, current_container);
             delay_output_milliseconds(ITEM_PICKUP_DROP_DELAY);
         }
+
+        obj->bypass = 0; /* It will now leave the inventory */
 
         /* gold in container always needs to be added to credit */
         if (floor_container && obj->oclass == COIN_CLASS)
@@ -3744,6 +3851,7 @@ struct obj *item;
             loss = stolen_value(item, u.ux, u.uy, is_peaceful(shkp),
                                 TRUE);
     }
+    Sprintf(priority_debug_buf_4, "mbag_item_gone: %d", item->otyp);
     obfree(item, (struct obj *) 0);
     return loss;
 }
@@ -3778,6 +3886,7 @@ boolean makecat, givemsg;
         if (livecat) 
         {
             livecat->mpeaceful = 1;
+            livecat->mon_flags |= MON_FLAGS_SCHROEDINGERS_CAT;
             set_mhostility(livecat);
             if (givemsg) 
             {
@@ -3794,6 +3903,7 @@ boolean makecat, givemsg;
             {
                 Strcpy(debug_buf_2, "observe_quantum_cat");
                 obj_extract_self(deadcat);
+                Sprintf(priority_debug_buf_4, "observe_quantum_cat: %d", deadcat->otyp);
                 obfree(deadcat, (struct obj *) 0), deadcat = 0;
             }
             box->owt = weight(box);
@@ -3811,6 +3921,7 @@ boolean makecat, givemsg;
             deadcat->age = monstermoves;
             set_corpsenm(deadcat, PM_HOUSECAT);
             deadcat = oname(deadcat, sc);
+            deadcat->nknown = 1;
         }
         if (givemsg)
             pline_The_ex(ATR_NONE, CLR_MSG_ATTENTION, "%s inside the box is dead!",
@@ -3884,10 +3995,11 @@ u_handsy()
 STATIC_VAR const char stashable[] = { ALLOW_COUNT, COIN_CLASS, ALL_CLASSES, 0 };
 
 int
-use_container(objp, held, more_containers)
+use_container(objp, held, more_containers, applymode)
 struct obj **objp;
 int held;
 boolean more_containers; /* True iff #loot multiple and this isn't last one */
+int applymode; /* 0 = normal, 1 = take out items, 2 = put in items */
 {
     struct obj *otmp, *obj = *objp;
     boolean quantum_cat, cursed_mbag, loot_out, loot_in, loot_in_first,
@@ -3910,12 +4022,13 @@ boolean more_containers; /* True iff #loot multiple and this isn't last one */
 
     if (Is_magic_chest(obj) && insider)
     {
-        pline_ex(ATR_NONE, CLR_MSG_MYSTICAL, "A mysterious force prevents you from opening %s.", thecxname(obj));
         play_sfx_sound(SFX_MYSTERIOUS_FORCE_PREVENTS);
+        pline_ex(ATR_NONE, CLR_MSG_MYSTICAL, "A mysterious force prevents you from opening %s.", thecxname(obj));
         return 0;
     }
     else if (obj->olocked)
     {
+        play_simple_container_sound(obj, CONTAINER_SOUND_TYPE_TRY_LOCKED);
         pline("%s locked.", Tobjnam(obj, "are"));
         if (held)
             You("must put it down to unlock.");
@@ -3936,6 +4049,8 @@ boolean more_containers; /* True iff #loot multiple and this isn't last one */
             nomul(-1);
             multi_reason = "opening a container";
             nomovemsg = "";
+            nomovemsg_attr = ATR_NONE;
+            nomovemsg_color = NO_COLOR;
         }
         abort_looting = TRUE;
         return 1;
@@ -4034,7 +4149,7 @@ boolean more_containers; /* True iff #loot multiple and this isn't last one */
             else 
             {
                 c = in_or_out_menu(qbuf, current_container, outmaybe, inokay,
-                                   (boolean) (used != 0), more_containers);
+                                   (boolean) (used != 0), more_containers, applymode);
             }
         } 
         else 
@@ -4101,6 +4216,7 @@ boolean more_containers; /* True iff #loot multiple and this isn't last one */
     {
         if (!Has_contained_contents(current_container)) 
         {
+            play_sfx_sound(SFX_GENERAL_THAT_DID_NOTHING);
             pline1(emptymsg); /* <whatever> is empty. */
             if (!current_container->cknown)
                 used = 1;
@@ -4113,14 +4229,15 @@ boolean more_containers; /* True iff #loot multiple and this isn't last one */
                 used |= traditional_loot(
                     move_to_another ? 2 : move_to_another_on_floor ? 3 : loot_out_and_drop ? 4 : loot_out_and_stash ? 5 : 0,
                     current_container, 
-                    move_to_another_on_floor ? (floor_containter_count == 1 && last_floor_container ? last_floor_container : (struct obj*)0) : (other_containter_count == 1 && last_container ? last_container : (struct obj*)0)
+                    move_to_another_on_floor ? (floor_containter_count == 1 && last_floor_container ? last_floor_container : (struct obj*)0) : (other_containter_count == 1 && last_container ? last_container : (struct obj*)0),
+                    applymode
                 );
             else
                 used |= (menu_loot(0, 
                     move_to_another ? 2 : move_to_another_on_floor ? 3 : loot_out_and_drop ? 4 : loot_out_and_stash ? 5 : 0,
                     current_container, 
-                    move_to_another_on_floor ? (floor_containter_count == 1 && last_floor_container ? last_floor_container : (struct obj*)0) : (other_containter_count == 1 && last_container ? last_container : (struct obj*)0)
-                ) > 0 );
+                    move_to_another_on_floor ? (floor_containter_count == 1 && last_floor_container ? last_floor_container : (struct obj*)0) : (other_containter_count == 1 && last_container ? last_container : (struct obj*)0),
+                    applymode) > 0);
             add_valid_menu_class(0);
         }
     }
@@ -4152,9 +4269,9 @@ boolean more_containers; /* True iff #loot multiple and this isn't last one */
     {
         add_valid_menu_class(0); /* reset */
         if (flags.menu_style == MENU_TRADITIONAL)
-            used |= traditional_loot(pickup_and_loot_in ? 6 : 1, (struct obj*)0, (struct obj*)0);
+            used |= traditional_loot(pickup_and_loot_in ? 6 : 1, (struct obj*)0, (struct obj*)0, applymode);
         else
-            used |= (menu_loot(0, pickup_and_loot_in ? 6 : 1, (struct obj*)0, (struct obj*)0) > 0);
+            used |= (menu_loot(0, pickup_and_loot_in ? 6 : 1, (struct obj*)0, (struct obj*)0, applymode) > 0);
         add_valid_menu_class(0);
     } 
     else if (stash_one) 
@@ -4184,6 +4301,7 @@ boolean more_containers; /* True iff #loot multiple and this isn't last one */
     {
         if (!Has_contained_contents(current_container)) 
         {
+            play_sfx_sound(SFX_GENERAL_THAT_DID_NOTHING);
             pline1(emptymsg); /* <whatever> is empty. */
             if (!current_container->cknown)
                 used = 1;
@@ -4193,9 +4311,9 @@ boolean more_containers; /* True iff #loot multiple and this isn't last one */
         {
             add_valid_menu_class(0); /* reset */
             if (flags.menu_style == MENU_TRADITIONAL)
-                used |= traditional_loot(0, (struct obj*)0, (struct obj*)0);
+                used |= traditional_loot(0, (struct obj*)0, (struct obj*)0, applymode);
             else
-                used |= (menu_loot(0, 0, (struct obj*)0, (struct obj*)0) > 0);
+                used |= (menu_loot(0, 0, (struct obj*)0, (struct obj*)0, applymode) > 0);
             add_valid_menu_class(0);
         }
     }
@@ -4223,7 +4341,7 @@ containerdone:
 
 /* loot current_container (take things out or put things in), by prompting */
 STATIC_OVL int
-traditional_loot(command_id, applied_container, other_container)
+traditional_loot(command_id, applied_container, other_container, applymode)
 int command_id;
 /* 0 = take out,
    1 = put in,
@@ -4235,6 +4353,7 @@ int command_id;
  */
 struct obj* applied_container;
 struct obj* other_container;
+int applymode;
 {
     int FDECL((*actionfunc), (OBJ_P)), FDECL((*checkfunc), (OBJ_P));
     struct obj **objlist;
@@ -4320,14 +4439,14 @@ struct obj* other_container;
     if(command_id == 4 && *u.ushops)
         sellobj_state(SELL_DELIBERATE);
 
-    if (query_classes(selection, &one_by_one, &allflag, action, *objlist, FALSE, &menu_on_request)) 
+    if (query_classes(selection, &one_by_one, &allflag, action, *objlist, FALSE, &menu_on_request, applymode)) 
     {
         if (askchain(objlist, (one_by_one ? (char *) 0 : selection), allflag, actionfunc, checkfunc, 0, action))
             used = 1;
     } 
     else if (menu_on_request < 0) 
     {
-        used = (menu_loot(menu_on_request, command_id, applied_container, other_container) > 0);
+        used = (menu_loot(menu_on_request, command_id, applied_container, other_container, applymode) > 0);
     }
 
     if (command_id == 4 && *u.ushops)
@@ -4338,7 +4457,7 @@ struct obj* other_container;
 
 /* loot current_container (take things out or put things in), using a menu */
 STATIC_OVL int
-menu_loot(retry, command_id, applied_container, other_container) 
+menu_loot(retry, command_id, applied_container, other_container, applymode)
 int retry;
 int command_id; 
 /* 0 = take out, 
@@ -4351,6 +4470,7 @@ int command_id;
  */
 struct obj* applied_container;
 struct obj* other_container UNUSED;
+int applymode;
 {
     int n, i, n_looted = 0;
     boolean all_categories = TRUE, loot_everything = FALSE;
@@ -4435,7 +4555,7 @@ struct obj* other_container UNUSED;
         if (command_id == 6)
             mflags |= BY_NEXTHERE;
         n = query_category(buf, command_id == 1 ? invent : command_id == 6 ? level.objects[u.ux][u.uy] : contained_object_chain(current_container),
-                           mflags, &pick_list, PICK_ANY);
+                           mflags, &pick_list, PICK_ANY, applymode);
         if (!n)
             return 0;
 
@@ -4581,13 +4701,26 @@ struct obj* other_container UNUSED;
             current_container->cknown = 1;
 
         char movebuf[BUFSZ] = "";
-        if (command_id == 2 || command_id == 3)
+        if ((command_id == 2 || command_id == 3) && current_container && move_target_container)
             Sprintf(movebuf, " from %s to %s", cxname(current_container), cxname(move_target_container));
-
+        else if (applymode && current_container)
+        {
+            switch (command_id)
+            {
+            case 0:
+                Sprintf(movebuf, " of %s", cxname(current_container));
+                break;
+            case 1:
+                Sprintf(movebuf, " to %s", cxname(current_container));
+                break;
+            default:
+                break;
+            }
+        }
         Sprintf(buf, "%s what%s?", action, movebuf);
         n = query_objlist(buf, command_id == 1 ? &invent : command_id == 6 ? &level.objects[u.ux][u.uy] : contained_object_chain_ptr(current_container),
                           mflags, &pick_list, PICK_ANY,
-                          all_categories ? allow_all : allow_category, 2);
+                          all_categories ? allow_all : allow_category, SHOWWEIGHTS_PICKUP);
         if (n)
         {
             n_looted = 0;
@@ -4651,6 +4784,7 @@ struct obj* other_container UNUSED;
                     else if (otmp && otmp != pick_list[i].item.a_obj) 
                     {
                         /* split occurred, merge again */
+                        Sprintf(priority_debug_buf_3, "menu_loot: %d", otmp->otyp);
                         (void) merged(&pick_list[i].item.a_obj, &otmp);
                     }
                     break;
@@ -4703,10 +4837,11 @@ int i, n;
 }
 
 STATIC_OVL char
-in_or_out_menu(prompt, obj, outokay, inokay, alreadyused, more_containers)
+in_or_out_menu(prompt, obj, outokay, inokay, alreadyused, more_containers, applymode)
 const char *prompt;
 struct obj *obj;
 boolean outokay, inokay, alreadyused, more_containers;
+int applymode;
 {
     /* underscore is not a choice; it's used to skip element [0] */
     static const char lootchars[] = "_:oibrsnqmcdpa", abc_chars[] = "_:abcdenqfghij";
@@ -4716,6 +4851,11 @@ boolean outokay, inokay, alreadyused, more_containers;
     char buf[BUFSZ];
     int n;
     const char *menuselector = flags.lootabc ? abc_chars : lootchars;
+
+    if (applymode == 1 && outokay)
+        return lootchars[2];  //'o';
+    else if (applymode == 2 && inokay)
+        return lootchars[3];  //'i';
 
     struct obj* last_container = (struct obj*)0;
     int other_containter_count = count_other_containers(invent, obj, &last_container, FALSE);
@@ -5034,6 +5174,8 @@ struct obj *box; /* or bag */
             nomul(-1);
             multi_reason = "tipping a container";
             nomovemsg = "";
+            nomovemsg_attr = ATR_NONE;
+            nomovemsg_color = NO_COLOR;
         }
     } else if (box->otyp == BAG_OF_TRICKS || box->otyp == HORN_OF_PLENTY) {
         boolean bag = box->otyp == BAG_OF_TRICKS;
@@ -5224,7 +5366,7 @@ dostash()
         return 0;
     }
 
-    if (!stash_obj_in_container(otmp, container))
+    if (!stash_obj_in_container(otmp, container))  /* Do not unsplit with -1 if BoH blew up; both obj and container maybe gone */
     {
         /* couldn't put selected item into container for some
            reason; might need to undo splitobj() */
@@ -5267,7 +5409,7 @@ dostashfloor()
         return 0;
     }
 
-    if (!stash_obj_in_container(otmp, container))
+    if (!stash_obj_in_container(otmp, container)) /* Do not unsplit with -1 if BoH blew up; both obj and container maybe gone */
     {
         /* couldn't put selected item into container for some
            reason; might need to undo splitobj() */

@@ -40,13 +40,15 @@ ENDMAP
 # Dungeon Description
 REGION:(00,00,75,19),lit,"ordinary"
 REGION:(14,01,20,03),unlit,"morgue"
+# Cottages
 REGION:(07,10,11,12),unlit,"ordinary"
 REGION:(04,16,08,18),unlit,"ordinary"
 REGION:(17,16,21,18),unlit,"ordinary"
-REGION:(27,02,32,04),unlit,"ordinary"
-REGION:(34,02,39,04),unlit,"ordinary"
-REGION:(41,02,53,04),unlit,"ordinary"
-REGION:(55,02,60,04),unlit,"ordinary"
+# Main House
+REGION:(27,02,32,04),lit,"ordinary"
+REGION:(34,02,39,04),lit,"ordinary"
+REGION:(41,02,53,04),lit,"ordinary"
+REGION:(55,02,60,04),lit,"ordinary"
 REGION:(62,02,67,04),lit,"ordinary"
 # Stairs
 STAIR:(66,03),down
@@ -60,6 +62,14 @@ CARPET:(34,02,39,04),carpet_crimson
 CARPET:(41,02,53,04),carpet_yellow
 CARPET:(55,02,60,04),carpet_crimson
 CARPET:(63,02,65,04),carpet_brown_hide
+CARPET:(07,10,11,12),carpet_beige
+CARPET:(04,16,08,18),carpet_blue
+CARPET:(17,16,21,18),carpet_yellow
+# Items
+OBJECT:('(',"bookshelf"),(09,10)
+OBJECT:('(',"large box"),(04,18)
+OBJECT:('(',"large five-branched candelabrum"),(19,17)
+
 # Doors
 DOOR:locked,(31,05)
 DOOR:locked,(36,05)
@@ -159,20 +169,20 @@ GEOMETRY:center,center
 #12345678901234567890123456789012345678901234567890123456789012345678901234567890
 MAP
 ----------------------------------------------------------------------------
-|....|......|..........|......|......|...|....|.....|......|...............|
-|....|......|.|------|.|......|......|.|.|....|..}..|......|.|----------|..|
-|....|--+----.|......|.|-S---+|+-----|.|.S....|.....|---+--|.|..........+..|
-|....|........|......|.|...|.........|.|------|..............|..........|-+|
-|....+...}}...+......|.|...|.|-----|.|..............|--+----------------|..|
+|::::|......|..........|......|......|...|....|.....|......|...............|
+|::::|......|.|------|.|......|......|.|.|....|..}..|......|.|----------|..|
+|::::|--+----.|......|.|-S---+|+-----|.|.S....|.....|---+--|.|..........+..|
+|::::|........|......|.|...|.........|.|------|..............|..........|-+|
+|::::+...}}...+......|.|...|.|-----|.|..............|--+----------------|..|
 |----|........|------|.|---|.|.....|......|-----+-|.|.......|...........|--|
 |............................|.....|.|--+-|.......|.|.......|...........|..|
 |----|.....|-------------|...|--+--|.|....|.......|.|-----------+-------|..|
 |....+.....+.........S...|...........|....|-------|........................|
 |....|.....|.........|...|.|---------|....|.........|-------|.|----------|.|
-|....|.....|---------|---|.|......|..+....|-------|.|.......|.+......S.\.|.|
-|....|.....+.........S...|.|......|..|....|.......|.|.......|.|......|...|.|
-|-------|..|.........|---|.|+-------------------+-|.|.......+.|----------|.|
-|.......+..|---------|.........|.........|..........|.......|.|..........|.|
+|....|.....|---------|---|.|......|..+....|-------|.|:::::::|.+......S.\.|.|
+|....|.....+.........S...|.|......|..|....|.......|.|:::::::|.|......|...|.|
+|-------|..|.........|---|.|+-------------------+-|.|:::::::+.|----------|.|
+|.......+..|---------|.........|.........|..........|:::::::|.|..........|.|
 |.......|..............|--+--|.|.........|.|----+-----------|.|..........|.|
 |---------+-|--+-----|-|.....|.|.........|.|........|.|.....+.|..........+.|
 |...........|........|.S.....|.|----+----|.|--------|.|.....|.|----------|.|
@@ -251,6 +261,52 @@ REGION:(61,06,71,07),random,"ordinary"
 REGION:(55,16,59,18),random,"ordinary"
 REGION:(63,11,68,12),random,"ordinary"
 REGION:(70,11,72,12),random,"ordinary"
+
+# Floors
+SUBTYPE:fillrect(32,14,40,16),location_floor,floor_marble
+SUBTYPE:fillrect(35,11,36,12),location_floor,floor_marble
+SUBTYPE:fillrect(73,05,74,05),location_floor,floor_parquet
+SUBTYPE:fillrect(22,12,24,12),location_floor,floor_parquet
+SUBTYPE:fillrect(42,01,45,03),location_floor,floor_parquet
+SUBTYPE:fillrect(43,07,49,08),location_floor,floor_parquet
+SUBTYPE:fillrect(70,11,72,12),location_floor,floor_marble
+SUBTYPE:fillrect(30,06,34,07),location_floor,floor_marble
+SUBTYPE:fillrect(63,11,68,12),location_floor,floor_parquet
+SUBTYPE:fillrect(13,17,20,18),location_floor,floor_parquet
+SUBTYPE:fillrect(24,16,28,18),location_floor,floor_parquet
+SUBTYPE:fillrect(22,17,22,18),location_floor,floor_parquet
+
+# Carpets
+CARPET:(15,03,20,05),carpet_yellow
+CARPET:(62,03,71,04),carpet_yellow
+CARPET:(01,14,07,15),carpet_yellow
+CARPET:(06,01,11,02),carpet_purple
+CARPET:(43,07,49,08),carpet_beige
+CARPET:(01,09,04,12),carpet_beige
+CARPET:(38,08,41,12),carpet_blue
+CARPET:(13,17,20,18),carpet_blue
+CARPET:(25,16,27,18),carpet_brown_hide
+CARPET:(24,04,26,05),carpet_modron_triangular_plaque
+CARPET:(22,09,24,10),carpet_modron_spherical_plaque
+CARPET:(70,11,72,12),carpet_purple
+CARPET:(56,16,58,18),carpet_brown_hide
+
+# Braziers
+BRAZIER:(32,06)
+
+# Items
+OBJECT:('(',"chest"),(24,12)
+OBJECT:('(',"chest"),(42,03)
+OBJECT:('(',"chest"),(57,17)
+OBJECT:('(',"chest"),(22,18)
+OBJECT:('(',"large five-branched candelabrum"),(32,14)
+OBJECT:('(',"large five-branched candelabrum"),(40,14)
+OBJECT:('(',"large five-branched candelabrum"),(32,16)
+OBJECT:('(',"large five-branched candelabrum"),(40,16)
+
+# Altar in temple
+ALTAR:(36,15),coaligned,shrine,altar_normal
+
 # Stairs
 STAIR:(10,04),up
 STAIR:(73,05),down
@@ -350,6 +406,8 @@ MONSTER:'s',random
 
 MAZE: "Tou-goal", ' '
 GEOMETRY:center,center
+#         1         2         3         4         5         6         7         8
+#12345678901234567890123456789012345678901234567890123456789012345678901234567890
 MAP
 ----------------------------------------------------------------------------
 |.........|.........|..........|..| |.................|........|........|..|
@@ -367,9 +425,9 @@ MAP
 |---..----|......|..|..|..|.......| |......................--------------..|
 |..|..|...|......--F-F--F--.......| |......................+............|..|
 |..+..+...|.......................| |--.---...-----+-----..|............|..|
-|--|..----|--+-----------+------..| |.....|...|.........|..|------------|..|
-|..+..+...|.........|..........|..| |.....|...|.........|..+............|..|
-|..|..|...|.........|..........|..| |.....|...|.........|..|............|..|
+|--|..----|--+-----------+------..| |:::::|...|.........|..|------------|..|
+|..+..+...|.........|..........|..| |:::::|...|.........|..+............|..|
+|..|..|...|.........|..........|..| |:::::|...|.........|..|............|..|
 ----------------------------------------------------------------------------
 ENDMAP
 # Dungeon Description
@@ -377,17 +435,17 @@ REGION:(00,00,75,19),lit,"ordinary"
 # The Inn
 REGION:(01,01,09,02),lit,"ordinary"
 REGION:(01,04,09,05),lit,"barracks"
-REGION:(01,07,02,10),unlit,"ordinary"
-REGION:(07,07,09,10),unlit,"ordinary"
+REGION:(01,07,02,10),lit,"armory"
+REGION:(07,07,09,10),lit,"armory"
 REGION:(01,14,02,15),unlit,"ordinary"
 REGION:(07,14,09,15),unlit,"ordinary"
 REGION:(01,17,02,18),unlit,"ordinary"
 REGION:(07,17,09,18),unlit,"ordinary"
 #
-REGION:(11,01,19,02),unlit,"barracks"
-REGION:(21,01,30,02),unlit,"ordinary"
-REGION:(11,17,19,18),unlit,"barracks"
-REGION:(21,17,30,18),unlit,"ordinary"
+REGION:(11,01,19,02),lit,"barracks"
+REGION:(21,01,30,02),lit,"armory"
+REGION:(11,17,19,18),lit,"barracks"
+REGION:(21,17,30,18),lit,"armory"
 # Police Station
 REGION:(18,07,25,11),lit,"ordinary"
 REGION:(18,13,19,13),unlit,"ordinary"
@@ -402,6 +460,59 @@ REGION:(55,01,62,03),unlit,"ordinary"
 REGION:(64,01,71,03),unlit,"ordinary"
 REGION:(60,14,71,15),lit,"shop"
 REGION:(60,17,71,18),lit,"shop"
+# Cobblestone streets
+SUBTYPE:fillrect(11,04,16,15),location_floor,floor_cobblestone
+SUBTYPE:fillrect(27,04,31,15),location_floor,floor_cobblestone
+SUBTYPE:fillrect(17,04,26,05),location_floor,floor_cobblestone
+SUBTYPE:fillrect(17,15,26,15),location_floor,floor_cobblestone
+SUBTYPE:fillrect(32,01,33,18),location_floor,floor_cobblestone
+SUBTYPE:fillrect(73,01,74,18),location_floor,floor_cobblestone
+SUBTYPE:fillrect(65,05,72,12),location_floor,floor_cobblestone
+SUBTYPE:fillrect(61,05,64,06),location_floor,floor_cobblestone
+SUBTYPE:fillrect(61,11,64,12),location_floor,floor_cobblestone
+SUBTYPE:fillrect(52,05,60,14),location_floor,floor_cobblestone
+SUBTYPE:fillrect(59,15,60,18),location_floor,floor_cobblestone
+SUBTYPE:fillrect(49,01,53,06),location_floor,floor_cobblestone
+SUBTYPE:fillrect(41,01,48,01),location_floor,floor_cobblestone
+SUBTYPE:fillrect(37,01,40,14),location_floor,floor_cobblestone
+SUBTYPE:fillrect(41,13,51,14),location_floor,floor_cobblestone
+SUBTYPE:fillrect(43,15,45,18),location_floor,floor_cobblestone
+SUBTYPE:fillrect(57,15,58,18),location_floor,floor_cobblestone
+SUBTYPE:fillrect(39,15,39,15),location_floor,floor_cobblestone
+
+# Floors
+SUBTYPE:fillrect(55,01,62,03),location_floor,floor_parquet
+SUBTYPE:fillrect(64,01,71,03),location_floor,floor_parquet
+SUBTYPE:fillrect(60,14,71,15),location_floor,floor_parquet
+SUBTYPE:fillrect(60,17,71,18),location_floor,floor_parquet
+SUBTYPE:fillrect(47,16,55,18),location_floor,floor_parquet
+SUBTYPE:fillrect(01,14,02,15),location_floor,floor_marble
+SUBTYPE:fillrect(07,14,09,15),location_floor,floor_marble
+SUBTYPE:fillrect(01,17,02,18),location_floor,floor_marble
+SUBTYPE:fillrect(07,17,09,18),location_floor,floor_marble
+SUBTYPE:fillrect(01,01,09,02),location_floor,floor_marble
+
+# Carpets
+CARPET:(01,01,09,02),carpet_purple
+CARPET:(42,03,47,06),carpet_blue
+CARPET:(42,08,50,11),carpet_purple
+CARPET:(60,14,71,15),carpet_yellow
+CARPET:(60,17,71,18),carpet_beige
+
+# Braziers
+BRAZIER:(13,05)
+BRAZIER:(30,05)
+BRAZIER:(13,14)
+BRAZIER:(30,14)
+BRAZIER:(55,06)
+BRAZIER:(55,11)
+BRAZIER:(70,06)
+BRAZIER:(70,11)
+BRAZIER:(19,08)
+BRAZIER:(24,10)
+BRAZIER:(19,10)
+BRAZIER:(24,08)
+
 # Non diggable walls
 NON_DIGGABLE:(00,00,75,19)
 # Stairs

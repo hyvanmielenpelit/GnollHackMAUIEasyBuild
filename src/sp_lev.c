@@ -1770,6 +1770,9 @@ struct mkroom *croom;
     coord cc;
     struct permonst *pm;
     unsigned g_mvflags;
+    uint64_t mmflags = 0UL;
+    uint64_t mmflags2 = 0UL;
+    int level_adjustment = (int)m->level_adjustment;
 
     if (m->class >= 0)
         class = (char) def_char_to_monclass((char) m->class);
@@ -1794,7 +1797,49 @@ struct mkroom *croom;
         pm = &mons[m->id];
         g_mvflags = (unsigned) mvitals[m->id].mvflags;
         if ((pm->geno & G_UNIQ) && (g_mvflags & MV_EXTINCT))
-            return;
+        {
+            if (m->has_backup)
+            {
+                struct permonst* orig_pm = pm;
+                if (Inhell)
+                {
+                    pm = (struct permonst*)0;
+                    if (is_gnoll(orig_pm) && !(mvitals[PM_FLIND_LORD].mvflags & MV_GONE))
+                        pm = &mons[PM_FLIND_LORD];
+                    if (!pm)
+                        pm = !(mvitals[PM_BALOR].mvflags & MV_GONE) && (rn2(2) || (mvitals[PM_PIT_FIEND].mvflags & MV_GONE)) ? &mons[PM_BALOR]
+                            : !(mvitals[PM_PIT_FIEND].mvflags & MV_GONE) ? &mons[PM_PIT_FIEND]
+                            : !(mvitals[PM_MARILITH].mvflags & MV_GONE) ? &mons[PM_MARILITH]
+                            : !(mvitals[PM_FLIND_LORD].mvflags & MV_GONE) ? &mons[PM_FLIND_LORD]
+                            : !(mvitals[PM_NALFESHNEE].mvflags & MV_GONE) ? &mons[PM_NALFESHNEE]
+                            : !(mvitals[PM_GLABREZU].mvflags & MV_GONE) ? &mons[PM_GLABREZU]
+                            : !(mvitals[PM_ICE_DEVIL].mvflags & MV_GONE) ? &mons[PM_ICE_DEVIL]
+                            : (struct permonst*)0;
+                }
+                else
+                    pm = !(mvitals[PM_MINOTAUR].mvflags & MV_GONE) ? &mons[PM_MINOTAUR] 
+                    : !(mvitals[PM_HUMAN_KING].mvflags & MV_GONE) ? &mons[PM_HUMAN_KING]
+                    : !(mvitals[PM_ORC_KING].mvflags & MV_GONE) ? &mons[PM_ORC_KING]
+                    : !(mvitals[PM_ELVENKING].mvflags & MV_GONE) ? &mons[PM_ELVENKING]
+                    : (struct permonst*)0;
+
+                if (pm)
+                {
+                    mmflags |= MM_MAX_HP;
+                    mmflags2 |= MM2_NAME_KNOWN;
+                    int pm_level= pm->mlevel;
+                    int orig_level = orig_pm->mlevel;
+                    //int pm_difficulty = pm->difficulty;
+                    //int orig_difficulty = mons[m->id].difficulty;
+                    level_adjustment += min((int)pm->mlevel, max(0, orig_level - pm_level) / 2);
+                }
+                else
+                    return;
+            }
+            else
+                return;
+
+        }
         else if (g_mvflags & MV_GONE)    /* genocided or extinct */
             pm = (struct permonst *) 0; /* make random monster */
     }
@@ -1829,7 +1874,6 @@ struct mkroom *croom;
     if (MON_AT(x, y) && enexto(&cc, x, y, pm))
         x = cc.x, y = cc.y;
 
-    uint64_t mmflags = 0UL;
     if (m->maxhp)
         mmflags |= MM_MAX_HP;
     if (m->use_boss_hostility)
@@ -1853,7 +1897,7 @@ struct mkroom *croom;
     else if (PM_ARCHAEOLOGIST <= m->id && m->id <= PM_WIZARD)
         mtmp = mk_mplayer(pm, x, y, FALSE);
     else
-        mtmp = makemon_ex(pm, x, y, mmflags, 0UL, 0, 0, (int)m->level_adjustment);
+        mtmp = makemon_ex(pm, x, y, mmflags, mmflags2, 0, 0, level_adjustment);
 
     if (mtmp)
     {
@@ -1922,31 +1966,39 @@ struct mkroom *croom;
                 } 
                 else
                 {
-                    mtmp->m_ap_type = M_AP_OBJECT;
-                    mtmp->mappearance = i;
-                    struct obj* otmp = mksobj(i, TRUE, FALSE, 0);
-                    if (otmp)
-                    {
-                        if (has_mobj(mtmp))
-                            free_mobj(mtmp);
-                        if (!has_mobj(mtmp))
-                            newmobj(mtmp);
-                        if (has_mobj(mtmp))
-                        {
-                            *MOBJ(mtmp) = *otmp;
-                            MOBJ(mtmp)->oextra = 0;
-                            MOBJ(mtmp)->nobj = 0;
-                            MOBJ(mtmp)->nexthere = 0;
-                            MOBJ(mtmp)->cobj = 0;
-                            MOBJ(mtmp)->o_id = context.ident++;
-                            if (!MOBJ(mtmp)->o_id) /* ident overflowed */
-                                MOBJ(mtmp)->o_id = context.ident++;
-                            if (otmp->oextra)
-                                copy_oextra(MOBJ(mtmp), otmp);
-                        }
-                        /* make sure container contents are free'ed */
-                        obfree(otmp, (struct obj*)0);
-                    }
+                    set_mimic_new_mobj(mtmp, i);
+                    //mtmp->m_ap_type = M_AP_OBJECT;
+                    //mtmp->mappearance = i;
+                    //struct obj* otmp = mksobj(i, TRUE, FALSE, 0);
+                    //if (otmp)
+                    //{
+                    //    if (has_mobj(mtmp))
+                    //        free_mobj(mtmp);
+                    //    if (!has_mobj(mtmp))
+                    //        newmobj(mtmp);
+                    //    if (has_mobj(mtmp))
+                    //    {
+                    //        *MOBJ(mtmp) = *otmp;
+                    //        MOBJ(mtmp)->oextra = 0;
+                    //        MOBJ(mtmp)->nobj = 0;
+                    //        MOBJ(mtmp)->nexthere = 0;
+                    //        MOBJ(mtmp)->cobj = 0;
+                    //        MOBJ(mtmp)->o_id = context.ident++;
+                    //        if (!MOBJ(mtmp)->o_id) /* ident overflowed */
+                    //            MOBJ(mtmp)->o_id = context.ident++;
+                    //        if (otmp->oextra)
+                    //            copy_oextra(MOBJ(mtmp), otmp);
+                    //        MOBJ(mtmp)->timed = 0;
+                    //        MOBJ(mtmp)->lamplit = 0;
+                    //        MOBJ(mtmp)->makingsound = 0;
+                    //        MOBJ(mtmp)->ox = mtmp->mx;
+                    //        MOBJ(mtmp)->oy = mtmp->my;
+                    //        //MOBJ(mtmp)->where = OBJ_FLOOR;
+                    //    }
+                    //    /* make sure container contents are free'ed */
+                    //    Sprintf(priority_debug_buf_4, "create_monster: %d", otmp->otyp);
+                    //    obfree(otmp, (struct obj*)0);
+                    //}
 
                     /* try to avoid placing mimic boulder on a trap */
                     if (i == BOULDER && m->x < 0
@@ -2505,9 +2557,9 @@ struct mkroom *croom;
         otmp->special_quality = o->special_quality;
         if(is_obj_candelabrum(otmp) && otmp->special_quality > 0)
             otmp->age = MAX_BURN_IN_CANDELABRUM;
-        if (otmp->oclass == SPBOOK_CLASS && otmp->special_quality >= -1)
+        if (otmp->oclass == SPBOOK_CLASS && otmp->special_quality >= -2)
         {
-            if (objects[otmp->otyp].oc_subtyp == BOOKTYPE_NOVEL)
+            if (otmp->otyp == SPE_NOVEL || objects[otmp->otyp].oc_subtyp == BOOKTYPE_NOVEL)
             {
                 const char* ntitle = noveltitle(&otmp->novelidx, 0UL, 0UL);
                 if (ntitle)
@@ -2515,7 +2567,7 @@ struct mkroom *croom;
                     otmp = oname(otmp, ntitle);
                 }
             }
-            else if (objects[otmp->otyp].oc_subtyp == BOOKTYPE_MANUAL)
+            else if (otmp->otyp == SPE_MANUAL || objects[otmp->otyp].oc_subtyp == BOOKTYPE_MANUAL)
             {
                 const char* mtitle = manualtitle(&otmp->manualidx, 0UL, 0UL);
                 if (mtitle)
@@ -2610,6 +2662,7 @@ struct mkroom *croom;
             {
                 Strcpy(debug_buf_2, "create_object1");
                 obj_extract_self(otmp);
+                Sprintf(priority_debug_buf_4, "create_object: %d", otmp->otyp);
                 obfree(otmp, NULL);
                 return;
             }
@@ -2689,7 +2742,7 @@ struct mkroom *croom;
             {
                 otmp->speflags |= SPEFLAGS_MINES_PRIZE;
                 /* prevent stacking; cleared when achievement is recorded */
-                otmp->nomerge = 1;
+                //otmp->nomerge = 1;
                 if (++mines_prize_count > 1)
                     impossible(prize_warning, "mines end");
             }
@@ -2699,14 +2752,14 @@ struct mkroom *croom;
             if (otmp->otyp == iflags.soko_prize_type1)
             {
                 otmp->speflags |= SPEFLAGS_SOKO_PRIZE1;
-                otmp->nomerge = 1; /* redundant; Sokoban prizes don't stack */
+                //otmp->nomerge = 1; /* redundant; Sokoban prizes don't stack */
                 if (++soko_prize_count > 1)
                     impossible(prize_warning, "sokoban end");
             } 
             else if (otmp->otyp == iflags.soko_prize_type2) 
             {
                 otmp->speflags |= SPEFLAGS_SOKO_PRIZE2;
-                otmp->nomerge = 1; /* redundant; Sokoban prizes don't stack */
+                //otmp->nomerge = 1; /* redundant; Sokoban prizes don't stack */
                 if (++soko_prize_count > 1)
                     impossible(prize_warning, "sokoban end");
             }
@@ -4049,6 +4102,7 @@ struct sp_coder *coder;
     tmpmons.keep_original_invent = 0;
     tmpmons.level_boss = 0;
     tmpmons.use_boss_hostility = 0;
+    tmpmons.has_backup = 0;
     tmpmons.protector = 0;
     tmpmons.seentraps = 0;
     tmpmons.has_invent = 0;
@@ -4114,6 +4168,10 @@ struct sp_coder *coder;
         case SP_M_V_BOSS_HOSTILITY:
             if (OV_typ(parm) == SPOVAR_INT)
                 tmpmons.use_boss_hostility = (schar)OV_i(parm);
+            break;
+        case SP_M_V_HAS_BACKUP:
+            if (OV_typ(parm) == SPOVAR_INT)
+                tmpmons.has_backup = (schar)OV_i(parm);
             break;
         case SP_M_V_PROTECTOR:
             if (OV_typ(parm) == SPOVAR_INT)

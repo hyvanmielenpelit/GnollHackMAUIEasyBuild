@@ -219,9 +219,9 @@ boolean foundyou;
     
     //Assumes that attack type is AT_MAGC when this function is called
     if(mattk->mlevel > 0)
-        ml = mattk->mlevel;
+        ml = (int)mattk->mlevel;
     else
-        ml = mtmp->m_lev;
+        ml = (int)mtmp->m_lev;
 
     /* Three cases:
      * -- monster is attacking you.  Search for a useful spell.
@@ -279,7 +279,7 @@ boolean foundyou;
         update_m_action(mtmp, action);
     play_sfx_sound_at_location(SFX_GENERIC_CAST_EFFECT, mtmp->mx, mtmp->my);
     if (show_action_tile)
-        m_wait_until_action();
+        m_wait_until_action(mtmp, action);
 
     if (mattk->adtyp == AD_SPEL)
     {
@@ -306,9 +306,9 @@ boolean foundyou;
         cursetxt(mtmp, nodirspell);
         if (show_action_tile)
         {
-            m_wait_until_end();
+            m_wait_until_end(mtmp, action);
             update_m_action_revert(mtmp, ACTION_TILE_NO_ACTION);
-            m_wait_until_end();
+            m_wait_until_end(mtmp, action);
         }
         return (0);
     }
@@ -328,17 +328,19 @@ boolean foundyou;
 
         if (show_action_tile)
         {
-            m_wait_until_end();
+            m_wait_until_end(mtmp, action);
             update_m_action_revert(mtmp, ACTION_TILE_NO_ACTION);
-            m_wait_until_end();
+            m_wait_until_end(mtmp, action);
         }
         return (0);
     }
 
-    nomul(0);
+    if (!is_peaceful(mtmp) && (!nodirspell || canspotmon(mtmp)))
+        nomul(0);
+
     /*Spellnum + 1 is used as spell level 1...ml; chance of fail is 50% for ml and 0% for ml /2,
       interpolated linearly*/
-    int    failchance = 0;
+    int failchance = 0;
     int sl = spellnum + 1;
     if (sl > ml / 2 && ml > 0) { // fail only if spell level is high enough
         failchance = (50 * (sl - ml / 2)) / (ml - ml / 2);
@@ -359,9 +361,9 @@ boolean foundyou;
 
         if (show_action_tile)
         {
-            m_wait_until_end();
+            m_wait_until_end(mtmp, action);
             update_m_action_revert(mtmp, ACTION_TILE_NO_ACTION);
-            m_wait_until_end();
+            m_wait_until_end(mtmp, action);
         }
         return (0);
     }
@@ -395,9 +397,9 @@ boolean foundyou;
 
             if (show_action_tile)
             {
-                m_wait_until_end();
+                m_wait_until_end(mtmp, action);
                 update_m_action_revert(mtmp, ACTION_TILE_NO_ACTION);
-                m_wait_until_end();
+                m_wait_until_end(mtmp, action);
             }
             return (0);
         }
@@ -466,9 +468,9 @@ boolean foundyou;
 
     if (show_action_tile)
     {
-        m_wait_until_end();
+        m_wait_until_end(mtmp, action);
         update_m_action_revert(mtmp, ACTION_TILE_NO_ACTION);
-        m_wait_until_end();
+        m_wait_until_end(mtmp, action);
     }
     return (ret);
 }
@@ -997,6 +999,8 @@ int spellnum;
             refresh_u_tile_gui_info(TRUE);
         }
         nomovemsg = 0;
+        nomovemsg_attr = ATR_NONE;
+        nomovemsg_color = NO_COLOR;
         damage = 0;
         break;
     case CLC_CONFUSE_YOU:

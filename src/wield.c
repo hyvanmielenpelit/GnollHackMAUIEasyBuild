@@ -1882,7 +1882,7 @@ boolean dopopup;
     } 
     else if (weapon->otyp == CRYSKNIFE && amount < 0) 
     {
-        if (otyp != STRANGE_OBJECT && otmp->bknown)
+        if (otyp != STRANGE_OBJECT && otmp && otmp->bknown)
         {
             makeknown(otyp);
             enchwepknown = TRUE;
@@ -1967,7 +1967,7 @@ boolean dopopup;
                 Sprintf(buf, "%s.", Yobjnam2(weapon, "evaporate"));
                 pline_ex1_popup(ATR_NONE, CLR_MSG_NEGATIVE, buf, "Evaporation", dopopup);
             }
-
+            Sprintf(priority_debug_buf_3, "enchant_weapon: %d", weapon->otyp);
             useupall(weapon); /* let all of them disappear */
         }
         return 1;
@@ -1980,7 +1980,7 @@ boolean dopopup;
 
     if (!Blind)
     {
-        if (otyp != STRANGE_OBJECT && weapon->known && (amount > 0 || (amount < 0 && otmp->bknown)))
+        if (otyp != STRANGE_OBJECT && weapon->known && (amount > 0 || (amount < 0 && otmp && otmp->bknown)))
         {
             makeknown(otyp);
             enchwepknown = TRUE;

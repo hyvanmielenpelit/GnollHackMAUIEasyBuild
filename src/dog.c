@@ -489,7 +489,7 @@ boolean isfemale;
 }
 
 struct monst *
-makedog()
+makedog(VOID_ARGS)
 {
     register struct monst *mtmp;
     register struct obj *otmp;
@@ -825,7 +825,7 @@ makedog()
 /* record `last move time' for all monsters prior to level save so that
    mon_arrive() can catch up for lost time when they're restored later */
 void
-update_mlstmv()
+update_mlstmv(VOID_ARGS)
 {
     struct monst *mon;
 
@@ -839,7 +839,7 @@ update_mlstmv()
 }
 
 void
-losedogs()
+arrival_from_mydogs_and_migrating_mons(VOID_ARGS)
 {
     register struct monst *mtmp, *mtmp0, *mtmp2;
     int dismissKops = 0;
@@ -913,7 +913,7 @@ losedogs()
                     }
                 if (!mtmp0)
                 {
-                    panic("losedogs: can't find migrating mon");
+                    panic("arrival_from_mydogs_and_migrating_mons: can't find migrating mon");
                     return;
                 }
             }
@@ -922,7 +922,7 @@ losedogs()
     }
 }
 
-/* called from resurrect() in addition to losedogs() */
+/* called from resurrect() in addition to arrival_from_mydogs_and_migrating_mons() */
 void
 mon_arrive(mtmp, with_you)
 struct monst *mtmp;
@@ -1301,7 +1301,7 @@ int64_t nmv; /* number of moves */
         mtmp->mspecialsummon2_used -= imv;
 
     /* reduce tameness for every 300 moves you are separated */
-    if (mtmp->mtame && !mtmp->isfaithful) 
+    if (mtmp->mtame && !mtmp->isfaithful && !mindless(mtmp->data)) 
     {
         int wilder = (imv + 0) / 300;
         if (mtmp->mtame > wilder)
@@ -1383,7 +1383,7 @@ int64_t nmv; /* number of moves */
 
 /* called when you move to another level */
 void
-keepdogs(pets_only, nearby_only)
+move_monsters_to_mydogs(pets_only, nearby_only)
 boolean pets_only, nearby_only; /* pets_only is true for ascension or final escape */
 {
     register struct monst *mtmp, *mtmp2;
@@ -1537,7 +1537,8 @@ coord *cc;   /* optional destination coordinates */
     }
 
     if (mtmp->mleashed) {
-        mtmp->mtame--;
+        if(!mindless(mtmp->data) && !mtmp->isfaithful)
+            mtmp->mtame--;
         if (!mtmp->mtame)
             mtmp->ispartymember = 0;
         m_unleash(mtmp, TRUE);
@@ -1572,14 +1573,24 @@ dogfood(mon, obj)
 struct monst *mon;
 register struct obj *obj;
 {
+    if (!mon || !obj)
+        return TABU;
+
     struct permonst *mptr = mon->data, *fptr = 0;
     boolean carni = carnivorous(mptr), herbi = herbivorous(mptr),
-            starving, mblind;
+            mblind;
+    boolean eschewed = (obj->cursed && mon_eschews_cursed(mon)) || (obj->blessed && mon_eschews_blessed(mon));
+    /* a starving pet will eat almost anything */
+    boolean starving = (mon->mtame && has_edog(mon) && !mon->isminion
+        && EDOG(mon)->mhpmax_penalty);
 
-    if (is_quest_artifact(obj) || obj_resists(obj, 0, 95))
-        return obj->cursed ? TABU : APPORT;
+    if (eschewed && (!starving || obj->oartifact))
+        return TABU;
 
     if (is_non_eater(mptr))
+        return TABU;
+
+    if (is_obj_indestructible(obj) || is_quest_artifact(obj))
         return TABU;
 
     if (is_obj_no_pickup(obj))
@@ -1588,13 +1599,19 @@ register struct obj *obj;
     if (m_unpaid_item_no_pickup(mon, obj))
         return TABU;
 
+    if (mon_hates_silver(mon) && obj_counts_as_silver(obj))
+        return TABU;
+
+    if (obj_resists(obj, 0, 95))
+        return TABU;
+
     switch (obj->oclass)
     {
     case FOOD_CLASS:
-        if (obj->otyp == CORPSE || obj->otyp == TIN || obj->otyp == EGG)
+        if ((obj->otyp == CORPSE || obj->otyp == TIN || obj->otyp == EGG) && obj->corpsenm >= 0)
             fptr = &mons[obj->corpsenm];
 
-        if (obj->otyp == CORPSE && is_rider(fptr))
+        if (obj->otyp == CORPSE && fptr && is_rider_or_tarrasque(fptr))
             return TABU;
 
         if (is_corpse_eater(mptr) && obj->otyp != CORPSE)
@@ -1614,10 +1631,6 @@ register struct obj *obj;
         if (!carni && !herbi)
             return obj->cursed ? UNDEF : APPORT;
 
-        /* a starving pet will eat almost anything */
-        starving = (mon->mtame && has_edog(mon) && !mon->isminion
-                    && EDOG(mon)->mhpmax_penalty);
-
         /* even carnivores will eat carrots if they're temporarily blind */
         mblind = (is_blinded(mon) && haseyes(mon->data));
 
@@ -1628,9 +1641,9 @@ register struct obj *obj;
         {
             if (obj->otyp == CORPSE)
                 return (peek_at_iced_corpse_age(obj) + 50L <= monstermoves
-                        && !nonrotting_corpse_ptr(fptr))
+                        && fptr && !nonrotting_corpse_ptr(fptr))
                            ? DOGFOOD
-                           : (starving && !vegan(fptr))
+                           : (starving && fptr && !vegan(fptr))
                               ? ACCFOOD
                               : POISON;
 
@@ -1652,25 +1665,25 @@ register struct obj *obj;
             return carni ? CADAVER : MANFOOD;
         case CORPSE:
             if ((peek_at_iced_corpse_age(obj) + 50L <= monstermoves
-                 && !nonrotting_corpse(obj->corpsenm)
+                 && obj->corpsenm >= LOW_PM && !nonrotting_corpse(obj->corpsenm)
                  && mptr->mlet != S_FUNGUS)
-                || (has_acidic_corpse(fptr) && !(is_mon_immune_to_acid(mon) || mon_resists_acid_weakly(mon)))
-                || (has_poisonous_corpse(fptr) && !resists_poison(mon))
-                || (has_stunning_corpse(fptr) && !resists_stun(mon))
-                || (has_sickening_corpse(fptr) && !resists_sickness(mon))
-                || (has_mummy_rotted_corpse(fptr) && !resists_sickness(mon))
+                || (fptr && has_acidic_corpse(fptr) && !(is_mon_immune_to_acid(mon) || mon_resists_acid_weakly(mon)))
+                || (fptr && has_poisonous_corpse(fptr) && !resists_poison(mon))
+                || (fptr && has_stunning_corpse(fptr) && !resists_stun(mon))
+                || (fptr && has_sickening_corpse(fptr) && !resists_sickness(mon))
+                || (fptr && has_mummy_rotted_corpse(fptr) && !resists_sickness(mon))
                 )
                 return POISON;
             /* turning into slime is preferable to starvation */
             else if (fptr == &mons[PM_GREEN_SLIME] && !slimeproof(mon->data))
                 return starving ? ACCFOOD : POISON;
-            else if (incorporeal_food(fptr))
+            else if (fptr && incorporeal_food(fptr))
                 return MANFOOD;
-            else if (vegan(fptr))
+            else if (fptr && vegan(fptr))
                 return herbi ? CADAVER : MANFOOD;
             /* most humanoids will avoid cannibalism unless starving;
                arbitrary: elves won't eat other elves even then */
-            else if (humanoid(mptr) && same_race(mptr, fptr)
+            else if (fptr && humanoid(mptr) && same_race(mptr, fptr)
                      && (!is_undead(mptr) && fptr->mlet != S_KOBOLD
                          && fptr->mlet != S_ORC && fptr->mlet != S_OGRE))
                 return (starving && carni && !is_elf(mptr)) ? ACCFOOD : TABU;
@@ -1700,34 +1713,22 @@ register struct obj *obj;
             return (obj->otyp > SLIME_MOLD) ? (carni ? ACCFOOD : MANFOOD)
                                             : (herbi ? ACCFOOD : MANFOOD);
         }
+    case ROCK_CLASS:
+        return UNDEF;
+    case ART_CLASS:
     case REAGENT_CLASS:
-    {
-        /*FALLTHRU*/
-    }
     default:
-        if (obj->otyp == AMULET_OF_STRANGULATION
-            || obj->otyp == RIN_SLOW_DIGESTION)
-            return TABU;
-        if (mon_hates_silver(mon) && obj_counts_as_silver(obj))
+        if (obj->otyp == AMULET_OF_STRANGULATION || obj->otyp == RIN_SLOW_DIGESTION)
             return TABU;
         if (slurps_items(mptr) && is_slurpable(obj))
             return ACCFOOD;
-        if (metallivorous(mptr) && is_metallic(obj)
-            && (is_rustprone(obj) || !rust_causing_and_ironvorous(mptr)))
-        {
-            /* Non-rustproofed ferrous based metals are preferred. */
-            return (is_rustprone(obj) && !obj->oerodeproof) ? DOGFOOD
-                                                            : ACCFOOD;
-        }
         if (lithovore(mptr) && is_obj_stony(obj))
-            return (obj->speflags & SPEFLAGS_NO_PICKUP) || (In_sokoban(&u.uz) && obj->otyp == BOULDER) ? TABU : obj->cursed ? ACCFOOD : DOGFOOD;
-        if (!obj->cursed
-            && obj->oclass != BALL_CLASS
-            && obj->oclass != CHAIN_CLASS)
+            return (In_sokoban(&u.uz) && obj->otyp == BOULDER) ? TABU : eschewed ? ACCFOOD : DOGFOOD;
+        /* Non-rustproofed ferrous based metals are preferred. */
+        if (metallivorous(mptr) && is_metallic(obj)  && (is_rustprone(obj) || !rust_causing_and_ironvorous(mptr)))
+            return (is_rustprone(obj) && !obj->oerodeproof) ? DOGFOOD : ACCFOOD;
+        if (!obj->cursed && obj->oclass != BALL_CLASS && obj->oclass != CHAIN_CLASS)
             return APPORT;
-        /*FALLTHRU*/
-    case ROCK_CLASS:
-    case ART_CLASS:
         return UNDEF;
     }
 }
@@ -1898,6 +1899,7 @@ boolean thrown;
                 pline_ex(ATR_NONE, CLR_MSG_WARNING, "However, %d other head%s still remain %s.", mtmp->heads_left - headnum, plur(mtmp->heads_left - headnum), is_peaceful(mtmp) ? "untamed" : "hostile");
             place_object(obj, mtmp->mx, mtmp->my); /* put on floor */
             /* devour the food (might grow into larger, genocided monster) */
+            Sprintf(priority_debug_buf_2, "tamedog: %d", obj->otyp);
             useupf(obj, 1L);
         }
         else if (!thrown)
@@ -1955,6 +1957,9 @@ wary_dog(mtmp, was_dead)
 struct monst *mtmp;
 boolean was_dead;
 {
+    if (!mtmp)
+        return;
+
     struct edog *edog;
     boolean quietly = was_dead;
     schar was_tame = mtmp->mtame;
@@ -1969,7 +1974,7 @@ boolean was_dead;
         update_mon_maxhp(mtmp);
     }
 
-    if (edog && (edog->killed_by_u == 1 || edog->abuse > 2)) 
+    if (edog && (edog->killed_by_u == 1 || edog->abuse > 2) && !mindless(mtmp->data))
     {
         mtmp->mpeaceful = mtmp->mtame = 0;
         if (!mtmp->mtame)
@@ -1995,7 +2000,7 @@ boolean was_dead;
     else
     {
         /* chance it goes wild anyway - Pet Sematary */
-        if(mtmp->mtame)
+        if (mtmp->mtame && !mindless(mtmp->data) && !mtmp->isfaithful)
             mtmp->mtame = rn2(mtmp->mtame + 1);
         if (!mtmp->mtame)
             mtmp->mpeaceful = rn2(2);
@@ -2038,10 +2043,10 @@ void
 abuse_dog(mtmp)
 struct monst *mtmp;
 {
-    if (!mtmp->mtame)
+    if (!mtmp || !mtmp->mtame || mindless(mtmp->data))
         return;
 
-    if (Aggravate_monster || Conflict || is_crazed(mtmp))
+    if ((Aggravate_monster || Conflict || is_crazed(mtmp)) && !mtmp->isfaithful)
         mtmp->mtame /= 2;
     else
         mtmp->mtame--;

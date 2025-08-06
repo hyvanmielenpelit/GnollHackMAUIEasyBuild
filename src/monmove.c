@@ -75,7 +75,7 @@ boolean for_unlocking; /* true => credit card ok, false => not ok */
 {
     if (for_unlocking && m_carrying(mon, CREDIT_CARD))
         return TRUE;
-    return m_carrying(mon, SKELETON_KEY) || m_carrying(mon, LOCK_PICK);
+    return m_carrying(mon, SKELETON_KEY) || m_carrying(mon, MASTER_KEY) || m_carrying(mon, LOCK_PICK);
 }
 
 void
@@ -310,7 +310,15 @@ register struct monst *mtmp;
         && canspotmon(mtmp) && couldsee(x2, y2)
         && mon_can_move(mtmp)
         && !onscary(u.ux, u.uy, mtmp))
+    {
+        if (!Hallucination && !is_peaceful(mtmp))
+        {
+            int multicolors[2] = { CLR_MSG_WARNING, NO_COLOR };
+            int d2 = distu(mtmp->mx, mtmp->my);
+            You_multi_ex(ATR_NONE, CLR_MSG_ATTENTION, no_multiattrs, multicolors, "spot %s%s.", a_monnam(mtmp), d2 <= 2 ? " next to you" : d2 <= RUN_SPOT_NEARBY_DISTANCE * RUN_SPOT_NEARBY_DISTANCE ? " nearby" : " at a distance");
+        }
         stop_occupation();
+    }
 
     return rd;
 }
@@ -1128,7 +1136,9 @@ struct monst* mtmp;
         flush_screen(1);
         cliparound(mtmp->mx, mtmp->my, 2);
         play_sfx_sound(SFX_BOSS_FIGHT);
-        display_screen_text(Monnam(mtmp), (char*)0, (char*)0, SCREEN_TEXT_BOSS_FIGHT, ATR_NONE, NO_COLOR, 1UL);
+        char nametitlebuf[BUFSZ];
+        strcpy_capitalized_for_title(nametitlebuf, Monnam(mtmp));
+        display_screen_text(nametitlebuf, (char*)0, (char*)0, SCREEN_TEXT_BOSS_FIGHT, ATR_NONE, NO_COLOR, 1UL);
         cliparound(u.ux, u.uy, 2);
     }
 
@@ -1412,7 +1422,7 @@ register int after;
     }
 
     /* teleport if that lies in our nature */
-    if (ptr == &mons[PM_TENGU] && !rn2(5) && !is_cancelled(mtmp)
+    if (has_teleportation(mtmp) && has_teleport_control(mtmp) && !rn2(5) && !is_cancelled(mtmp)
         && !tele_restrict(mtmp)) 
     {
         if (mtmp->mhp < 7 || is_peaceful(mtmp) || rn2(2))
@@ -1562,8 +1572,8 @@ register int after;
                     if (((likegold && otmp->oclass == COIN_CLASS)
                          || (likeobjs && (index(practical, otmp->oclass))
                              && (otmp->otyp != CORPSE
-                                 || (ptr->mlet == S_NYMPH
-                                     && !is_rider(&mons[otmp->corpsenm]))))
+                                 || (ptr->mlet == S_NYMPH /* Nymph picks up corpses... */
+                                     && (otmp->corpsenm < LOW_PM || !is_rider(&mons[otmp->corpsenm]))))) /* ...but not rider corpses */
                          || (likemagic && index(magical, otmp->oclass))
                          || (uses_items && searches_for_item(mtmp, otmp))
                          || (likerock && otmp->otyp == BOULDER)
@@ -1572,8 +1582,7 @@ register int after;
                          || (conceals && !cansee(otmp->ox, otmp->oy))
                          || (slurps_items(ptr)
                              && !index(indigestion, otmp->oclass)
-                             && !(otmp->otyp == CORPSE
-                                  && touch_petrifies(&mons[otmp->corpsenm]))))
+                             && !(otmp->otyp == CORPSE && otmp->corpsenm >= LOW_PM && touch_petrifies(&mons[otmp->corpsenm]))))
                         && touch_artifact(otmp, mtmp) 
                         && mon_wants_to_pick_up_obj(mtmp, otmp)
                         )
@@ -2340,7 +2349,7 @@ struct monst *mtmp;
             && !(typ >= DAGGER && typ <= CRYSKNIFE) && typ != SLING
             && !is_cloak(obj) && typ != FEDORA && !is_gloves(obj)
             && typ != LEATHER_JACKET && typ != CREDIT_CARD && !is_shirt(obj)
-            && !(typ == CORPSE && verysmall(&mons[obj->corpsenm]))
+            && !(typ == CORPSE && obj->corpsenm >= LOW_PM && verysmall(&mons[obj->corpsenm]))
             && typ != FORTUNE_COOKIE && typ != CANDY_BAR && typ != PANCAKE
             && typ != ELVEN_WAYBREAD && typ != LUMP_OF_ROYAL_JELLY
             && obj->oclass != AMULET_CLASS && obj->oclass != MISCELLANEOUS_CLASS && obj->oclass != RING_CLASS
@@ -2350,7 +2359,7 @@ struct monst *mtmp;
             && !is_candle_or_torch(obj) && typ != OILSKIN_SACK && typ != LEASH
             && typ != STETHOSCOPE && typ != BLINDFOLD && typ != TOWEL
             && typ != TIN_WHISTLE && typ != MAGIC_WHISTLE
-            && typ != MAGIC_MARKER && typ != TIN_OPENER && typ != SKELETON_KEY
+            && typ != MAGIC_MARKER && typ != TIN_OPENER && typ != SKELETON_KEY && typ != MASTER_KEY
             && typ != LOCK_PICK)
             return TRUE;
         if (Is_container(obj) && obj->cobj)

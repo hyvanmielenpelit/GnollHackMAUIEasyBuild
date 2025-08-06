@@ -43,6 +43,7 @@ STATIC_DCL boolean FDECL(is_valid_jump_pos, (int, int, int, BOOLEAN_P));
 STATIC_DCL int FDECL(get_invalid_jump_position, (int, int));
 STATIC_DCL int FDECL(get_invalid_polearm_position, (int, int));
 STATIC_DCL boolean FDECL(find_poleable_mon, (coord *, int, int));
+STATIC_DCL int FDECL(doapply_core, (int));
 
 #ifdef AMIGA
 void FDECL(amii_speaker, (struct obj *, char *, int));
@@ -520,7 +521,7 @@ int rx, ry, *resp;
         corpse = 0;               /* can't reach corpse on floor */
         /* you can't reach tiny statues (even though you can fight
            tiny monsters while levitating--consistency, what's that?) */
-        while (statue && mons[statue->corpsenm].msize == MZ_TINY)
+        while (statue && statue->corpsenm >= LOW_PM && mons[statue->corpsenm].msize == MZ_TINY)
             statue = nxtobj(statue, STATUE, TRUE);
     }
 
@@ -561,7 +562,7 @@ int rx, ry, *resp;
                 /* TRUE: override visibility check--it's not on the map */
                 gndr = pronoun_gender(mtmp, TRUE);
             } 
-            else 
+            else if (corpse->corpsenm >= LOW_PM)
             {
                 mptr = &mons[corpse->corpsenm];
                 if (is_female(mptr))
@@ -614,18 +615,18 @@ int rx, ry, *resp;
     { /* statue */
         const char *what, *how;
 
-        mptr = &mons[statue->corpsenm];
+        mptr = statue->corpsenm >= LOW_PM ? &mons[statue->corpsenm] : 0;
         if (Blind)
         { /* ignore statue->dknown; it'll always be set */
             Sprintf(buf, "%s %s",
                     (rx == u.ux && ry == u.uy) ? "This" : "That",
-                    humanoid(mptr) ? "person" : "creature");
+                    mptr && humanoid(mptr) ? "person" : "creature");
             what = buf;
         } 
         else 
         {
             what = corpse_monster_name(statue);
-            if (!is_mname_proper_name(mptr))
+            if (mptr && !is_mname_proper_name(mptr))
                 what = The(what);
         }
         how = "fine";
@@ -932,7 +933,7 @@ xchar x, y, n;
 }
 
 int
-number_leashed()
+number_leashed(VOID_ARGS)
 {
     int i = 0;
     struct obj *obj;
@@ -981,7 +982,7 @@ boolean feedback;
 
 /* player is about to die (for bones) */
 void
-unleash_all()
+unleash_all(VOID_ARGS)
 {
     register struct obj *otmp;
     register struct monst *mtmp;
@@ -1156,7 +1157,7 @@ struct monst *mtmp;
 }
 
 boolean
-next_to_u()
+next_to_u(VOID_ARGS)
 {
     register struct monst *mtmp;
     register struct obj *otmp;
@@ -1241,7 +1242,7 @@ register xchar x, y;
                 {
                     pline("%s is choked by the leash!", Monnam(mtmp));
                     /* tameness eventually drops to 1 here (never 0) */
-                    if (mtmp->mtame/**/ && rn2(mtmp->mtame/**/))
+                    if (mtmp->mtame/**/ && !mindless(mtmp->data) && rn2(mtmp->mtame/**/))
                         mtmp->mtame--;
 
                     if (!mtmp->mtame)
@@ -1280,7 +1281,7 @@ register xchar x, y;
 }
 
 const char *
-beautiful()
+beautiful(VOID_ARGS)
 {
     return ((ACURR(A_CHA) > 14)
                ? ((poly_gender() == 1)
@@ -1342,6 +1343,8 @@ struct obj *obj;
                         multi_reason = "gazing into a mirror";
                     }
                     nomovemsg = 0; /* default, "you can move again" */
+                    nomovemsg_attr = ATR_NONE;
+                    nomovemsg_color = NO_COLOR;
                 }
             } 
             else if (youmonst.data->mlet == S_VAMPIRE)
@@ -1539,7 +1542,10 @@ struct obj* obj;
         return 0;
 
     update_u_facing(TRUE);
-    u.uconduct.gnostic++;
+    if (!u.uconduct.gnostic++)
+        livelog_printf(LL_CONDUCT,
+            "eschewed atheism, by using %s",
+            doname(obj));
 
     if (obj->charges <= 0)
     {
@@ -1813,6 +1819,7 @@ struct obj **optr;
             You_ex(ATR_NONE, CLR_MSG_WARNING, "summon %s!", a_monnam(mtmp));
             if (!obj_resists(obj, 93, 100)) {
                 pline_ex(ATR_NONE, CLR_MSG_NEGATIVE, "%s shattered!", Tobjnam(obj, "have"));
+                Sprintf(priority_debug_buf_2, "use_bell: %d", obj->otyp);
                 useup(obj);
                 *optr = 0;
             } else
@@ -1824,6 +1831,8 @@ struct obj **optr;
                     break;
                 case 2: /* no explanation; it just happens... */
                     nomovemsg = "";
+                    nomovemsg_attr = ATR_NONE;
+                    nomovemsg_color = NO_COLOR;
                     multi_reason = NULL;
                     nomul(-rnd(2));
                     break;
@@ -2274,6 +2283,7 @@ struct obj **optr;
         end_burn(obj, TRUE);
 
     /* candles are now gone */
+    Sprintf(priority_debug_buf_3, "sell_to_npc: %d", obj->otyp);
     useupall(obj);
     /* candelabrum's weight is changing */
     otmp->owt = weight(otmp);
@@ -2609,7 +2619,7 @@ struct obj* obj;
         case 2:
         {
             const char refill_lantern_objects[] = { ALL_CLASSES, TOOL_CLASS, 0 };
-            struct obj* target_obj = getobj_ex(refill_lantern_objects, "refill", 0, "", maybe_refillable_with_oil);
+            struct obj* target_obj = getobj_ex(refill_lantern_objects, "refill", 0, "", maybe_refillable_with_oil, 0, 0U);
             if (!target_obj)
             {
                 pline1(Never_mind);
@@ -2699,7 +2709,7 @@ struct obj **optr;
         obj_extract_self(obj); /* free from inv */
         obj->nomerge = 1;
         obj = hold_another_object(obj, "You drop %s!", doname(obj),
-                                  (const char *) 0);
+                                  (const char *) 0, TRUE);
         if (obj)
             obj->nomerge = 0;
     }
@@ -2709,7 +2719,7 @@ struct obj **optr;
 STATIC_VAR NEARDATA const char cuddly[] = { TOOL_CLASS, GEM_CLASS, 0 };
 
 int
-dorub()
+dorub(VOID_ARGS)
 {
     struct obj *obj = getobj(cuddly, "rub", 0, "");
 
@@ -2773,7 +2783,7 @@ dorub()
 }
 
 int
-dojump()
+dojump(VOID_ARGS)
 {
     /* Physical jump */
     return jump(0);
@@ -3142,6 +3152,8 @@ int magic; /* 0=Physical, otherwise skill level */
         nomul(-1);
         multi_reason = "jumping around";
         nomovemsg = "";
+        nomovemsg_attr = ATR_NONE;
+        nomovemsg_color = NO_COLOR;
         morehungry(rnd(25));
         return 1;
     }
@@ -3151,7 +3163,7 @@ boolean
 tinnable(corpse)
 struct obj *corpse;
 {
-    if (corpse->oeaten)
+    if (corpse->oeaten || corpse->corpsenm < LOW_PM)
         return 0;
     if (!mons[corpse->corpsenm].cnutrit)
         return 0;
@@ -3195,7 +3207,7 @@ struct obj *obj;
         delay_output_milliseconds(2000);
     }
 
-    if (touch_petrifies(&mons[corpse->corpsenm]) && !Stone_resistance
+    if (corpse->corpsenm >= LOW_PM && touch_petrifies(&mons[corpse->corpsenm]) && !Stone_resistance
         && !uarmg) 
     {
         char kbuf[BUFSZ];
@@ -3212,7 +3224,7 @@ struct obj *obj;
         killer.hint_idx = HINT_KILLED_TOUCHED_COCKATRICE_CORPSE;
         instapetrify(kbuf);
     }
-    if (is_rider(&mons[corpse->corpsenm])) 
+    if (corpse->corpsenm >= LOW_PM && is_rider(&mons[corpse->corpsenm]))
     {
         if (revive_corpse(corpse))
         {
@@ -3225,7 +3237,7 @@ struct obj *obj;
         }
         return;
     }
-    if (has_monster_type_nontinnable_corpse(&mons[corpse->corpsenm])) 
+    if (corpse->corpsenm >= LOW_PM && has_monster_type_nontinnable_corpse(&mons[corpse->corpsenm]))
     {
         if (is_reviver(&mons[corpse->corpsenm]) && revives_upon_meddling(&mons[corpse->corpsenm]) && revive_corpse(corpse))
         {
@@ -3238,7 +3250,7 @@ struct obj *obj;
         }
         return;
     }
-    if (mons[corpse->corpsenm].cnutrit == 0) 
+    if (corpse->corpsenm >= LOW_PM && mons[corpse->corpsenm].cnutrit == 0)
     {
         play_sfx_sound(SFX_GENERAL_CANNOT);
         pline_ex(ATR_NONE, CLR_MSG_FAIL, "That's too insubstantial to tin.");
@@ -3270,14 +3282,16 @@ struct obj *obj;
                     verbalize_angry1(you_buy_it);
                 }
             }
+            Sprintf(priority_debug_buf_2, "use_tinning_kit: %d", corpse->otyp);
             useup(corpse);
         } else {
             if (costly_spot(corpse->ox, corpse->oy) && !corpse->no_charge)
                 verbalize_angry1(you_buy_it);
+            Sprintf(priority_debug_buf_2, "use_tinning_kit: %d", corpse->otyp);
             useupf(corpse, 1L);
         }
         (void) hold_another_object(can, "You make, but cannot pick up, %s.",
-                                   doname(can), (const char *) 0);
+                                   doname(can), (const char *) 0, TRUE);
     } else
         impossible("Tinning failed.");
 }
@@ -4090,6 +4104,7 @@ struct obj* obj;
                 pline_ex(ATR_NONE, CLR_MSG_ATTENTION, "%s disintegrated!", Yobjnam2(otmp, "are"));
                 wandknown = TRUE;
                 //Destroy item;
+                Sprintf(priority_debug_buf_3, "use_wand_on_object: %d", otmp->otyp);
                 useupall(otmp);
                 break;
             case WAN_POLYMORPH:
@@ -4128,6 +4143,7 @@ struct obj* obj;
                 {
                     pline_ex(ATR_NONE, CLR_MSG_ATTENTION, "%s!", Yobjnam2(otmp, "evaporate"));
                     wandknown = TRUE;
+                    Sprintf(priority_debug_buf_3, "use_wand_on_object2: %d", otmp->otyp);
                     useupall(otmp);
                 }
                 else
@@ -4279,6 +4295,7 @@ struct obj *tstone;
         else
             pline_ex(ATR_NONE, CLR_MSG_ATTENTION, "A sharp crack shatters %s%s.",
                   (obj->quan > 1L) ? "one of " : "", the(xname(obj)));
+        Sprintf(priority_debug_buf_2, "use_stone: %d", obj->otyp);
         useup(obj);
         return;
     }
@@ -4438,7 +4455,7 @@ struct obj *otmp;
     if (otmp == trapinfo.tobj && u.ux == trapinfo.tx && u.uy == trapinfo.ty) {
         You("resume setting %s%s.", shk_your(buf, otmp),
             defsyms[trap_to_defsym(what_trap(ttyp, rn2))].explanation);
-        set_occupation(set_trap, occutext, objects[otmp->otyp].oc_soundset, OCCUPATION_SETTING_TRAP, OCCUPATION_SOUND_TYPE_RESUME, 0);
+        set_occupation(set_trap, occutext, ATR_NONE, CLR_MSG_ATTENTION, objects[otmp->otyp].oc_soundset, OCCUPATION_SETTING_TRAP, OCCUPATION_SOUND_TYPE_RESUME, 0);
         return;
     }
     trapinfo.tobj = otmp;
@@ -4488,13 +4505,13 @@ struct obj *otmp;
     You("begin setting %s%s.", shk_your(buf, otmp),
         defsyms[trap_to_defsym(what_trap(ttyp, rn2))].explanation);
 
-    set_occupation(set_trap, occutext, objects[otmp->otyp].oc_soundset, OCCUPATION_SETTING_TRAP, OCCUPATION_SOUND_TYPE_START, 0);
+    set_occupation(set_trap, occutext, ATR_NONE, CLR_MSG_ATTENTION, objects[otmp->otyp].oc_soundset, OCCUPATION_SETTING_TRAP, OCCUPATION_SOUND_TYPE_START, 0);
     return;
 }
 
-STATIC_PTR
+STATIC_OVL
 int
-set_trap()
+set_trap(VOID_ARGS)
 {
     struct obj *otmp = trapinfo.tobj;
     struct trap *ttmp;
@@ -4536,6 +4553,7 @@ set_trap()
         /* this shouldn't happen */
         Your_ex(ATR_NONE, CLR_MSG_FAIL, "trap setting attempt fails.");
     }
+    Sprintf(priority_debug_buf_2, "set_trap: %d", otmp->otyp);
     useup(otmp);
     reset_trapset();
     return 0;
@@ -4745,7 +4763,7 @@ struct obj *obj;
                 {
                     /* right into your inventory */
                     You("snatch %s!", yname(otmp));
-                    if (otmp->otyp == CORPSE
+                    if (otmp->otyp == CORPSE && otmp->corpsenm >= LOW_PM
                         && touch_petrifies(&mons[otmp->corpsenm]) && !uarmg
                         && !Stone_resistance
                         && !(poly_when_stoned(youmonst.data)
@@ -4759,7 +4777,7 @@ struct obj *obj;
                         instapetrify(kbuf);
                     }
                     (void)hold_another_object(otmp, "You drop %s!",
-                        doname(otmp), (const char*)0);
+                        doname(otmp), (const char*)0, TRUE);
                 }
                 else
                 {
@@ -4813,7 +4831,7 @@ struct obj *obj;
 #endif /* 0 */
                     /* right into your inventory */
                     You("snatch %s!", yname(otmp));
-                    if (otmp->otyp == CORPSE
+                    if (otmp->otyp == CORPSE && otmp->corpsenm >= LOW_PM
                         && touch_petrifies(&mons[otmp->corpsenm]) && !uarmg
                         && !Stone_resistance
                         && !(poly_when_stoned(youmonst.data)
@@ -4827,7 +4845,7 @@ struct obj *obj;
                         instapetrify(kbuf);
                     }
                     (void) hold_another_object(otmp, "You drop %s!",
-                                               doname(otmp), (const char *) 0);
+                                               doname(otmp), (const char *) 0, TRUE);
                     break;
                 default:
                     /* to floor beneath mon */
@@ -4982,7 +5000,7 @@ int* max_range;
         *max_range = (has_otyp_extended_polearm_reach(obj->otyp) || has_obj_mythic_reach(obj) ? POLEARM_EXTENDED_MAX_DISTANCE : POLEARM_NORMAL_MAX_DISTANCE);
 
     }
-    else if (is_spear(obj))
+    else if (is_spear(obj) || is_trident(obj))
     {
         *min_range = SPEAR_MIN_DISTANCE;
         if (has_otyp_extended_polearm_reach(obj->otyp) || has_obj_mythic_reach(obj))
@@ -5178,7 +5196,7 @@ struct obj *obj;
 
         play_monster_simple_weapon_sound(&youmonst, 0, obj, OBJECT_SOUND_TYPE_SWING_MELEE);
         if(dist2(u.ux, u.uy, bhitpos.x, bhitpos.y) > 0)
-            display_gui_effect(GUI_EFFECT_POLEARM, is_spear(obj) ? GUI_POLEARM_SPEAR : is_lance(obj) ? GUI_POLEARM_LANCE : GUI_POLEARM_THRUSTED, u.ux, u.uy, bhitpos.x, bhitpos.y, 0UL);
+            display_gui_effect(GUI_EFFECT_POLEARM, is_spear(obj) ? GUI_POLEARM_SPEAR : is_lance(obj) ? GUI_POLEARM_LANCE : is_trident(obj) ? GUI_POLEARM_SPEAR : GUI_POLEARM_THRUSTED, u.ux, u.uy, bhitpos.x, bhitpos.y, 0UL);
         context.polearm.hitmon = mtmp;
         check_caitiff(mtmp);
         notonhead = (bhitpos.x != mtmp->mx || bhitpos.y != mtmp->my);
@@ -5189,7 +5207,7 @@ struct obj *obj;
     {
         play_monster_simple_weapon_sound(&youmonst, 0, obj, OBJECT_SOUND_TYPE_SWING_MELEE);
         if (dist2(u.ux, u.uy, bhitpos.x, bhitpos.y) > 0)
-            display_gui_effect(GUI_EFFECT_POLEARM, is_spear(obj) ? GUI_POLEARM_SPEAR : is_lance(obj) ? GUI_POLEARM_LANCE : GUI_POLEARM_THRUSTED, u.ux, u.uy, bhitpos.x, bhitpos.y, 0UL);
+            display_gui_effect(GUI_EFFECT_POLEARM, is_spear(obj) ? GUI_POLEARM_SPEAR : is_lance(obj) ? GUI_POLEARM_LANCE : is_trident(obj) ? GUI_POLEARM_SPEAR : GUI_POLEARM_THRUSTED, u.ux, u.uy, bhitpos.x, bhitpos.y, 0UL);
 
         struct trap *t = t_at(bhitpos.x, bhitpos.y);
 
@@ -5214,7 +5232,7 @@ struct obj *obj;
     {
         play_monster_simple_weapon_sound(&youmonst, 0, obj, OBJECT_SOUND_TYPE_SWING_MELEE);
         if (dist2(u.ux, u.uy, bhitpos.x, bhitpos.y) > 0)
-            display_gui_effect(GUI_EFFECT_POLEARM, is_spear(obj) ? GUI_POLEARM_SPEAR : is_lance(obj) ? GUI_POLEARM_LANCE : GUI_POLEARM_THRUSTED, u.ux, u.uy, bhitpos.x, bhitpos.y, 0UL);
+            display_gui_effect(GUI_EFFECT_POLEARM, is_spear(obj) ? GUI_POLEARM_SPEAR : is_lance(obj) ? GUI_POLEARM_LANCE : is_trident(obj) ? GUI_POLEARM_SPEAR : GUI_POLEARM_THRUSTED, u.ux, u.uy, bhitpos.x, bhitpos.y, 0UL);
 
         /* no monster here and no statue seen or remembered here */
         (void) unmap_invisible(bhitpos.x, bhitpos.y);
@@ -5259,6 +5277,8 @@ struct obj *obj;
     costly_alteration(obj, COST_SPLAT);
     Strcpy(debug_buf_2, "use_cream_pie");
     obj_extract_self(obj);
+    Sprintf(priority_debug_buf_2, "use_cream_pie: %d", obj->otyp);
+    Sprintf(priority_debug_buf_3, "use_cream_pie: %d", obj->otyp);
     delobj(obj);
     return 0;
 }
@@ -5516,45 +5536,32 @@ struct obj *obj;
     else if (objects[obj->otyp].oc_dir == IMMEDIATE_TWO_TO_SIX_TARGETS)
         hit_only_one = 4; /* 2- 6 targets based on BUC status */
 
-    switch (obj->otyp) {
-    case WAN_WISHING:
-    case WAN_IDENTIFY:
-    case WAN_NOTHING:
-    case WAN_LOCKING:
-    case WAN_PROBING:
-    case WAN_ENLIGHTENMENT:
-    case WAN_OPENING:
-    case WAN_UNDEAD_TURNING:
-    case WAN_SECRET_DOOR_DETECTION:
-    case WAN_TRAP_DETECTION:
-    case WAN_ORE_DETECTION:
-    case WAN_TOWN_PORTAL:
+    short dmg_type = AD_MAGM;
+    boolean did_explode = get_wand_explosion_damage(obj, &dmg_n, &dmg_d, &expltype, &dmg_type, FALSE);
+    if (!did_explode)
+    {
         pline(nothing_else_happens);
         goto discard_broken_wand;
-    case WAN_DEATH:
-    case WAN_DISINTEGRATION:
-    case WAN_LIGHTNING:
-        dmg_n *= 4;
-        goto wanexpl;
-    case WAN_FIRE:
-        expltype = EXPL_FIERY;
-        /*FALLTHRU*/
-    case WAN_COLD:
-        if (expltype == EXPL_MAGICAL)
-            expltype = EXPL_FROSTY;
-        dmg_n *= 2;
-        /*FALLTHRU*/
-    case WAN_MAGIC_MISSILE:
-    wanexpl:
-        explode(u.ux, u.uy, objects[obj->otyp].oc_dir_subtype, &youmonst, dmg_n, dmg_d, 0, obj->otyp, WAND_CLASS, expltype);
-        makeknown(obj->otyp); /* explode describes the effect */
-        goto discard_broken_wand;
+    }
+
+    switch (obj->otyp) {
     case WAN_STRIKING:
         /* we want this before the explosion instead of at the very end */
         pline_ex(ATR_NONE, CLR_MSG_NEGATIVE, "A wall of force smashes down around you!");
-        dmg_n = 1 + obj->charges;
-        dmg_d = 6; /* normally 2d12 */
-        goto wanexpl;
+        /* FALLTHRU */
+    case WAN_DEATH:
+    case WAN_DISINTEGRATION:
+    case WAN_PETRIFICATION:
+    case WAN_LIGHTNING:
+    case WAN_MAGIC_MISSILE:
+        if (dmg_n > 0 && dmg_d > 0)
+        {
+            explode(u.ux, u.uy, 
+                objects[obj->otyp].oc_dir == RAY && objects[obj->otyp].oc_dir_subtype <= RAY_WND_PETRIFICATION ? objects[obj->otyp].oc_dir_subtype : 0, 
+                &youmonst, dmg_n, dmg_d, 0, STRANGE_OBJECT /* obj->otyp */, WAND_CLASS, expltype);
+            makeknown(obj->otyp); /* explode describes the effect */
+        }
+        goto discard_broken_wand;
     case WAN_DISJUNCTION:
     case WAN_CANCELLATION:
     case WAN_POLYMORPH:
@@ -5573,7 +5580,7 @@ struct obj *obj;
        surrounding targets (or underlying objects) got affected yet.] */
     explode(obj->ox, obj->oy, 
         objects[obj->otyp].oc_dir == RAY && objects[obj->otyp].oc_dir_subtype <= RAY_WND_PETRIFICATION ? objects[obj->otyp].oc_dir_subtype : 0, 
-        &youmonst, dmg_n, dmg_d, 0, obj->otyp, WAND_CLASS,
+        &youmonst, dmg_n, dmg_d, 0, STRANGE_OBJECT /* obj->otyp */, WAND_CLASS,
             EXPL_MAGICAL);
 
     /* prepare for potential feedback from polymorph... */
@@ -5685,7 +5692,11 @@ discard_broken_wand:
     obj = current_wand; /* [see dozap() and destroy_item()] */
     current_wand = 0;
     if (obj)
+    {
+        Sprintf(priority_debug_buf_2, "do_break_wand: %d", obj->otyp);
+        Sprintf(priority_debug_buf_3, "do_break_wand: %d", obj->otyp);
         delobj(obj);
+    }
     nomul(0);
     return 1;
 }
@@ -5761,9 +5772,9 @@ char* class_list;
     }
 }
 
-
+/* the C('b') command */
 int
-dobreak()
+dobreak(VOID_ARGS)
 {
     int res = 1;
     char class_list[MAX_OBJECT_CLASSES + 2];
@@ -5814,7 +5825,28 @@ dobreak()
 
 /* the 'a' command */
 int
-doapply()
+doapply(VOID_ARGS)
+{
+    return doapply_core(0);
+}
+
+/* the 'b' command */
+int
+dotakeitemsout(VOID_ARGS)
+{
+    return doapply_core(1);
+}
+
+/* the 'B' command */
+int
+doputitemsin(VOID_ARGS)
+{
+    return doapply_core(2);
+}
+
+STATIC_OVL int
+doapply_core(applymode)
+int applymode; /* 0 = normal, 1 = take out items, 2 = put in items */
 {
     struct obj *obj;
     register int res = 1;
@@ -5823,21 +5855,32 @@ doapply()
     if (check_capacity((char *) 0))
         return 0;
 
-    int fres = 0;
-    if ((fres = floorapply()) > -1) /* -1 = nothing to floor apply or selected not to do it */
+    if (!applymode)
     {
-        return fres;
+        int fres = 0;
+        if ((fres = floorapply()) > -1) /* -1 = nothing to floor apply or selected not to do it */
+        {
+            return fres;
+        }
     }
 
     setapplyclasses(class_list); /* tools[] */
-    obj = getobj(class_list, "use or apply", 0, "");
+    const char* getobjverb = applymode == 1 ? "take items out of" : applymode == 2 ? "put items in" : "use or apply";
+    obj = getobj(class_list, getobjverb, 0, "");
     if (!obj)
         return 0;
+
+    if (applymode && !Is_container(obj))
+    {
+        play_sfx_sound(SFX_GENERAL_CANNOT);
+        You_ex(ATR_NONE, CLR_MSG_ATTENTION, "cannot %s %s.", getobjverb, thecxname(obj));
+        return 0;
+    }
 
     if (obj->cooldownleft > 0)
     {
         play_sfx_sound(SFX_NOT_READY_YET);
-        You_ex(ATR_NONE, CLR_MSG_ATTENTION, "cannot apply %s before its cooldown has expired.", the(cxname(obj)));
+        You_ex(ATR_NONE, CLR_MSG_ATTENTION, "cannot apply %s before its cooldown has expired.", thecxname(obj));
         return 0;
     }
 
@@ -5853,7 +5896,7 @@ doapply()
     if (Is_proper_container(obj))
     {
         /* Regular containers */
-        res = use_container(&obj, 1, FALSE);
+        res = use_container(&obj, 1, FALSE, applymode);
     }
     else if (is_key(obj))
     {
@@ -5915,6 +5958,7 @@ doapply()
         case LOCK_PICK:
         case CREDIT_CARD:
         case SKELETON_KEY:
+        case MASTER_KEY:
             res = (pick_lock(obj) != 0);
             break;
         case PICK_AXE:
@@ -6307,10 +6351,11 @@ int arrowtype, quan; //ObjID and quantity
         /* The(aobjnam()) is safe since otmp is unidentified -dlc */
         (void)hold_another_object(otmp, oops_msg,
             The(aobjnam(otmp, verb)),
-            (const char*)0);
+            (const char*)0, TRUE);
     }
     else
     {
+        play_sfx_sound(SFX_GENERAL_THAT_DID_NOTHING);
         pline("%s is empty.", The(cxname(bag)));
     }
 
@@ -6681,7 +6726,7 @@ thump:
 
 /* -1 to continue to inventory, 0 = did not take a turn, 1 = take a turn */
 int
-floorapply()
+floorapply(VOID_ARGS)
 {
     register struct trap* ttmp = t_at(u.ux, u.uy);
     char qbuf[QBUFSZ];

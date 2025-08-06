@@ -293,7 +293,6 @@ register struct obj *obj;
 boolean verbose;
 {
     register const struct worn *wp;
-//    register int p;
 
     if (!obj)
         return;
@@ -311,37 +310,17 @@ boolean verbose;
 
     for (wp = worn; wp->w_mask; wp++)
     {
-        if (obj == *(wp->w_obj)) {
+        if (obj == *(wp->w_obj)) 
+        {
             /* in case wearing or removal is in progress or removal
                is pending (via 'A' command for multiple items) */
             cancel_doff(obj, wp->w_mask);
-
             *(wp->w_obj) = 0;
-            /*
-            p = objects[obj->otyp].oc_oprop;
-            u.uprops[p].extrinsic = u.uprops[p].extrinsic & ~wp->w_mask;
-
-            p = objects[obj->otyp].oc_oprop2;
-            u.uprops[p].extrinsic = u.uprops[p].extrinsic & ~wp->w_mask;
-
-            p = objects[obj->otyp].oc_oprop3;
-            u.uprops[p].extrinsic = u.uprops[p].extrinsic & ~wp->w_mask;
-            */
-
             obj->owornmask &= ~wp->w_mask;
-
-            /*
-            if (obj->oartifact)
-                set_artifact_intrinsic(obj, 0, wp->w_mask);
-            if ((p = w_blocks(obj, wp->w_mask)) != 0)
-                u.uprops[p].blocked &= ~wp->w_mask;
-            */
         }
     }
 
     update_all_character_properties(obj, verbose);
-
-    //int curstr = ACURR(A_STR);
 
     if (obj)
     {
@@ -1200,7 +1179,7 @@ boolean silently;
 
                     const struct mythic_power_definition* mythic_powers = (isprefix ? mythic_prefix_powers : mythic_suffix_powers);
                     const struct mythic_definition* mythic_definitions = (isprefix ? mythic_prefix_qualities : mythic_suffix_qualities);
-                    uchar max_mythic_powers = (isprefix ? MAX_MYTHIC_PREFIX_POWERS : MAX_MYTHIC_SUFFIX_POWERS);
+                    uchar max_mythic_powers = (isprefix ? (uchar)MAX_MYTHIC_PREFIX_POWERS : (uchar)MAX_MYTHIC_SUFFIX_POWERS);
 
                     for (uchar k = 0; k < max_mythic_powers; k++)
                     {
@@ -1463,7 +1442,7 @@ boolean creation, commanded;
         wears_shield = m_dowear_type(mon, W_ARMS, creation, FALSE);
     if (can_wear_gloves(mon->data) && !(MON_WEP(mon) && mwelded(MON_WEP(mon), mon)))
         wears_gloves = m_dowear_type(mon, W_ARMG, creation, FALSE);
-    if (can_wear_boots(mon->data) && !slithy(mon->data) && mon->data->mlet != S_CENTAUR)
+    if (can_wear_boots(mon->data))
         wears_boots = m_dowear_type(mon, W_ARMF, creation, FALSE);
     if (can_wear_bracers(mon->data))
         wears_bracers = m_dowear_type(mon, W_ARMB, creation, FALSE);
@@ -1472,9 +1451,10 @@ boolean creation, commanded;
     if (can_wear_amulet(mon->data))
         wears_amulet = m_dowear_type(mon, W_AMUL, creation, FALSE);
     if (can_wear_rings(mon->data) && (cursed_items_are_positive_mon(mon) || (!(MON_WEP(mon) && mwelded(MON_WEP(mon), mon)) && !(old_gloves && old_gloves->cursed))))
+    {
         wears_ringr = m_dowear_type(mon, W_RINGR, creation, FALSE);
-    if (can_wear_rings(mon->data) && (cursed_items_are_positive_mon(mon) || (!(MON_WEP(mon) && mwelded(MON_WEP(mon), mon)) && !(old_gloves && old_gloves->cursed))))
         wears_ringl = m_dowear_type(mon, W_RINGL, creation, FALSE);
+    }
 
     /* Always check miscellaneous */
     wears_misc1 = m_dowear_type(mon, W_MISC, creation, FALSE);
@@ -1741,6 +1721,24 @@ int64_t flag;
             return uarmf;
         case W_ARMU:
             return uarmu;
+        case W_AMUL:
+            return uamul;
+        case W_MISC:
+            return umisc;
+        case W_MISC2:
+            return umisc2;
+        case W_MISC3:
+            return umisc3;
+        case W_MISC4:
+            return umisc4;
+        case W_MISC5:
+            return umisc5;
+        case W_RINGL:
+            return uleft;
+        case W_RINGR:
+            return uright;
+        case W_BLINDFOLD:
+            return ublindf;
         case W_SADDLE: /* might be used to check if you are polymorphed into a horse wearing a saddle */
             return (struct obj*)0; //usaddle;
         default:

@@ -418,12 +418,20 @@ int mtype;
                         (void)mpickobj(priest, otmp);
                 }
 
+                /* Holy symbol(s) for potential sale*/
+                if (rn2(8))
+                    (void) mongets(priest, HOLY_SYMBOL);
+                if (!rn2(3))
+                    (void) mongets(priest, HOLY_SYMBOL);
+                if (!rn2(6))
+                    (void)mongets(priest, HOLY_SYMBOL);
+
                 /* Reagents */
-                int cnt = 10 + rnd(10);
+                int cnt = 4 + rnd(10);
                 int i;
                 for (i = 0; i < cnt; i++)
                 {
-                    otmp = mksobj(random_reagent_otyp(TRUE, TRUE, 1), FALSE, FALSE, FALSE);
+                    otmp = mksobj(random_reagent_otyp(FALSE, TRUE, 1), FALSE, FALSE, FALSE);
                     if (otmp)
                         (void)mpickobj(priest, otmp);
                 }
@@ -1107,6 +1115,7 @@ int roomno;
             nomul(-3);
             multi_reason = "being terrified of a ghost";
             nomovemsg = "You regain your composure.";
+            nomovemsg_attr = ATR_NONE;
             nomovemsg_color = CLR_MSG_SUCCESS;
         }
     }
@@ -1732,7 +1741,7 @@ void
 mstatusline(mtmp)
 struct monst *mtmp;
 {
-    char buf[BUFSZ];
+    char buf[BUFSZ * 5];
     print_mstatusline(buf, mtmp, ARTICLE_THE, FALSE);
     pline("Status of %s", buf);
 }
@@ -1792,9 +1801,9 @@ boolean showheads;
     {
         if (wizard && flags.wiz_mstatusline)
         {
-            Sprintf(eos(info), " (%d", is_tame(mtmp));
-            if (!mtmp->isminion)
-                Sprintf(eos(info), "; hungry %lld; apport %d",
+            Sprintf(eos(info), " (tameness %d", mtmp->mtame);
+            if (has_edog(mtmp))
+                Sprintf(eos(info), "; hungry on turn %lld; apport %d",
                     (long long)EDOG(mtmp)->hungrytime, EDOG(mtmp)->apport);
             Strcat(info, ")");
         }
@@ -1885,7 +1894,7 @@ boolean showheads;
 void
 ustatusline()
 {
-    char info[BUFSZ];
+    char info[BUFSZ * 2];
 
     info[0] = '\0';
 
@@ -1985,7 +1994,7 @@ ustatusline()
 
     pline("Status of %s (%s):  Level %d  HP %d(%d)  AC %d%s.", plname,
           piousness(FALSE, align_str(u.ualign.type)),
-          Upolyd ? mons[u.umonnum].mlevel : u.ulevel, Upolyd ? u.mh : u.uhp,
+          Upolyd ? (int)mons[u.umonnum].mlevel : u.ulevel, Upolyd ? u.mh : u.uhp,
           Upolyd ? u.mhmax : u.uhpmax, u.uac, info);
 }
 

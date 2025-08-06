@@ -173,6 +173,7 @@ enum dismount_types {
 #define CXN_PFX_THE 4   /* prefix with "the " (unless pname) */
 #define CXN_ARTICLE 8   /* include a/an/the prefix */
 #define CXN_NOCORPSE 16 /* suppress " corpse" suffix */
+#define CXN_BARE 32     /* suppress various details, etc. tin */
 
 #define KXNFLAGS_NO_ARTICLE 0x01
 #define KXNFLAGS_SPELL      0x02  // Not the book, but the spell from it
@@ -394,6 +395,7 @@ extern short tile2enlargement[MAX_TILES];
 #define MM2_MAYBE_ALLOW_EXTINCT         0x00000010UL
 #define MM2_REVIVING                    0x00000020UL
 #define MM2_RANDOMIZE_SUBTYPE           0x00000040UL
+#define MM2_NAME_KNOWN                  0x00000080UL
 
 #define NO_MKCLASS_FLAGS                0x00000000UL /* use this rather than plain 0 */
 #define MKCLASS_FLAGS_IGNORE_DIFFICULTY 0x00000001UL /* ignore difficulty restrictions */
@@ -477,6 +479,15 @@ extern short tile2enlargement[MAX_TILES];
 #define FM_MYDOGS 0x04  /* search mydogs */
 #define FM_EVERYWHERE (FM_FMON | FM_MIGRATE | FM_MYDOGS)
 
+/* Show weights types */
+#define SHOWWEIGHTS_NONE            0
+#define SHOWWEIGHTS_INVENTORY       1 /* Your inventory */
+#define SHOWWEIGHTS_PICKUP          2
+#define SHOWWEIGHTS_DROP            3 /* Also sell and give */
+#define SHOWWEIGHTS_OTHER_INVENTORY 4 /* Same as 1 but with no "You are" lines */
+#define SHOWWEIGHTS_OTHER_PICKUP    5 /* Same as 2 but with no "You are" lines; used to see monster etc. inventories */
+#define SHOWWEIGHTS_OTHER_DROP      6 /* Same as 3 but with no "You are" lines */
+
 /* Flags to control pick_[race,role,gend,align] routines in role.c */
 #define PICK_RANDOM 0
 #define PICK_RIGID 1
@@ -534,6 +545,7 @@ extern short tile2enlargement[MAX_TILES];
 /* enlightenment control flags */
 #define BASICENLIGHTENMENT 1 /* show mundane stuff */
 #define MAGICENLIGHTENMENT 2 /* show intrinsics and such */
+#define GAMEENLIGHTENMENT  4 /* show game status */
 #define ENL_GAMEINPROGRESS 0
 #define ENL_GAMEOVERALIVE  1 /* ascension, escape, quit, trickery */
 #define ENL_GAMEOVERDEAD   2

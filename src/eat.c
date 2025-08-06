@@ -95,7 +95,7 @@ register struct obj *obj;
 
     /* Ghouls only eat non-veggy corpses or eggs (see dogfood()) */
     if (u.umonnum == PM_GHOUL)
-        return (boolean)((obj->otyp == CORPSE
+        return (boolean)((obj->otyp == CORPSE && obj->corpsenm >= LOW_PM
                           && !vegan(&mons[obj->corpsenm]))
                          || (obj->otyp == EGG));
 
@@ -190,7 +190,11 @@ eatmdone(VOID_ARGS)
     /* release `eatmbuf' */
     if (eatmbuf) {
         if (nomovemsg == eatmbuf)
+        {
             nomovemsg = 0;
+            nomovemsg_attr = ATR_NONE;
+            nomovemsg_color = NO_COLOR;
+        }
         free((genericptr_t) eatmbuf), eatmbuf = 0;
     }
     /* update display */
@@ -230,6 +234,8 @@ eatmupdate()
             eatmbuf = (char *) alloc(strlen(altmsg) + 1);
         }
         nomovemsg = strcpy(eatmbuf, altmsg);
+        nomovemsg_attr = ATR_NONE;
+        nomovemsg_color = NO_COLOR;
         /* update current image */
         youmonst.mappearance = altapp;
         if (has_mobj(&youmonst))
@@ -251,7 +257,7 @@ boolean the_pfx;
                               CXN_SINGULAR | (the_pfx ? CXN_PFX_THE : 0));
         /* not strictly needed since pname values are capitalized
            and the() is a no-op for them */
-        if (is_mname_proper_name(&mons[food->corpsenm]))
+        if (food->corpsenm >= LOW_PM && is_mname_proper_name(&mons[food->corpsenm]))
             the_pfx = FALSE;
     } else {
         /* the ordinary case */
@@ -388,7 +394,7 @@ struct monst* mtmp;
         return 0;
 
     boolean isyou = mtmp == &youmonst;
-    unsigned nut = (otmp->otyp == CORPSE) ? mons[otmp->corpsenm].cnutrit
+    unsigned nut = (otmp->otyp == CORPSE && otmp->corpsenm >= LOW_PM) ? mons[otmp->corpsenm].cnutrit
         : (otmp->otyp == STATUE) ? (unsigned)((otmp->owt * objects[ROCK].oc_nutrition) / (max(1, otmp->quan * objects[ROCK].oc_weight)))
                       : otmp->globby ? otmp->owt
                          : objects[otmp->otyp].oc_nutrition;
@@ -541,8 +547,10 @@ boolean message;
     update_hunger_status(FALSE);
     if (nomovemsg) {
         if (message)
-            pline1(nomovemsg);
+            pline_ex1(nomovemsg_attr, nomovemsg_color, nomovemsg);
         nomovemsg = 0;
+        nomovemsg_attr = ATR_NONE;
+        nomovemsg_color = NO_COLOR;
     } else if (message)
         You("finish eating %s.", food_xname(piece, TRUE));
 
@@ -579,6 +587,7 @@ boolean message;
                 piece->speflags |= SPEFLAGS_ADDED_TO_YOUR_BILL;
             }
         }
+        Sprintf(priority_debug_buf_2, "done_eating: %d", piece->otyp);
         useup(piece);
     }
     else
@@ -661,7 +670,7 @@ double *dmg_p; /* for dishing out extra damage in lieu of Int loss */
             if (!Stone_resistance && !Stoned)
                 make_stoned(5L, (char *) 0, KILLED_BY_AN, mon_monster_name(mdef), HINT_KILLED_ATE_COCKATRICE_CORPSE);
         }
-        else
+        else if (!resists_ston(magr))
         {
             /* no need to check for poly_when_stoned or Stone_resistance;
                tentacled ones don't have those capabilities */
@@ -1079,7 +1088,7 @@ register struct permonst *ptr;
             break;
         }
 
-        if (ptr->mlevel <= rn2(chance))
+        if ((int) ptr->mlevel <= rn2(chance))
             return; /* failed die roll */
     }
 
@@ -1295,7 +1304,7 @@ uchar gender UNUSED; /* 0 = male, 1 = female, 2 = unknown */
     {
         if (!Stunned)
             play_sfx_sound(SFX_ACQUIRE_STUN);
-        make_stunned((HStun & TIMEOUT) + mons[pm].mlevel * 2 + 5 + rnd(20), FALSE);
+        make_stunned((HStun & TIMEOUT) + (int)mons[pm].mlevel * 2 + 5 + rnd(20), FALSE);
         standard_hint("Some corpses make you stunned. You can also check this out by using a wand of probing.", &u.uhint.ate_stunning_corpse);
         donotcheckfurther = TRUE;
     }
@@ -1422,6 +1431,8 @@ uchar gender UNUSED; /* 0 = male, 1 = female, 2 = unknown */
                     an(Upolyd ? mon_monster_name(&youmonst) : urace.noun));
             eatmbuf = dupstr(buf);
             nomovemsg = eatmbuf;
+            nomovemsg_attr = ATR_NONE;
+            nomovemsg_color = NO_COLOR;
             afternmv = eatmdone;
             /* ??? what if this was set before? */
             //youmonst.m_ap_type = M_AP_OBJECT;
@@ -1456,7 +1467,7 @@ uchar gender UNUSED; /* 0 = male, 1 = female, 2 = unknown */
     case PM_CHAMELEON:
     case PM_DOPPELGANGER:
     case PM_SANDESTIN: /* moot--they don't leave corpses */
-        if (Unchanging) {
+        if (Unchanging || Polymorph_resistance) {
             You_feel("momentarily different."); /* same as poly trap */
         } else {
             You_feel("a change coming over you.");
@@ -1649,7 +1660,7 @@ uchar gender UNUSED; /* 0 = male, 1 = female, 2 = unknown */
         else if (conveys_WIS && !rn2(3))
             You_feel_ex(ATR_NONE, CLR_MSG_ATTENTION, "that flavor gave you more perspective on the world for a moment.");
         else if (conveys_CHA && !rn2(3))
-            You_feel_ex(ATR_NONE, CLR_MSG_ATTENTION, "that had beneficial effect on your skin.");
+            You_feel_ex(ATR_NONE, CLR_MSG_ATTENTION, "that had a beneficial effect on your skin.");
 
     } /* check_intrinsics */
 
@@ -1975,6 +1986,7 @@ const char *mesg;
     }
 
 use_up_tin:
+    Sprintf(priority_debug_buf_2, "consume_tin: %d", tin->otyp);
     if (carried(tin))
         useup(tin);
     else
@@ -2089,7 +2101,7 @@ struct obj *otmp;
     } else {
         context.tin.reqtime = tmp;
         context.tin.usedtime = 0;
-        set_occupation(opentin, "opening the tin", objects[otmp->otyp].oc_soundset, OCCUPATION_OPENING_TIN, OCCUPATION_SOUND_TYPE_START, 0);
+        set_occupation(opentin, "opening the tin", ATR_NONE, CLR_MSG_ATTENTION, objects[otmp->otyp].oc_soundset, OCCUPATION_OPENING_TIN, OCCUPATION_SOUND_TYPE_START, 0);
     }
     return;
 }
@@ -2154,6 +2166,7 @@ struct obj *obj;
         nomul(-duration);
         multi_reason = "unconscious from rotten food";
         nomovemsg = "You are conscious again.";
+        nomovemsg_attr = ATR_NONE;
         nomovemsg_color = CLR_MSG_ATTENTION;
         afternmv = Hear_again;
         return 1;
@@ -2238,6 +2251,7 @@ struct obj *otmp;
             pline_ex(ATR_NONE, CLR_MSG_WARNING, "(It must have died too long ago to be safe to eat.)");
             standard_hint("Corpses rot and become dangerous to eat after a while. You can check their status out by using a wand of probing.", &u.uhint.ate_rotten_corpse);
         }
+        Sprintf(priority_debug_buf_2, "eatcorpse: %d", otmp->otyp);
         if (carried(otmp))
             useup(otmp);
         else
@@ -2335,10 +2349,12 @@ struct obj *otmp;
             retcode = 1;
         }
 
-        if (!mons[otmp->corpsenm].cnutrit) {
+        if (otmp->corpsenm >= LOW_PM ? !mons[otmp->corpsenm].cnutrit : !objects[otmp->otyp].oc_nutrition) 
+        {
             /* no nutrition: rots away, no message if you passed out */
             if (!retcode)
                 pline_The_ex(ATR_NONE, CLR_MSG_ATTENTION, "corpse rots away completely.");
+            Sprintf(priority_debug_buf_2, "eatcorpse2: %d", otmp->otyp);
             if (carried(otmp))
                 useup(otmp);
             else
@@ -2442,7 +2458,7 @@ boolean resume;
     }
 
     Sprintf(msgbuf, "eating %s", food_xname(otmp, TRUE));
-    set_occupation(eatfood, msgbuf, objects[otmp->otyp].oc_soundset, OCCUPATION_EATING, MAX_OCCUPATION_SOUND_TYPES, 0);
+    set_occupation(eatfood, msgbuf, ATR_NONE, CLR_MSG_ATTENTION, objects[otmp->otyp].oc_soundset, OCCUPATION_EATING, MAX_OCCUPATION_SOUND_TYPES, 0);
 }
 
 /*
@@ -2841,6 +2857,7 @@ struct obj* obj;
 {
     if (pre_break_statue(obj))
     {
+        Sprintf(priority_debug_buf_2, "eat_statue: %d", obj->otyp);
         if (carried(obj))
             useup(obj);
         else
@@ -2860,7 +2877,7 @@ eatspecial()
 
     /* lesshungry wants an occupation to handle choke messages correctly */
     play_occupation_immediate_sound(objects[otmp->otyp].oc_soundset, OCCUPATION_EATING, OCCUPATION_SOUND_TYPE_START);
-    set_occupation(eatfood, "eating non-food", 0, 0, 0, 0);
+    set_occupation(eatfood, "eating non-food", ATR_NONE, CLR_MSG_ATTENTION, 0, 0, 0, 0);
     lesshungry(context.victual.nmod);
     display_nutrition_floating_text(u.ux, u.uy, context.victual.nmod);
     occupation = 0;
@@ -2868,6 +2885,8 @@ eatspecial()
     context.victual.o_id = 0;
     context.victual.eating = 0;
     context.victual.total_nutrition = 0;
+    Sprintf(priority_debug_buf_2, "eatspecial: %d", otmp->otyp);
+    Sprintf(priority_debug_buf_3, "eatspecial: %d", otmp->otyp);
     if (otmp->oclass == COIN_CLASS) {
         if (carried(otmp))
             useupall(otmp);
@@ -2903,7 +2922,7 @@ eatspecial()
     }
 
     /* KMH -- idea by "Tommy the Terrorist" */
-    if (otmp->otyp == TRIDENT && !otmp->cursed) {
+    if (is_trident(otmp) && !otmp->cursed) {
         /* sugarless chewing gum which used to be heavily advertised on TV */
         pline(Hallucination ? "Four out of five dentists agree."
                             : "That was pure chewing satisfaction!");
@@ -2926,6 +2945,7 @@ eatspecial()
     if (otmp == uswapwep2 && otmp->quan == 1L)
         uswapwep2gone();
 
+    Sprintf(priority_debug_buf_2, "eatspecial: %d", otmp->otyp);
     if (otmp == uball)
         unpunish();
     if (otmp == uchain)
@@ -3072,6 +3092,7 @@ struct obj *otmp;
         pseudo->cursed = otmp->cursed;
         pseudo->quan = 20L; /* do not let useup get it */
         peffects(pseudo);
+        Sprintf(priority_debug_buf_4, "food_after_effect: %d", pseudo->otyp);
         obfree(pseudo, (struct obj*)0);
         break;
     }
@@ -3083,6 +3104,7 @@ struct obj *otmp;
         pseudo->cursed = FALSE;
         pseudo->quan = 20L; /* do not let useup get it */
         peffects(pseudo);
+        Sprintf(priority_debug_buf_4, "food_after_effect2: %d", pseudo->otyp);
         obfree(pseudo, (struct obj*)0);
         break;
     }
@@ -3123,7 +3145,12 @@ struct obj *otmp;
             cured = TRUE;
             make_vomiting(0L, TRUE);
         }
-        if(cured)
+        if (Slimed && !otmp->cursed)
+        {
+            cured = TRUE;
+            make_slimed(0L, "The slime disappears!", 0, (char*)0, 0);
+        }
+        if (cured)
             play_sfx_sound(SFX_CURE_DISEASE);
         break;
     }
@@ -3778,6 +3805,7 @@ doeat()
                 standard_hint("Some food items can be inherently tainted. You can check this out by identifying the item.", &u.uhint.ate_tainted_food);
                 make_food_poisoned(sick_time, doname(otmp), TRUE, HINT_KILLED_TAINTED_CORPSE);
             }
+            Sprintf(priority_debug_buf_2, "doeat: %d", otmp->otyp);
             if (carried(otmp))
                 useup(otmp);
             else
@@ -4118,7 +4146,9 @@ int num;
             {
                 const char* hardtimetxt = "You're having a hard time getting all of it down.";
                 nomovemsg = "You're finally finished.";
-                if (!context.victual.eating) 
+                nomovemsg_attr = ATR_NONE;
+                nomovemsg_color = NO_COLOR;
+                if (!context.victual.eating)
                 {
                     pline1(hardtimetxt);
                     multi = -2;
@@ -4136,6 +4166,8 @@ int num;
                         {
                             reset_eat();
                             nomovemsg = (char *) 0;
+                            nomovemsg_attr = ATR_NONE;
+                            nomovemsg_color = NO_COLOR;
                         }
                     }
                     else
@@ -4172,7 +4204,7 @@ void
 reset_faint()
 {
     if (afternmv == unfaint)
-        unmul("You revive.");
+        unmul_ex(ATR_NONE, CLR_MSG_ATTENTION, "You revive.");
 }
 
 STATIC_VAR unsigned save_hs;
@@ -4256,6 +4288,7 @@ boolean incr;
                 nomul(-duration);
                 multi_reason = "fainted from lack of food";
                 nomovemsg = "You regain consciousness.";
+                nomovemsg_attr = ATR_NONE;
                 nomovemsg_color = CLR_MSG_ATTENTION;
                 afternmv = unfaint;
                 newhs = FAINTED;
@@ -4509,6 +4542,7 @@ vomit() /* A good idea from David Neves */
         nomul(-2);
         multi_reason = "vomiting";
         nomovemsg = You_can_move_again;
+        nomovemsg_attr = ATR_NONE;
         nomovemsg_color = CLR_MSG_SUCCESS;
     }
 }
@@ -4592,27 +4626,30 @@ maybe_finished_meal(stopping)
 boolean stopping;
 {
     /* in case consume_oeaten() has decided that the food is all gone */
-    if (occupation == eatfood
-        && context.victual.usedtime >= context.victual.reqtime) {
-        if (stopping)
-        {
-            occupation = 0; /* for do_reset_eat */
-            if (occsoundset > 0)
-            {
-                stop_occupation_ambient_sound(occsoundset, occtyp);
-                play_occupation_immediate_sound(occsoundset, occtyp, OCCUPATION_SOUND_TYPE_INTERRUPTED);
-                occsoundset = 0;
-                occtyp = 0;
-            }
-        }
-        (void) eatfood();   /* calls done_eating() to use up
-                               context.victual.piece */
-        return TRUE;
-    }
-    if (stopping && context.victual.piece)
+    if (occupation == eatfood)
     {
-        int nutr = context.victual.total_nutrition - context.victual.piece->oeaten;
-        display_nutrition_floating_text(u.ux, u.uy, nutr);
+        if (context.victual.usedtime >= context.victual.reqtime) 
+        {
+            if (stopping)
+            {
+                occupation = 0; /* for do_reset_eat */
+                if (occsoundset > 0)
+                {
+                    stop_occupation_ambient_sound(occsoundset, occtyp);
+                    play_occupation_immediate_sound(occsoundset, occtyp, OCCUPATION_SOUND_TYPE_INTERRUPTED);
+                    occsoundset = 0;
+                    occtyp = 0;
+                }
+            }
+            (void)eatfood();   /* calls done_eating() to use up
+                                   context.victual.piece */
+            return TRUE;
+        }
+        if (stopping && context.victual.piece)
+        {
+            int nutr = context.victual.total_nutrition - context.victual.piece->oeaten;
+            display_nutrition_floating_text(u.ux, u.uy, nutr);
+        }
     }
     return FALSE;
 }

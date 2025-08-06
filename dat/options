@@ -1,5 +1,5 @@
 
-    GnollHack version 4.2.0 [20]
+    GnollHack version 4.2.0 [69]
 
 Options compiled into this edition:
 
@@ -12,7 +12,7 @@ Options compiled into this edition:
     screen control via WIN32 console I/O, traditional status display, status
     via windowport with highlighting, user sounds, system configuration at
     run-time, save and bones files accepted from versions 4.2.0 Build 1
-    through 4.2.0 Build 20, and basic GnollHack features.
+    through 4.2.0 Build 69, and basic GnollHack features.
 
 Supported windowing systems:
 

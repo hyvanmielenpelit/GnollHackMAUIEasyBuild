@@ -341,7 +341,7 @@ register struct monst *magr, *mdef;
         && magr->my != mdef->my)
         return MM_MISS;
 
-    reset_monster_origin_coordinates(&youmonst);
+    //reset_monster_origin_coordinates(&youmonst);
 
     /* Update facing */
     update_m_facing(magr, mdef->mx - magr->mx, TRUE);
@@ -510,7 +510,7 @@ register struct monst *magr, *mdef;
             action = mattk->action_tile ? mattk->action_tile : mattk->aatyp == AT_KICK ? ACTION_TILE_KICK : ACTION_TILE_ATTACK;
             update_m_action(magr, action);
             play_monster_simple_weapon_sound(magr, i, otmp, OBJECT_SOUND_TYPE_SWING_MELEE);
-            m_wait_until_action();
+            m_wait_until_action(magr, action);
             int wielderstrikeindex;
             int strikeindex;
             for (wielderstrikeindex = 0; wielderstrikeindex < wieldermultistrike; wielderstrikeindex++)
@@ -590,6 +590,7 @@ register struct monst *magr, *mdef;
                                 )
                             )
                         {
+                            Sprintf(priority_debug_buf_4, "mattackm: %d", omonwep->otyp);
                             if (omonwep->where == OBJ_MINVENT)
                                 m_useup(magr, omonwep);
                             else if (omonwep->where == OBJ_FREE)
@@ -644,7 +645,7 @@ register struct monst *magr, *mdef;
             action = mattk->action_tile ? mattk->action_tile : ACTION_TILE_SPECIAL_ATTACK;
             update_m_action(magr, action);
             play_monster_simple_weapon_sound(magr, i, (struct obj*)0, OBJECT_SOUND_TYPE_SWING_MELEE);
-            m_wait_until_action();
+            m_wait_until_action(magr, action);
             strike = (i >= 2 && res[i - 1] == MM_HIT && res[i - 2] == MM_HIT);
             if (strike)
                 res[i] = hitmm(magr, mdef, mattk, (struct obj*)0);
@@ -662,7 +663,7 @@ register struct monst *magr, *mdef;
 
             update_m_action(magr, mattk->action_tile ? mattk->action_tile : ACTION_TILE_SPECIAL_ATTACK);
             play_monster_simple_weapon_sound(magr, i, (struct obj*)0, OBJECT_SOUND_TYPE_SWING_MELEE);
-            m_wait_until_action();
+            m_wait_until_action(magr, mattk->action_tile ? mattk->action_tile : ACTION_TILE_SPECIAL_ATTACK);
             res[i] = gazemm(magr, mdef, mattk);
             update_m_action_revert(magr, ACTION_TILE_NO_ACTION);
             break;
@@ -708,7 +709,7 @@ register struct monst *magr, *mdef;
 
             update_m_action(magr, mattk->action_tile ? mattk->action_tile : ACTION_TILE_SPECIAL_ATTACK);
             play_monster_simple_weapon_sound(magr, i, (struct obj*)0, OBJECT_SOUND_TYPE_SWING_MELEE);
-            m_wait_until_action();
+            m_wait_until_action(magr, mattk->action_tile ? mattk->action_tile : ACTION_TILE_SPECIAL_ATTACK);
             if (u.uswallow && magr == u.ustuck)
                 strike = 0;
             else if ((strike = (tmp > rnd(20 + i))) != 0)
@@ -729,7 +730,7 @@ register struct monst *magr, *mdef;
 
                 update_m_action(magr, mattk->action_tile ? mattk->action_tile : ACTION_TILE_SPECIAL_ATTACK);
                 play_monster_simple_weapon_sound(magr, i, (struct obj*)0, OBJECT_SOUND_TYPE_SWING_MELEE);
-                m_wait_until_action();
+                m_wait_until_action(magr, mattk->action_tile ? mattk->action_tile : ACTION_TILE_SPECIAL_ATTACK);
                 strike = breamm(magr, mattk, mdef);
                 update_m_action_revert(magr, ACTION_TILE_NO_ACTION);
 
@@ -757,7 +758,7 @@ register struct monst *magr, *mdef;
 
                 update_m_action(magr, mattk->action_tile ? mattk->action_tile : ACTION_TILE_SPECIAL_ATTACK);
                 play_monster_simple_weapon_sound(magr, i, (struct obj*)0, OBJECT_SOUND_TYPE_SWING_MELEE);
-                m_wait_until_action();
+                m_wait_until_action(magr, mattk->action_tile ? mattk->action_tile : ACTION_TILE_SPECIAL_ATTACK);
                 strike = eyesmm(magr, mattk, mdef);
                 update_m_action_revert(magr, ACTION_TILE_NO_ACTION);
             }
@@ -782,7 +783,7 @@ register struct monst *magr, *mdef;
 
                 update_m_action(magr, ACTION_TILE_CAST_DIR);
                 play_monster_simple_weapon_sound(magr, i, (struct obj*)0, OBJECT_SOUND_TYPE_SWING_MELEE);
-                m_wait_until_action();
+                m_wait_until_action(magr, ACTION_TILE_CAST_DIR);
                 strike = buzzmm(magr, mattk, mdef);
                 update_m_action_revert(magr, ACTION_TILE_NO_ACTION);
 
@@ -809,7 +810,7 @@ register struct monst *magr, *mdef;
 
                 update_m_action(magr, mattk->action_tile ? mattk->action_tile : ACTION_TILE_FIRE);
                 play_monster_simple_weapon_sound(magr, i, (struct obj*)0, OBJECT_SOUND_TYPE_SWING_MELEE);
-                m_wait_until_action();
+                m_wait_until_action(magr, mattk->action_tile ? mattk->action_tile : ACTION_TILE_FIRE);
                 strike = spitmm(magr, mattk, mdef);
                 update_m_action_revert(magr, ACTION_TILE_NO_ACTION);
 
@@ -1397,7 +1398,7 @@ register struct obj* omonwep;
         {
             if (otmp) 
             {
-                if (otmp->otyp == CORPSE
+                if (otmp->otyp == CORPSE && otmp->corpsenm >= LOW_PM
                     && touch_petrifies(&mons[otmp->corpsenm]))
                     goto do_stone;
                 //damage += weapon_dmg_value(otmp, mdef,magr);
@@ -2477,7 +2478,7 @@ int mdead;
     }
 
     if (mddat->mattk[i].damn > 0 || mddat->mattk[i].damd > 0)
-        basedmg = max(0, d(mddat->mattk[i].damn > 0 ? mddat->mattk[i].damn : mddat->mlevel / 2 + 2, mddat->mattk[i].damd > 0 ? mddat->mattk[i].damd : 6) + (int)mddat->mattk[i].damp);
+        basedmg = max(0, d(mddat->mattk[i].damn > 0 ? mddat->mattk[i].damn : (int)mddat->mlevel / 2 + 2, mddat->mattk[i].damd > 0 ? mddat->mattk[i].damd : 6) + (int)mddat->mattk[i].damp);
     else
         basedmg = max(0, mddat->mattk[i].damp);
 
@@ -2486,7 +2487,7 @@ int mdead;
     enum action_tile_types action_before = mdef->action;
     update_m_action(mdef, mddat->mattk[i].action_tile ? mddat->mattk[i].action_tile : ACTION_TILE_PASSIVE_DEFENSE);
     play_monster_simple_weapon_sound(mdef, i, (struct obj*)0, OBJECT_SOUND_TYPE_SWING_MELEE);
-    m_wait_until_action();
+    m_wait_until_action(mdef, mddat->mattk[i].action_tile ? mddat->mattk[i].action_tile : ACTION_TILE_PASSIVE_DEFENSE);
 
     /* These affect the enemy even if defender killed */
     switch (mddat->mattk[i].adtyp) 

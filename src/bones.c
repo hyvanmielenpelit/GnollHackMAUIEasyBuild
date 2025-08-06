@@ -72,7 +72,9 @@ boolean restore;
         
         if (otmp->in_use) 
         {
-            Strcpy(debug_buf_2, "resetobjs");
+            Sprintf(debug_buf_2, "resetobjs: %d", otmp->otyp);
+            Sprintf(debug_buf_3, "resetobjs: %d", otmp->otyp);
+            Sprintf(debug_buf_4, "resetobjs: %d", otmp->otyp);
             obj_extract_self(otmp);
             dealloc_obj(otmp);
             continue;
@@ -287,6 +289,7 @@ boolean restore;
             {
                 otmp->otyp = SPE_BLANK_PAPER;
                 otmp->material = objects[otmp->otyp].oc_material;
+                otmp->owt = weight(otmp);
                 curse(otmp);
             } 
             else if (otmp->otyp == SPE_BOOK_OF_MODRON) 
@@ -294,6 +297,7 @@ boolean restore;
                 otmp->otyp = SPE_BLANK_PAPER;
                 otmp->oartifact = 0;
                 otmp->material = objects[otmp->otyp].oc_material;
+                otmp->owt = weight(otmp);
                 curse(otmp);
             }
             otmp->owt = weight(otmp);
@@ -730,7 +734,7 @@ make_bones:
     commit_bonesfile(&u.uz);
     compress_bonesfile();
 #if !defined(COMPRESS) && !defined(ZLIB_COMP)
-    if (issue_gui_command)
+    if (issue_gui_command && !flags.non_scoring && flags.save_file_tracking_value)
     {
         const char* fq_bones = fqname(bones, BONESPREFIX, 0);
         issue_gui_command(GUI_CMD_POST_BONES_FILE, context.game_difficulty - MIN_DIFFICULTY_LEVEL, 0, fq_bones);

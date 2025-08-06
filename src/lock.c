@@ -101,7 +101,7 @@ picklock(VOID_ARGS)
             return ((xlock.usedtime = 0)); /* you or it moved */
         }
         if (has_box_normal_lock(xlock.box)
-            && (xlock.picktyp == SKELETON_KEY || xlock.picktyp == CREDIT_CARD || xlock.picktyp == LOCK_PICK))
+            && (xlock.picktyp == SKELETON_KEY || xlock.picktyp == MASTER_KEY || xlock.picktyp == CREDIT_CARD || xlock.picktyp == LOCK_PICK))
         {
             //nothing, normal case
         }
@@ -142,7 +142,7 @@ picklock(VOID_ARGS)
         }
 
         if (has_door_normal_lock_at_ptr(xlock.door)
-            && (xlock.picktyp == SKELETON_KEY || xlock.picktyp == CREDIT_CARD || xlock.picktyp == LOCK_PICK))
+            && (xlock.picktyp == SKELETON_KEY || xlock.picktyp == MASTER_KEY || xlock.picktyp == CREDIT_CARD || xlock.picktyp == LOCK_PICK))
         {
             //nothing, normal case
         }
@@ -215,6 +215,7 @@ picklock(VOID_ARGS)
             else
                 pline("%s.", Yobjnam2(xlock.key, "vanish"));
 
+            Sprintf(priority_debug_buf_2, "picklock: %d", xlock.key->otyp);
             useup(xlock.key);
             xlock.key = 0;
         }
@@ -257,6 +258,7 @@ picklock(VOID_ARGS)
             else
                 pline("%s.", Yobjnam2(xlock.key, "vanish"));
 
+            Sprintf(priority_debug_buf_2, "picklock2: %d", xlock.key->otyp);
             useup(xlock.key);
             xlock.key = 0;
         }
@@ -279,7 +281,7 @@ struct obj *key, *box;
         return FALSE;
 
     if (has_box_normal_lock(box)
-        && (key->otyp == SKELETON_KEY || key->otyp == CREDIT_CARD || key->otyp == LOCK_PICK))
+        && (key->otyp == SKELETON_KEY || key->otyp == MASTER_KEY || key->otyp == CREDIT_CARD || key->otyp == LOCK_PICK))
     {
         return TRUE;
     }
@@ -299,7 +301,7 @@ struct rm* door;
         return FALSE;
 
     if (has_door_normal_lock_at_ptr(door)
-        && (key->otyp == SKELETON_KEY || key->otyp == CREDIT_CARD || key->otyp == LOCK_PICK))
+        && (key->otyp == SKELETON_KEY || key->otyp == MASTER_KEY || key->otyp == CREDIT_CARD || key->otyp == LOCK_PICK))
     {
         return TRUE;
     }
@@ -345,19 +347,25 @@ boolean destroyit;
         {
             Strcpy(debug_buf_2, "breakchestlock");
             obj_extract_self(otmp);
-            if (!rn2(3) || otmp->oclass == POTION_CLASS) 
+            if ((!rn2(3) || otmp->oclass == POTION_CLASS || is_fragile(otmp)) && !is_obj_indestructible(otmp) && !obj_resists(otmp, 0, 100))
             {
                 chest_shatter_msg(otmp, x, y);
                 if (costly)
                     loss += stolen_value(otmp, u.ux, u.uy, peaceful_shk, TRUE);
                 if (otmp->quan == 1L) 
                 {
+                    Sprintf(priority_debug_buf_4, "breakchestlock1: %d", otmp->otyp);
+                    context.suppress_container_deletion_warning = 1;
                     obfree(otmp, (struct obj *) 0);
+                    context.suppress_container_deletion_warning = 0;
                     continue;
                 }
                 /* this works because we're sure to have at least 1 left;
                    otherwise it would fail since otmp is not in inventory */
+                Sprintf(priority_debug_buf_2, "breakchestlock2: %d", otmp->otyp);
+                context.suppress_container_deletion_warning = 1;
                 useup(otmp);
+                context.suppress_container_deletion_warning = 0;
             }
             if (box->otyp == ICE_BOX && otmp->otyp == CORPSE) 
             {
@@ -371,7 +379,11 @@ boolean destroyit;
             loss += stolen_value(box, u.ux, u.uy, peaceful_shk, TRUE);
         if (loss)
             You("owe %ld %s for objects destroyed.", loss, currency(loss));
+        Sprintf(priority_debug_buf_2, "breakchestlock3: %d", box->otyp);
+        Sprintf(priority_debug_buf_3, "breakchestlock3: %d", box->otyp);
+        context.suppress_container_deletion_warning = 1;
         delobj(box);
+        context.suppress_container_deletion_warning = 0;
     }
 }
 
@@ -409,8 +421,8 @@ forcelock(VOID_ARGS)
              * attempt to force the lock is (.992)^50 = .67
              */
             play_simple_object_sound(uwep, OBJECT_SOUND_TYPE_BREAK);
-            pline_ex(ATR_NONE, CLR_MSG_NEGATIVE, "%sour %s broke!", (uwep->quan > 1L) ? "One of y" : "Y",
-                  xname(uwep));
+            pline_ex(ATR_NONE, CLR_MSG_NEGATIVE, "%sour %s broke!", (uwep->quan > 1L) ? "One of y" : "Y", xname(uwep));
+            Sprintf(priority_debug_buf_2, "forcelock: %d", uwep->otyp);
             useup(uwep);
             You_ex(ATR_NONE, CLR_MSG_ATTENTION, "give up your attempt to force the lock.");
             exercise(A_DEX, TRUE);
@@ -529,7 +541,7 @@ struct obj *pick;
 
             You("resume your attempt at %s.", action);
             xlock.magic_key = is_magic_key(&youmonst, pick);
-            set_occupation(picklock, action, objects[pick->otyp].oc_soundset, OCCUPATION_PICKING_LOCK, OCCUPATION_SOUND_TYPE_START, 0);
+            set_occupation(picklock, action, ATR_NONE, CLR_MSG_ATTENTION, objects[pick->otyp].oc_soundset, OCCUPATION_PICKING_LOCK, OCCUPATION_SOUND_TYPE_START, 0);
             return PICKLOCK_DID_SOMETHING;
         }
     }
@@ -687,6 +699,7 @@ boolean is_auto;
                 case LOCK_PICK:
                     ch = 4 * ACURR(A_DEX) + 25 * Role_if(PM_ROGUE);
                     break;
+                case MASTER_KEY:
                 case SKELETON_KEY:
                     ch = 75 + ACURR(A_DEX);
                     break;
@@ -802,6 +815,7 @@ boolean is_auto;
             case LOCK_PICK:
                 ch = 3 * ACURR(A_DEX) + 30 * Role_if(PM_ROGUE);
                 break;
+            case MASTER_KEY:
             case SKELETON_KEY:
                 ch = 70 + ACURR(A_DEX);
                 break;
@@ -823,7 +837,7 @@ boolean is_auto;
     xlock.key = pick;
     xlock.magic_key = is_magic_key(&youmonst, pick);
     xlock.usedtime = 0;
-    set_occupation(picklock, lock_action(), objects[pick->otyp].oc_soundset, OCCUPATION_PICKING_LOCK, OCCUPATION_SOUND_TYPE_START, 0);
+    set_occupation(picklock, lock_action(), ATR_NONE, CLR_MSG_ATTENTION, objects[pick->otyp].oc_soundset, OCCUPATION_PICKING_LOCK, OCCUPATION_SOUND_TYPE_START, 0);
     return PICKLOCK_DID_SOMETHING;
 }
 
@@ -882,7 +896,7 @@ doforce()
     picktyp = is_blade(uwep) && !is_pick(uwep);
     if (xlock.usedtime && xlock.box && picktyp == xlock.picktyp) {
         You("resume your attempt to force the lock.");
-        set_occupation(forcelock, "forcing the lock", objects[uwep->otyp].oc_soundset, OCCUPATION_FORCING_LOCK, OCCUPATION_SOUND_TYPE_RESUME, 0);
+        set_occupation(forcelock, "forcing the lock", ATR_NONE, CLR_MSG_ATTENTION, objects[uwep->otyp].oc_soundset, OCCUPATION_FORCING_LOCK, OCCUPATION_SOUND_TYPE_RESUME, 0);
         return 1;
     }
 
@@ -928,7 +942,7 @@ doforce()
 
     if (xlock.box)
     {
-        set_occupation(forcelock, "forcing the lock", objects[uwep->otyp].oc_soundset, OCCUPATION_FORCING_LOCK, OCCUPATION_SOUND_TYPE_START, 0);
+        set_occupation(forcelock, "forcing the lock", ATR_NONE, CLR_MSG_ATTENTION, objects[uwep->otyp].oc_soundset, OCCUPATION_FORCING_LOCK, OCCUPATION_SOUND_TYPE_START, 0);
     }
     else
         You("decide not to force the issue.");
@@ -953,11 +967,11 @@ int x, y;
 int
 doopen()
 {
-    return !!doopen_indir(0, 0);
+    return doopen_indir(0, 0) > 0;
 }
 
 /* try to open a door in direction u.dx/u.dy */
-/* 0 = open fails, 1 = open succeeded, 2 = started picking the lock */
+/* 0 = open fails, 1 = open succeeded, 2 = started picking the lock, 3 = start kicking and take turn, -1 = start kicking and do not take turn */
 int
 doopen_indir(x, y)
 int x, y;
@@ -1097,21 +1111,25 @@ int x, y;
                 }
             }
 
-            if(!unlocked && context.click_kick_query) /* Click */
+            if(!unlocked && (!(x == 0 && y == 0) || context.click_kick_query)) /* Either click or indirect via movement */
             {
-                char ans = 'n';
-                char qbuf[BUFSZ * 2];
-                context.click_kick_query = 0;
-
-                Sprintf(qbuf, "Do you want to start kicking this door?");
-                ans = yn_query(qbuf);
-
-                if (ans == 'y')
+                if (!door->click_kick_ok)
                 {
-                    door->click_kick_ok = 1;
-                }
-            }
+                    char ans = 'n';
+                    char qbuf[BUFSZ * 2];
 
+                    Sprintf(qbuf, "Do you want to start kicking this door?");
+                    ans = yn_query(qbuf);
+
+                    if (ans == 'y')
+                    {
+                        door->click_kick_ok = 1;
+                    }
+                }
+                else
+                    res = res ? 3 : -1;
+            }
+            context.click_kick_query = 0;
         }
         return res;
     }
@@ -1660,7 +1678,7 @@ int x, y;
     if (otmp->oclass == POTION_CLASS) {
         char dcbuf[IBUFSZ] = "";
         Sprintf(dcbuf, "You %s %s shatter!", Blind ? "hear" : "see", an(bottlename()));
-        pline1(dcbuf);
+        pline_ex1(ATR_NONE, CLR_MSG_WARNING, dcbuf);
         if (!has_innate_breathless(youmonst.data) || haseyes(youmonst.data))
             potionbreathe(otmp, dcbuf);
         return;
@@ -1697,7 +1715,7 @@ int x, y;
         disposition = "is destroyed";
         break;
     }
-    pline("%s %s!", An(thing), disposition);
+    pline_ex(ATR_NONE, CLR_MSG_WARNING, "%s %s!", An(thing), disposition);
 }
 
 /*lock.c*/

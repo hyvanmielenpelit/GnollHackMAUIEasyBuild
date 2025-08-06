@@ -1032,7 +1032,7 @@ struct monst* origmonst;
                the current zap and shouldn't be affected if hit again */
             ;
         } 
-        else if (resists_magic(mtmp))
+        else if (resists_magic(mtmp) || resists_polymorph(mtmp))
         {
             /* magic missile resistance protects from polymorph traps, so make
                it guard against involuntary polymorph attacks too... */
@@ -1117,7 +1117,7 @@ struct monst* origmonst;
         res = 1;
         if (disguised_mimic)
             seemimic(mtmp);
-        if (mtmp->cham && !mtmp->mprops[UNCHANGING])
+        if (mtmp->cham && !has_unchanging(mtmp))
             revert_mon_polymorph(mtmp, FALSE, TRUE, TRUE);
         if (!has_cancellation_resistance(mtmp))
         {
@@ -1135,7 +1135,7 @@ struct monst* origmonst;
         res = 1;
         if (disguised_mimic)
             seemimic(mtmp);
-        if (mtmp->cham && !mtmp->mprops[UNCHANGING])
+        if (mtmp->cham && !has_unchanging(mtmp))
             revert_mon_polymorph(mtmp, FALSE, TRUE, TRUE);
         /* Unaffected by cancellation resistance */
         play_special_effect_at(SPECIAL_EFFECT_GENERIC_SPELL, 0, mtmp->mx, mtmp->my, FALSE);
@@ -1944,6 +1944,13 @@ struct permonst* ptr;
         putstr(datawin, ATR_INDENT_AT_DASH | ATR_ORDERED_LIST, buf);
     }
 
+    if (mtmp ? resists_polymorph(mtmp) : pm_resists_polymorph(ptr))
+    {
+        abilcnt++;
+        Sprintf(buf, " %2d - %s", abilcnt, "Resists polymorph");
+        putstr(datawin, ATR_INDENT_AT_DASH | ATR_ORDERED_LIST, buf);
+    }
+
     if (mtmp ? resists_paralysis(mtmp) : pm_resists_paralysis(ptr))
     {
         abilcnt++;
@@ -2151,76 +2158,10 @@ struct permonst* ptr;
         }
         else
         {
-            if (wields_weapons)
-            {
-                type_count++;
-                Sprintf(buf, " %2d - Weapons", type_count);
-                putstr(datawin, ATR_INDENT_AT_DASH | ATR_ORDERED_LIST, buf);
-            }
-            if (wears_shield)
-            {
-                type_count++;
-                Sprintf(buf, " %2d - Shields", type_count);
-                putstr(datawin, ATR_INDENT_AT_DASH | ATR_ORDERED_LIST, buf);
-            }
-            if (wears_suit)
-            {
-                type_count++;
-                Sprintf(buf, " %2d - Suits of armor", type_count);
-                putstr(datawin, ATR_INDENT_AT_DASH | ATR_ORDERED_LIST, buf);
-            }
-            if (wears_robe)
-            {
-                type_count++;
-                Sprintf(buf, " %2d - Robes", type_count);
-                putstr(datawin, ATR_INDENT_AT_DASH | ATR_ORDERED_LIST, buf);
-            }
-            if (wears_cloak)
-            {
-                type_count++;
-                Sprintf(buf, " %2d - Cloaks", type_count);
-                putstr(datawin, ATR_INDENT_AT_DASH | ATR_ORDERED_LIST, buf);
-            }
-            if (wears_shirt)
-            {
-                type_count++;
-                Sprintf(buf, " %2d - Shirts", type_count);
-                putstr(datawin, ATR_INDENT_AT_DASH | ATR_ORDERED_LIST, buf);
-            }
-            if (wears_helmet)
-            {
-                type_count++;
-                Sprintf(buf, " %2d - %s", type_count, has_horns(ptr) ? "Flimsy helmets suitable with horns" : "Helmets");
-                putstr(datawin, ATR_INDENT_AT_DASH | ATR_ORDERED_LIST,  buf);
-            }
-            if (wears_gloves)
-            {
-                type_count++;
-                Sprintf(buf, " %2d - Gloves", type_count);
-                putstr(datawin, ATR_INDENT_AT_DASH | ATR_ORDERED_LIST, buf);
-            }
-            if (wears_bracers)
-            {
-                type_count++;
-                Sprintf(buf, " %2d - Bracers", type_count);
-                putstr(datawin, ATR_INDENT_AT_DASH | ATR_ORDERED_LIST, buf);
-            }
-            if (wears_boots)
-            {
-                type_count++;
-                Sprintf(buf, " %2d - Boots", type_count);
-                putstr(datawin, ATR_INDENT_AT_DASH | ATR_ORDERED_LIST, buf);
-            }
             if (wears_amulet)
             {
                 type_count++;
                 Sprintf(buf, " %2d - Amulets", type_count);
-                putstr(datawin, ATR_INDENT_AT_DASH | ATR_ORDERED_LIST, buf);
-            }
-            if (wears_rings)
-            {
-                type_count++;
-                Sprintf(buf, " %2d - Rings", type_count);
                 putstr(datawin, ATR_INDENT_AT_DASH | ATR_ORDERED_LIST, buf);
             }
             if (wears_blindfold)
@@ -2229,15 +2170,79 @@ struct permonst* ptr;
                 Sprintf(buf, " %2d - Blindfolds", type_count);
                 putstr(datawin, ATR_INDENT_AT_DASH | ATR_ORDERED_LIST, buf);
             }
+            if (wears_boots)
+            {
+                type_count++;
+                Sprintf(buf, " %2d - Boots", type_count);
+                putstr(datawin, ATR_INDENT_AT_DASH | ATR_ORDERED_LIST, buf);
+            }
+            if (wears_bracers)
+            {
+                type_count++;
+                Sprintf(buf, " %2d - Bracers", type_count);
+                putstr(datawin, ATR_INDENT_AT_DASH | ATR_ORDERED_LIST, buf);
+            }
+            if (wears_cloak)
+            {
+                type_count++;
+                Sprintf(buf, " %2d - Cloaks", type_count);
+                putstr(datawin, ATR_INDENT_AT_DASH | ATR_ORDERED_LIST, buf);
+            }
+            if (wears_gloves)
+            {
+                type_count++;
+                Sprintf(buf, " %2d - Gloves", type_count);
+                putstr(datawin, ATR_INDENT_AT_DASH | ATR_ORDERED_LIST, buf);
+            }
+            if (wears_helmet)
+            {
+                type_count++;
+                Sprintf(buf, " %2d - %s", type_count, has_horns(ptr) ? "Helmets, flimsy suitable with horns" : "Helmets");
+                putstr(datawin, ATR_INDENT_AT_DASH | ATR_ORDERED_LIST,  buf);
+            }
             type_count++;
-            Sprintf(buf, " %2d - Some miscellaneous magic items", type_count);
+            Sprintf(buf, " %2d - Miscellaneous items", type_count);
             putstr(datawin, ATR_INDENT_AT_DASH | ATR_ORDERED_LIST, buf);
-
-            /* Additional ones */
+            if (wears_rings)
+            {
+                type_count++;
+                Sprintf(buf, " %2d - Rings", type_count);
+                putstr(datawin, ATR_INDENT_AT_DASH | ATR_ORDERED_LIST, buf);
+            }
+            if (wears_robe)
+            {
+                type_count++;
+                Sprintf(buf, " %2d - Robes", type_count);
+                putstr(datawin, ATR_INDENT_AT_DASH | ATR_ORDERED_LIST, buf);
+            }
             if (can_wear_saddle(ptr))
             {
                 type_count++;
                 Sprintf(buf, " %2d - Saddles", type_count);
+                putstr(datawin, ATR_INDENT_AT_DASH | ATR_ORDERED_LIST, buf);
+            }
+            if (wears_shield)
+            {
+                type_count++;
+                Sprintf(buf, " %2d - Shields", type_count);
+                putstr(datawin, ATR_INDENT_AT_DASH | ATR_ORDERED_LIST, buf);
+            }
+            if (wears_shirt)
+            {
+                type_count++;
+                Sprintf(buf, " %2d - Shirts", type_count);
+                putstr(datawin, ATR_INDENT_AT_DASH | ATR_ORDERED_LIST, buf);
+            }
+            if (wears_suit)
+            {
+                type_count++;
+                Sprintf(buf, " %2d - Suits of armor", type_count);
+                putstr(datawin, ATR_INDENT_AT_DASH | ATR_ORDERED_LIST, buf);
+            }
+            if (wields_weapons)
+            {
+                type_count++;
+                Sprintf(buf, " %2d - Weapons", type_count);
                 putstr(datawin, ATR_INDENT_AT_DASH | ATR_ORDERED_LIST, buf);
             }
         }
@@ -2490,6 +2495,12 @@ int locflags;
         for (otmp = fobj; otmp; otmp = otmp->nobj)
             if (Is_magic_chest(otmp))
                 return get_obj_location(otmp, xp, yp, locflags);
+
+        if (locflags & BURIED_TOO) {
+            for (otmp = level.buriedobjlist; otmp; otmp = otmp->nobj)
+                if (Is_magic_chest(otmp))
+                    return get_obj_location(otmp, xp, yp, locflags);
+        }
 
         struct monst* mtmp;
         for (mtmp = fmon; mtmp; mtmp = mtmp->nmon)
@@ -2762,6 +2773,9 @@ boolean by_hero;
 int animateintomon;
 boolean replaceundead;
 {
+    if (!corpse)
+        return (struct monst*)0;
+
     struct monst *mtmp = 0;
     struct permonst *mptr = 0;
     struct obj *container;
@@ -2820,8 +2834,8 @@ boolean replaceundead;
         || (container && (container->olocked || container_nesting > 2
                           || container->otyp == STATUE
                           || (container->otyp == BAG_OF_HOLDING && rn2(40))
-                          || (container->otyp == BAG_OF_WIZARDRY && rn2(60))
-                          || (container->otyp == BAG_OF_TREASURE_HAULING && rn2(80))
+                          || (container->otyp == BAG_OF_WIZARDRY && rn2(2))
+                          || (container->otyp == BAG_OF_TREASURE_HAULING && rn2(2))
                           || (container->otyp == BAG_OF_THE_GLUTTON && rn2(80))
             )))
         return (struct monst *) 0;
@@ -2918,6 +2932,17 @@ boolean replaceundead;
     {
         /* make a new monster */
         mtmp = makemon2(mptr, x, y, MM_NO_MONSTER_INVENTORY | MM_NOWAIT | MM_NOCOUNTBIRTH | MM_PLAY_SUMMON_ANIMATION | MM_ANIMATE_DEAD_ANIMATION | MM_PLAY_SUMMON_SOUND, MM2_REVIVING);
+        if (mtmp)
+        {
+            if ((corpse->speflags & SPEFLAGS_SCHROEDINGERS_BOX) != 0) /* Dead cat straight from the box */
+                mtmp->mon_flags |= MON_FLAGS_SCHROEDINGERS_CAT;
+            if (has_oname(corpse))
+            {
+                (void) christen_monst(mtmp, ONAME(corpse));
+                if (corpse->nknown) /* If you know corpse name, then you will know revived monster's name */
+                    mtmp->u_know_mname = 1;
+            }
+        }
     }
 
     if (!mtmp)
@@ -3050,6 +3075,7 @@ boolean replaceundead;
     /* finally, get rid of the corpse--it's gone now */
     switch (corpse->where) {
     case OBJ_INVENT:
+        Sprintf(priority_debug_buf_2, "revive: %d", corpse->otyp);
         useup(corpse);
         break;
     case OBJ_FLOOR:
@@ -3058,6 +3084,7 @@ boolean replaceundead;
         /* not useupf(), which charges */
         if (corpse->quan > 1L)
             corpse = splitobj(corpse, 1L);
+        Sprintf(priority_debug_buf_3, "revive: %d", corpse->otyp);
         delobj(corpse);
         newsym(x, y);
         break;
@@ -3067,10 +3094,12 @@ boolean replaceundead;
     case OBJ_CONTAINED:
         Strcpy(debug_buf_2, "revive2");
         obj_extract_self(corpse);
+        Sprintf(priority_debug_buf_4, "revive: %d", corpse->otyp);
         obfree(corpse, (struct obj *) 0);
         break;
     case OBJ_MAGIC:
         obj_extract_self(corpse);
+        Sprintf(priority_debug_buf_4, "revive2: %d", corpse->otyp);
         obfree(corpse, (struct obj*)0);
         break;
     default:
@@ -3189,7 +3218,7 @@ int montype;
 
             const struct mythic_power_definition* mythic_powers = (j == 0 ? mythic_prefix_powers : mythic_suffix_powers);
             const struct mythic_definition* mythic_definitions = (j == 0 ? mythic_prefix_qualities : mythic_suffix_qualities);
-            uchar max_mythic_powers = (j == 0 ? MAX_MYTHIC_PREFIX_POWERS : MAX_MYTHIC_SUFFIX_POWERS);
+            uchar max_mythic_powers = (j == 0 ? (uchar)MAX_MYTHIC_PREFIX_POWERS : (uchar)MAX_MYTHIC_SUFFIX_POWERS);
 
             for (uchar i = 0; i < max_mythic_powers; i++)
             {
@@ -3399,12 +3428,13 @@ boolean update_inv;
             obj->special_quality = 0;
             break;
         case SPBOOK_CLASS:
-            if (objects[otyp].oc_multigen_type == BOOKTYPE_SPELLBOOK
+            if (objects[otyp].oc_subtyp == BOOKTYPE_SPELLBOOK && otyp != SPE_BOOK_OF_THE_DEAD && objects[otyp].oc_magic
                 && !objects[otyp].oc_unique && !(objects[otyp].oc_flags & O1_INDESTRUCTIBLE) && obj->oartifact == 0)
             {
                 costly_alteration(obj, COST_CANCEL);
                 obj->otyp = SPE_BLANK_PAPER;
                 obj->material = objects[obj->otyp].oc_material;
+                obj->owt = weight(obj);
             }
             break;
         case POTION_CLASS:
@@ -3491,8 +3521,7 @@ obj_resists(obj, ochance, achance)
 struct obj *obj;
 int ochance, achance; /* percent chance for ordinary objects, artifacts */
 {
-    if (is_obj_unremovable_from_the_game(obj)
-        || is_obj_indestructible(obj))
+    if (is_obj_unremovable_from_the_game(obj) || is_obj_indestructible(obj))
     {
         return TRUE;
     }
@@ -3566,6 +3595,7 @@ int mat, minwt;
                 minwt -= (int) otmp->quan;
             else
                 minwt = 0;
+            Sprintf(priority_debug_buf_3, "polyuse: %d", otmp->otyp);
             delobj(otmp);
         }
     }
@@ -3734,6 +3764,7 @@ struct obj *obj;
     }
 
     /* zap the object */
+    Sprintf(priority_debug_buf_3, "do_osshock: %d", obj->otyp);
     delobj(obj);
 }
 
@@ -3771,6 +3802,7 @@ int id;
 
         /* Try up to 3 times to make the magic-or-not status of
            the new item be the same as it was for the old one. */
+        Strcpy(priority_debug_buf_3, "poly_obj");
         otmp = (struct obj *) 0;
         do 
         {
@@ -3968,6 +4000,7 @@ int id;
         {
             otmp->otyp = rnd_class(SPE_DIG, SPE_BLANK_PAPER);
             otmp->material = objects[otmp->otyp].oc_material;
+            otmp->owt = weight(otmp);
         }
         /* reduce spellbook abuse; non-blank books degrade */
         if (otmp->otyp != SPE_BLANK_PAPER) 
@@ -3976,6 +4009,8 @@ int id;
             if (otmp->spestudied > MAX_SPELL_STUDY) 
             {
                 otmp->otyp = SPE_BLANK_PAPER;
+                otmp->material = objects[otmp->otyp].oc_material;
+                otmp->owt = weight(otmp);
                 /* writing a new book over it will yield an unstudied
                    one; re-polymorphing this one as-is may or may not
                    get something non-blank */
@@ -4107,6 +4142,7 @@ int id;
                 Norep_ex(ATR_NONE, CLR_MSG_WARNING, "%s is furious!", Monnam(shkp));
         }
     }
+    Sprintf(priority_debug_buf_3, "poly_obj2: %d", obj->otyp);
     delobj(obj);
     return otmp;
 }
@@ -4134,27 +4170,37 @@ struct obj *obj;
     switch (objects[obj->otyp].oc_class) {
     case ROCK_CLASS: /* boulders and statues */
     case TOOL_CLASS: /* figurines */
-        if (obj->otyp == BOULDER) {
+        if (obj->otyp == BOULDER)
+        {
             obj = poly_obj(obj, HUGE_CHUNK_OF_MEAT);
             smell = TRUE;
-        } else if (obj->otyp == STATUE || obj->otyp == FIGURINE) {
-            ptr = &mons[obj->corpsenm];
-            if (is_golem(ptr)) {
+        }
+        else if (obj->otyp == STATUE || obj->otyp == FIGURINE) 
+        {
+            ptr = obj->corpsenm >= LOW_PM ? &mons[obj->corpsenm] : 0;
+            if (ptr && is_golem(ptr))
+            {
                 golem_xform = (ptr != &mons[PM_FLESH_GOLEM]);
-            } else if (vegetarian(ptr)) {
+            }
+            else if (ptr && vegetarian(ptr))
+            {
                 /* Don't animate monsters that aren't flesh */
                 obj = poly_obj(obj, MEATBALL);
                 smell = TRUE;
                 break;
             }
-            if (obj->otyp == STATUE) {
+            if (obj->otyp == STATUE) 
+            {
                 /* animate_statue() forces all golems to become flesh golems */
                 mon = animate_statue(obj, oox, ooy, ANIMATE_SPELL, (int *) 0);
-            } else { /* (obj->otyp == FIGURINE) */
+            }
+            else 
+            { /* (obj->otyp == FIGURINE) */
                 if (golem_xform)
                     ptr = &mons[PM_FLESH_GOLEM];
-                mon = makemon(ptr, oox, ooy, MM_NO_MONSTER_INVENTORY);
-                if (mon) {
+                mon = ptr ? makemon(ptr, oox, ooy, MM_NO_MONSTER_INVENTORY) : 0;
+                if (mon) 
+                {
                     if (costly_spot(oox, ooy)
                         && (carried(obj) ? obj->unpaid : !obj->no_charge)) {
                         shkp = shop_keeper(*in_rooms(oox, ooy, SHOPBASE));
@@ -4163,6 +4209,8 @@ struct obj *obj;
                     }
                     if (obj->timed)
                         obj_stop_timers(obj);
+                    Sprintf(priority_debug_buf_2, "stone_to_flesh_obj: %d", obj->otyp);
+                    Sprintf(priority_debug_buf_3, "stone_to_flesh_obj: %d", obj->otyp);
                     if (carried(obj))
                         useup(obj);
                     else
@@ -4172,26 +4220,34 @@ struct obj *obj;
                                   golem_xform ? "turns to flesh and " : "");
                 }
             }
-            if (mon) {
+            if (mon) 
+            {
                 ptr = mon->data;
                 /* this golem handling is redundant... */
                 if (is_golem(ptr) && ptr != &mons[PM_FLESH_GOLEM])
                     (void) newcham(mon, &mons[PM_FLESH_GOLEM], 0, TRUE, FALSE);
-            } else if ((ptr->geno & (G_NOCORPSE | G_UNIQ)) != 0) {
+            }
+            else if (ptr && (ptr->geno & (G_NOCORPSE | G_UNIQ)) != 0)
+            {
                 /* didn't revive but can't leave corpse either */
                 res = 0;
-            } else {
+            }
+            else 
+            {
                 /* unlikely to get here since genociding monsters also
                    sets the G_NOCORPSE flag; drop statue's contents */
                 Strcpy(debug_buf_2, "flesh_to_stone_obj");
-                while ((item = obj->cobj) != 0) {
+                while ((item = obj->cobj) != 0)
+                {
                     bypass_obj(item); /* make stone-to-flesh miss it */
                     obj_extract_self(item);
                     place_object(item, oox, ooy);
                 }
                 obj = poly_obj(obj, CORPSE);
             }
-        } else { /* miscellaneous tool or unexpected rock... */
+        } 
+        else 
+        { /* miscellaneous tool or unexpected rock... */
             res = 0;
         }
         break;
@@ -4799,6 +4855,7 @@ struct monst* origmonst;
 
     switch (otyp) 
     {
+    case WAN_DISJUNCTION:
     case WAN_CANCELLATION:
         switch (ttyp)
         {
@@ -4943,7 +5000,7 @@ register struct obj *obj;
         {
             play_sfx_sound(SFX_ITEM_APPEARS);
             (void)hold_another_object(otmp, "You drop %s!",
-                doname(otmp), "A delicious food ration forms before you!");
+                doname(otmp), "A delicious food ration forms before you!", TRUE);
         }
         break;
     }
@@ -4995,7 +5052,7 @@ register struct obj *obj;
             otmp->quan = fruitnum;
             otmp->owt = weight(otmp);
             (void)hold_another_object(otmp, "You drop %s!",
-                doname(otmp), fruitnum == 1 ? "A delicious fruit appears out of nowhere!" : "Delicious fruits appear out of nowhere!");
+                doname(otmp), fruitnum == 1 ? "A delicious fruit appears out of nowhere!" : "Delicious fruits appear out of nowhere!", TRUE);
         }
         break;
     }
@@ -5007,7 +5064,7 @@ register struct obj *obj;
         {
             play_sfx_sound(SFX_ITEM_APPEARS);
             (void)hold_another_object(otmp, "You drop %s!",
-                doname(otmp), "A potion appears out of thin air!");
+                doname(otmp), "A potion appears out of thin air!", TRUE);
         }
         break;
     }
@@ -6204,6 +6261,109 @@ register struct obj *obj;
     }
 }
 
+boolean
+get_wand_explosion_damage(otmp, dmg_n_ptr, dmg_d_ptr, expltype_ptr, dmg_type_ptr, is_backfire)
+struct obj* otmp;
+int* dmg_n_ptr, * dmg_d_ptr, * expltype_ptr;
+short* dmg_type_ptr;
+boolean is_backfire;
+{
+    if (!otmp || !dmg_n_ptr || !dmg_d_ptr)
+        return FALSE;
+
+    if (objects[otmp->otyp].oc_charged == CHARGED_NOT_CHARGED)
+    {
+        *dmg_n_ptr = 0;
+        *dmg_d_ptr = 0;
+        return FALSE;
+    }
+
+    int adj_max_charge = max(1, get_obj_max_charge(otmp) + 1);
+    int adj_charge = max(0, otmp->charges + 1);
+    int dmg_n_calc = 1 + ((is_backfire ? 5 : 10) * (min(EXCEPTIONALITY_ELITE, otmp->exceptionality) + 1) * adj_charge) / adj_max_charge;
+    int dmg_d_calc = 3;
+    int expltype_calc = EXPL_MAGICAL;
+    short dmg_type_calc = AD_MAGM;
+
+    switch (otmp->otyp) {
+    case WAN_NOTHING:
+    case WAN_LOCKING:
+    case WAN_OPENING:
+    case WAN_ORE_DETECTION:
+    case WAN_TOWN_PORTAL:
+    case WAN_PROBING:
+    case WAN_SECRET_DOOR_DETECTION:
+    case WAN_ENLIGHTENMENT:
+        if (!is_backfire)
+        {
+            *dmg_n_ptr = 0;
+            *dmg_d_ptr = 0;
+            return FALSE;
+        }
+        break;
+    case WAN_DISJUNCTION:
+    case WAN_WISHING:
+        dmg_d_calc = 12;
+        break;
+    case WAN_IDENTIFY:
+        dmg_d_calc = 8;
+        break;
+    case WAN_UNDEAD_TURNING:
+    case WAN_TRAP_DETECTION:
+        break;
+    case WAN_DEATH:
+    case WAN_DISINTEGRATION:
+    case WAN_PETRIFICATION:
+        dmg_d_calc = 10;
+        break;
+    case WAN_LIGHTNING:
+        expltype_calc = EXPL_MAGICAL;
+        dmg_type_calc = AD_ELEC;
+        dmg_d_calc = 7;
+        break;
+    case WAN_FIRE:
+        expltype_calc = EXPL_FIERY;
+        dmg_type_calc = AD_FIRE;
+        dmg_d_calc = 6;
+        break;
+    case WAN_COLD:
+        expltype_calc = EXPL_FROSTY;
+        dmg_type_calc = AD_COLD;
+        dmg_d_calc = 8;
+        break;
+    case WAN_MAGIC_MISSILE:
+        dmg_d_calc = 5;
+        break;
+    case WAN_STRIKING:
+        dmg_d_calc = 4;
+        break;
+    case WAN_CANCELLATION:
+    case WAN_POLYMORPH:
+    case WAN_TELEPORTATION:
+    case WAN_RESURRECTION:
+        dmg_d_calc = 6;
+        break;
+    default:
+        break;
+    }
+
+    *dmg_n_ptr = dmg_n_calc;
+    *dmg_d_ptr = dmg_d_calc;
+    if (expltype_ptr)
+        *expltype_ptr = expltype_calc;
+    if (dmg_type_ptr)
+        *dmg_type_ptr = dmg_type_calc;
+
+    return TRUE;
+}
+
+double
+get_wand_skill_explosion_damage_adjustment(skill_level)
+int skill_level;
+{
+    return 1.0 / (1.0 + 0.5 * max(0, skill_level - 1));
+}
+
 STATIC_OVL void
 backfire(otmp)
 struct obj *otmp;
@@ -6213,9 +6373,28 @@ struct obj *otmp;
     otmp->in_use = TRUE; /* in case losehp() is fatal */
     play_sfx_sound(SFX_EXPLOSION_MAGICAL);
     pline_ex(ATR_NONE, CLR_MSG_NEGATIVE, "%s suddenly explodes!", The(xname(otmp)));
-    dmg = d(otmp->charges + 2, 6);
-    losehp(adjust_damage(dmg, (struct monst*)0, &youmonst, AD_MAGM, ADFLAGS_NONE), "exploding wand", KILLED_BY_AN);
+    play_special_effect_at(SPECIAL_EFFECT_SMALL_FIERY_EXPLOSION, 0, u.ux, u.uy, FALSE);
+    special_effect_wait_until_action(0);
+    int dmg_n = 1, dmg_d = 6;
+    short dmg_type = AD_MAGM;
+    if (get_wand_explosion_damage(otmp, &dmg_n, &dmg_d, (int*)0, &dmg_type, TRUE) && dmg_n > 0 && dmg_d > 0)
+    {
+        dmg = d(dmg_n, dmg_d);
+        double damage = adjust_damage(dmg, (struct monst*)0, &youmonst, dmg_type, ADFLAGS_NONE);
+        double adj = get_wand_skill_explosion_damage_adjustment(P_SKILL_LEVEL(P_WAND));
+        damage *= adj;
+        if (damage > 0)
+            losehp_core(damage, "exploding wand", KILLED_BY_AN, TRUE);
+        else
+            pline_ex1(ATR_NONE, CLR_MSG_WARNING, "Luckily, the explosion does not harm you.");
+    }
+    else
+    {
+        pline_ex1(ATR_NONE, CLR_MSG_WARNING, "Luckily, the explosion does not harm you.");
+    }
+    Sprintf(priority_debug_buf_2, "backfire: %d", otmp->otyp);
     useup(otmp);
+    special_effect_wait_until_end(0);
 }
 
 STATIC_VAR NEARDATA const char zap_syms[] = { WAND_CLASS, 0 };
@@ -6331,7 +6510,7 @@ struct obj* obj;
 
                 if (ans == 'm')
                 {
-                    prinv("Marked empty:", obj, 0L);
+                    prinvc("Marked empty:", obj, 0L);
                     update_inventory();
                 }
             }
@@ -6403,6 +6582,7 @@ struct obj* obj;
     {
         play_sfx_sound(SFX_ITEM_CRUMBLES_TO_DUST);
         pline("%s to dust.", Tobjnam(obj, "turn"));
+        Sprintf(priority_debug_buf_2, "backfire: %d", obj->otyp);
         useup(obj);
     }
     update_inventory(); /* maybe used a charge */
@@ -6727,7 +6907,7 @@ boolean ordinary;
     case WAN_POLYMORPH:
     case SPE_POLYMORPH:
         damage = 0;
-        if (!Unchanging) {
+        if (!Unchanging && !Polymorph_resistance) {
             learn_it = TRUE;
             polyself(0);
         }
@@ -9316,7 +9496,7 @@ const char *fltxt;
             if (origmonst == &youmonst)
                 Sprintf(hisbuf, "%s own", uhis());
             else
-                Sprintf(hisbuf, "%s's", an(mon_monster_name(origmonst)));
+                Sprintf(hisbuf, "%s's", mon_monster_name(origmonst));
 
             if (origobj)
             {
@@ -9641,6 +9821,8 @@ boolean u_caused;
                     obj->quan = scrquan;
                 }
                 /* useupf(), which charges, only if hero caused damage */
+                Sprintf(priority_debug_buf_2, "burn_floor_objects: %d", obj->otyp);
+                Sprintf(priority_debug_buf_3, "burn_floor_objects: %d", obj->otyp);
                 if (u_caused)
                     useupf_with_flags(obj, delquan, NEWSYM_FLAGS_KEEP_OLD_EFFECT_MISSILE_ZAP_GLYPHS);
                 else if (delquan < scrquan)
@@ -9816,6 +9998,7 @@ const char *fltxt;
             }
             Strcpy(debug_buf_2, "disintegrate_mon");
             obj_extract_self(otmp);
+            Sprintf(priority_debug_buf_4, "disintegrate_mon: %d", otmp->otyp);
             obfree(otmp, (struct obj *) 0);
         }
     }
@@ -11347,6 +11530,9 @@ boolean forcedestroy;
         if (obj == current_wand)
             current_wand = 0; /* destroyed */
 
+        Sprintf(priority_debug_buf_2, "destroy_one_item: %d", obj->otyp);
+        Strcpy(priority_debug_buf_3, "destroy_one_item");
+        Strcpy(priority_debug_buf_4, "destroy_one_item");
         for (i = 0; i < cnt; i++)
             useup(obj);
 
@@ -12060,9 +12246,11 @@ retry:
         /* The(aobjnam()) is safe since otmp is unidentified -dlc */
         (void) hold_another_object(otmp, oops_msg,
                                    The(aobjnam(otmp, verb)),
-                                   (const char *) 0);
+                                   (const char *) 0, TRUE);
         u.uprayer_timeout += rn1(100, 50) / (Role_if(PM_PRIEST) ? 2 : 1); /* the gods take notice */
     }
+    if(!is_wiz_wish)
+        context.save_checkpoint = TRUE; /* A good point to save to make sure that obtained item remains and is not lost via crash or changed due to cheating */
     ignore_onsleep_autosave = FALSE;
 }
 
@@ -12112,9 +12300,10 @@ int otyp;
                 : "Oops!  %s to the floor!");
 
         /* The(aobjnam()) is safe since otmp is unidentified -dlc */
-        (void)hold_another_object(otmp, oops_msg,
-            The(aobjnam(otmp, verb)),
-            (const char*)0);
+        otmp = hold_another_object(otmp, oops_msg, The(aobjnam(otmp, verb)), (const char*)0, TRUE);
+
+        if (otmp)
+            otmp->nomerge = 0;
     }
 }
 

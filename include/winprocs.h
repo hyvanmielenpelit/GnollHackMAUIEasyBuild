@@ -13,6 +13,7 @@
 #include "lev.h"
 #include "obj.h"
 #include "decl.h"
+#include "tradstdc.h"
 
 /* NB: this MUST match chain_procs below */
 struct window_procs {
@@ -174,7 +175,8 @@ extern
 #define maybe_issue_simple_gui_command(condition, x) if(condition) (*windowprocs.win_issue_gui_command)(x, 0, 0, (char*)0)
 #define issue_parametered_gui_command(x, y) (*windowprocs.win_issue_gui_command)(x, y, 0, (char*)0)
 #define issue_boolean_gui_command(x, y) (*windowprocs.win_issue_gui_command)(x, (int)(y), 0, (char*)0)
-#define issue_debuglog(i, s) if(windowprocs.win_issue_gui_command) (*windowprocs.win_issue_gui_command)(GUI_CMD_DEBUGLOG, DEBUGLOG_GENERAL, i, s)
+#define issue_debuglog(e, s) if(windowprocs.win_issue_gui_command) (*windowprocs.win_issue_gui_command)(GUI_CMD_DEBUGLOG, DEBUGLOG_GENERAL, e, s)
+#define issue_debuglog_priority(e, s) if(windowprocs.win_issue_gui_command) (*windowprocs.win_issue_gui_command)(GUI_CMD_DEBUGLOG, DEBUGLOG_PRIORITY, e, s)
 #define issue_debuglog_fd(f, s) if(windowprocs.win_issue_gui_command) (*windowprocs.win_issue_gui_command)(GUI_CMD_DEBUGLOG, DEBUGLOG_FILE_DESCRIPTOR, f, s)
 #define raw_print (*windowprocs.win_raw_print)
 #define raw_print_bold (*windowprocs.win_raw_print_bold)
@@ -319,11 +321,13 @@ extern
 #define WC2_SCREEN_TEXT             0x00080000UL /* 20 windowing system can show screen texts */
 #define WC2_ANIMATIONS              0x00100000UL /* 21 supports displaying some sort of animations with tiles; animation options are shown in options */
 #define WC2_VOLUME_CONTROLS         0x00200000UL /* 22 volume controls are shown in options */
-/* free bit */
+#define WC2_LIBRARY                 0x00400000UL /* 23 supports library for storing manuals across games */
 #define WC2_SPECIAL_SYMBOLS         0x00800000UL /* 24 handles special symbols in text of the type &symbol_name; */
 #define WC2_MENU_SUFFIXES           0x01000000UL /* 25 supports placing text in parentheses on a different line in menus */
 #define WC2_FADING_ANIMATIONS       0x02000000UL /* 26 supports fading animations */
 #define WC2_MENU_SHOWS_OK_CANCEL    0x04000000UL /* 27 menus always show OK and Cancel buttons (so you can then potentially omit e.g. a quit choice in the menu) */
+#define WC2_MENU_IS_FULL_SCREEN     0x08000000UL /* 28 menu page covers status bar and messages, so e.g. need to show available money otherwise in certain cases and messages cannot be seen for extra possible information */
+#define WC2_MENU_PROPER_SUBTITLE    0x10000000UL /* 29 menu page supports a proper subtitle that can show longer non-critical extra information */
 
 /* 5 free bits */
 

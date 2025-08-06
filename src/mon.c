@@ -1630,7 +1630,7 @@ movemon()
      * of the pass.
      *
      * The only other actions which cause monsters to be removed from
-     * the chain are level migrations and losedogs().  I believe losedogs()
+     * the chain are level migrations and arrival_from_mydogs_and_migrating_mons().  I believe arrival_from_mydogs_and_migrating_mons()
      * is a cleanup routine not associated with monster movements, and
      * monsters can only affect level migrations on themselves, not others
      * (hence the fetching of nmon before moving the monster).  Currently,
@@ -1782,7 +1782,7 @@ movemon()
 }
 
 #define mstoning(obj)                                       \
-    (ofood(obj) && (touch_petrifies(&mons[(obj)->corpsenm]) \
+    (ofood(obj) && (obj)->corpsenm >= LOW_PM && (touch_petrifies(&mons[(obj)->corpsenm]) \
                     || (obj)->corpsenm == PM_MEDUSA))
 
 /*
@@ -1861,6 +1861,7 @@ register struct monst *mtmp;
                 if (otmp == uball)
                 {
                     unpunish();
+                    Sprintf(priority_debug_buf_3, "meatmetal: %d", otmp->otyp);
                     delobj(otmp);
                 }
                 else if (otmp == uchain) 
@@ -1873,6 +1874,7 @@ register struct monst *mtmp;
                     grow = mlevelgain(otmp);
                     heal = mhealup(otmp);
                     mstone = mstoning(otmp);
+                    Sprintf(priority_debug_buf_3, "meatmetal2: %d", otmp->otyp);
                     delobj(otmp);
                     ptr = mtmp->data;
                     if (poly) 
@@ -1976,6 +1978,7 @@ register struct monst* mtmp;
             if (otmp == uball)
             {
                 unpunish();
+                Sprintf(priority_debug_buf_3, "meatrock: %d", otmp->otyp);
                 delobj(otmp);
             }
             else if (otmp == uchain)
@@ -1990,6 +1993,7 @@ register struct monst* mtmp;
                 mstone = mstoning(otmp);
                 if (isstatue)
                     (void)pre_break_statue(otmp);
+                Sprintf(priority_debug_buf_3, "meatrock2: %d", otmp->otyp);
                 delobj(otmp);
                 ptr = mtmp->data;
                 if (poly)
@@ -2063,14 +2067,14 @@ struct monst *mtmp;
             continue;
 
         /* touch sensitive items */
-        if (otmp->otyp == CORPSE && is_rider(&mons[otmp->corpsenm]))
+        if (otmp->otyp == CORPSE && otmp->corpsenm >= LOW_PM && is_rider(&mons[otmp->corpsenm]))
         {
             /* Rider corpse isn't just inedible; can't engulf it either */
             (void) revive_corpse(otmp);
 
         /* untouchable (or inaccessible) items */
         } 
-        else if ((otmp->otyp == CORPSE
+        else if ((otmp->otyp == CORPSE && otmp->corpsenm >= LOW_PM
                     && touch_petrifies(&mons[otmp->corpsenm])
                     && !resists_ston(mtmp))
                    /* don't engulf boulders and statues or ball&chain */
@@ -2097,7 +2101,7 @@ struct monst *mtmp;
                       touch_petrifies() check catches eggs */
                    || ((otmp->otyp == CORPSE || otmp->otyp == EGG
                         || otmp->globby)
-                       && ((touch_petrifies(&mons[otmp->corpsenm])
+                       && ((otmp->corpsenm >= LOW_PM && touch_petrifies(&mons[otmp->corpsenm])
                             && !resists_ston(mtmp))
                            || (otmp->corpsenm == PM_GREEN_SLIME
                                && !resists_slime(mtmp))))) 
@@ -2163,6 +2167,7 @@ struct monst *mtmp;
             grow = mlevelgain(otmp);
             heal = mhealup(otmp);
             eyes = (otmp->otyp == CARROT);
+            Sprintf(priority_debug_buf_3, "meatobj: %d", otmp->otyp);
             delobj(otmp); /* munch */
             ptr = mtmp->data;
             if (poly) 
@@ -2254,7 +2259,7 @@ register const char *str;
         {
             if (otmp->otyp == CORPSE && mtmp->data->mlet != S_NYMPH
                 /* let a handful of corpse types thru to can_carry() */
-                && !touch_petrifies(&mons[otmp->corpsenm])
+                && otmp->corpsenm >= LOW_PM && !touch_petrifies(&mons[otmp->corpsenm])
                 && otmp->corpsenm != PM_LIZARD
                 && !has_acidic_corpse(&mons[otmp->corpsenm]))
                 continue;
@@ -2380,10 +2385,10 @@ boolean steed_ok;
     if (notake(mdat))
         return 0; /* can't carry anything */
 
-    if (otyp == CORPSE && touch_petrifies(&mons[otmp->corpsenm])
+    if (otyp == CORPSE && otmp->corpsenm >= LOW_PM && touch_petrifies(&mons[otmp->corpsenm])
         && !(mtmp->worn_item_flags & W_ARMG) && !resists_ston(mtmp))
         return 0;
-    if (otyp == CORPSE && is_rider(&mons[otmp->corpsenm]))
+    if (otyp == CORPSE && otmp->corpsenm >= LOW_PM && is_rider(&mons[otmp->corpsenm]))
         return 0;
     if (obj_counts_as_silver(otmp) && mon_hates_silver(mtmp)
         && (otyp != BELL_OF_OPENING || !wants_bell(mdat)))
@@ -2716,26 +2721,25 @@ nexttry: /* eels prefer the water, but if there is no water nearby,
                             continue;
                     }
                     /* The if excludes the types of the traps the mon should not care about */
-                    if ((ttmp->ttyp != RUST_TRAP
-                         || is_iron(mdat))
+                    if ((ttmp->ttyp != RUST_TRAP || is_iron(mdat))
                         && !(trap_type_definitions[ttmp->ttyp].tdflags & TRAPDEF_FLAGS_IGNORED_BY_MONSTERS)
-                        && ((!is_pit(ttmp->ttyp)) /* exclude/include pits for flyers/nonflyers */
+                        && (!is_pit(ttmp->ttyp) /* exclude/include pits for flyers/nonflyers */
                             || (!has_pitwalk(mdat) && !(is_flying(mon) || is_levitating(mon))
-                                && !is_clinger(mdat)) || Sokoban)
-                        && ((!is_hole(ttmp->ttyp)) /* exclude/include holes or flyers/nonflyers */
+                                && !is_clinger(mdat) && mdat->difficulty < 15) || Sokoban)
+                        && (!is_hole(ttmp->ttyp) /* exclude/include holes or flyers/nonflyers */
                             || (!(is_flying(mon) || is_levitating(mon))
                                 && !is_clinger(mdat)) || Sokoban)
                         && (ttmp->ttyp != SLP_GAS_TRAP || !resists_sleep(mon))
                         && (ttmp->ttyp != BEAR_TRAP
                             || (mdat->msize > MZ_SMALL && !amorphous(mdat)
                                 && !(is_flying(mon) || is_levitating(mon))
-                                && !is_whirly(mdat) && !unsolid(mdat)))
+                                && !is_whirly(mdat) && !unsolid(mdat) && mdat->difficulty < 10))
                         && (ttmp->ttyp != FIRE_TRAP || !is_mon_immune_to_fire(mon))
-                        && (ttmp->ttyp != SQKY_BOARD || !(is_flying(mon) || is_levitating(mon)))
+                        && (ttmp->ttyp != SQKY_BOARD || !(is_flying(mon) || is_levitating(mon) || mdat->difficulty >= 4 || !rn2(2)))
                         && (ttmp->ttyp != WEB
                             || (!amorphous(mdat) && !webmaker(mdat)
-                                && !is_whirly(mdat) && !unsolid(mdat)))
-                        && (ttmp->ttyp != ANTI_MAGIC_TRAP || !resists_magic(mon)))
+                                && !is_whirly(mdat) && !unsolid(mdat) && mdat->difficulty < 10 && rn2(3)))
+                        && (ttmp->ttyp != ANTI_MAGIC_TRAP || (!resists_magic(mon) && attacktype(mon->data, AT_MAGC) && mdat->difficulty < 25 && rn2(3))))
                     {
                         /* Here are all relevant traps the mon should care about */
                         if (flag & ALLOW_TRAPS)
@@ -3111,9 +3115,14 @@ struct monst *mtmp2, *mtmp1;
                 MOBJ(mtmp2)->o_id = context.ident++;
             if (MOBJ(mtmp1)->oextra)
                 copy_oextra(MOBJ(mtmp2), MOBJ(mtmp1));
+            MOBJ(mtmp2)->timed = 0;
+            MOBJ(mtmp2)->lamplit = 0;
+            MOBJ(mtmp2)->makingsound = 0;
+            MOBJ(mtmp2)->ox = mtmp2->mx;
+            MOBJ(mtmp2)->oy = mtmp2->my;
         }
     }
-    if (has_mcorpsenm(mtmp1))
+    if (has_mextra_for_mcorpsenm(mtmp2) && has_mcorpsenm(mtmp1))
         MCORPSENM(mtmp2) = MCORPSENM(mtmp1);
 }
 
@@ -3437,7 +3446,7 @@ uint64_t mondeadflags;
     {
         add_glyph_buffer_layer_flags(mtmp->mx, mtmp->my, 0UL, LMFLAGS_KILLED | (disintegrated ? LMFLAGS_FADES_UPON_DEATH : 0UL) | (stoned ? LMFLAGS_STONED : 0UL));
         update_m_action_core(mtmp, ACTION_TILE_DEATH, 4, NEWSYM_FLAGS_KEEP_OLD_EFFECT_MISSILE_ZAP_GLYPHS | NEWSYM_FLAGS_KEEP_OLD_FLAGS);
-        m_wait_until_action();
+        m_wait_until_action(mtmp, ACTION_TILE_DEATH);
     }
 
     /* Player is thrown from his steed when it dies */
@@ -3615,7 +3624,7 @@ uint64_t mondeadflags;
 
     if (!(mondeadflags & MONDEAD_FLAGS_NO_DEATH_ACTION))
     {
-        m_wait_until_end();
+        m_wait_until_end(mtmp, ACTION_TILE_DEATH);
     }
 
     remove_glyph_buffer_layer_flags(mtmp->mx, mtmp->my, 0UL, LMFLAGS_KILLED | LMFLAGS_STONED);
@@ -3871,6 +3880,7 @@ struct monst *mdef;
         while ((obj = oldminvent) != 0) {
             oldminvent = obj->nobj;
             obj->nobj = 0; /* avoid merged-> obfree-> dealloc_obj-> panic */
+            Sprintf(priority_debug_buf_2, "monstone2: %d, %d", otmp->otyp, obj->otyp);
             (void) add_to_container(otmp, obj);
         }
         /* Archaeologists should not break unique statues */
@@ -3880,6 +3890,7 @@ struct monst *mdef;
     } else
         otmp = mksobj_at(ROCK, x, y, TRUE, FALSE);
 
+    Sprintf(priority_debug_buf_2, "monstone: %d", otmp->otyp);
     stackobj(otmp);
     /* mondead() already does this, but we must do it before the newsym */
     if (glyph_is_invisible(levl[x][y].hero_memory_layers.glyph))
@@ -4138,6 +4149,7 @@ int xkill_flags; /* 1: suppress message, 2: suppress corpse, 4: pacifist */
                 /* oc_big is also oc_bimanual and oc_bulky */
                 && (otmp->owt > 30 || objects[otyp].oc_big))
             {
+                Sprintf(priority_debug_buf_3, "xkilled: %d", otmp->otyp);
                 delobj(otmp);
             }
             else if (!flooreffects(otmp, x, y, nomsg ? "" : "fall")) 
@@ -4209,7 +4221,7 @@ cleanup:
     { /* REAL BAD! */
         play_sfx_sound(SFX_GUILTY);
         adjalign(-(u.ualign.record + ALIGNLIM / 2));
-        pline("That was %sa bad idea...",
+        pline_ex(ATR_NONE, u.uevent.qcompleted ? CLR_MSG_WARNING : CLR_MSG_NEGATIVE, "That was %sa bad idea...",
               u.uevent.qcompleted ? "probably " : "");
     } 
     else if (mdat->msound == MS_NEMESIS)
@@ -4220,9 +4232,9 @@ cleanup:
     { /* Bad */
         adjalign(-(ALIGNLIM / 8));
         if (!Hallucination)
-            pline("That was probably a bad idea...");
+            pline_ex(ATR_NONE, CLR_MSG_WARNING, "That was probably a bad idea...");
         else
-            pline("Whoopsie-daisy!");
+            pline_ex(ATR_NONE, CLR_MSG_HALLUCINATED, "Whoopsie-daisy!");
     } 
     else if (mtmp->ispriest) 
     {
@@ -4240,12 +4252,12 @@ cleanup:
         if (!Hallucination)
         {
             play_sfx_sound(SFX_RUMBLE_OF_DISTANT_THUNDER);
-            You_hear("the rumble of distant thunder...");
+            You_hear_ex(ATR_NONE, CLR_MSG_WARNING, "the rumble of distant thunder...");
         }
         else
         {
             play_sfx_sound(SFX_STUDIO_AUDIENCE_APPLAUDS);
-            You_hear("the studio audience applaud!");
+            You_hear_ex(ATR_NONE, CLR_MSG_HALLUCINATED, "the studio audience applaud!");
         }
     }
     else if (is_peaceful(mtmp))
@@ -4268,17 +4280,17 @@ struct monst *mtmp;
     {
         /* it's a golem, and not a stone golem */
         if (canseemon(mtmp))
-            pline("%s solidifies...", Monnam(mtmp));
+            pline_ex(ATR_NONE, CLR_MSG_ATTENTION, "%s solidifies...", Monnam(mtmp));
 
         if (newcham(mtmp, &mons[PM_STONE_GOLEM], 0, FALSE, FALSE))
         {
             if (canseemon(mtmp))
-                pline("Now it's %s.", an(mon_monster_name(mtmp)));
+                pline_multi_ex(ATR_NONE, CLR_MSG_ATTENTION, no_multiattrs, multicolor_text1, "Now it's %s.", an(mon_monster_name(mtmp)));
         } 
         else 
         {
             if (canseemon(mtmp))
-                pline("... and returns to normal.");
+                pline_ex(ATR_NONE, CLR_MSG_ATTENTION, "... and returns to normal.");
         }
     } 
     else
@@ -4750,7 +4762,7 @@ boolean via_attack;
                         if (mon->isshk || mon->ispriest || mon->issmith || mon->isnpc)
                             continue;
 
-                        if (mon->data->mlevel < rn2(10)) 
+                        if ((int)mon->data->mlevel < rn2(10))
                         {
                             monflee(mon, rn2(50) + 25, TRUE, !exclaimed);
                             exclaimed = TRUE;
@@ -5015,7 +5027,7 @@ struct monst *mtmp;
         /* most monsters won't hide under cockatrice corpse */
         if (otmp->nexthere || otmp->otyp != CORPSE
             || (mtmp == &youmonst ? Stone_resistance : resists_ston(mtmp))
-            || !touch_petrifies(&mons[otmp->corpsenm]))
+            || (otmp->corpsenm < LOW_PM || !touch_petrifies(&mons[otmp->corpsenm])))
             undetected = TRUE;
     }
 
@@ -5444,16 +5456,267 @@ struct monst *mon;
             mndx = pickvampshape(mon); /* don't resort to arbitrary */
     }
 
+    boolean try_highest_level_first = FALSE;
+    boolean allow_diff_below_mons = FALSE;
+    int minmlev = 0, maxmlev = 0;
+    get_generated_monster_minmax_levels(3, &minmlev, &maxmlev, 0);
+
+#define mon_poly_ok(idx, maxlvl) (mndx == NON_PM && idx >= LOW_PM && polyok(&mons[idx]) && !(mvitals[idx].mvflags & MV_GONE) && mons[idx].difficulty <= maxlvl && mons[idx].difficulty > mon->data->difficulty)
+    /* Polymorph control */
+    if (mndx == NON_PM && has_polymorph_control(mon))
+    {
+        try_highest_level_first = TRUE;
+
+        int testidx = NON_PM;
+        if (maxmlev > mon->data->difficulty)
+        {
+            boolean wielding_cockatrice = (mon->mw && mon->mw->otyp == CORPSE && mon->mw->corpsenm >= LOW_PM && touch_petrifies(&mons[mon->mw->corpsenm]));
+            if (mndx == NON_PM && wielding_cockatrice)
+            {
+                testidx = PM_SKELETON_KING;
+                if (mon_poly_ok(testidx, maxmlev))
+                    mndx = testidx;
+                testidx = PM_SKELETON_LORD;
+                if (mon_poly_ok(testidx, maxmlev))
+                    mndx = testidx;
+                testidx = PM_SKELETON_WARRIOR;
+                if (mon_poly_ok(testidx, maxmlev))
+                    mndx = testidx;
+            }
+
+            if (mndx == NON_PM && is_quantum_mechanic(mon->data))
+            {
+                testidx = PM_ELDER_TENTACLED_ONE;
+                if (mon_poly_ok(testidx, maxmlev))
+                    mndx = testidx;
+                testidx = PM_TENTACLED_ONE;
+                if (mon_poly_ok(testidx, maxmlev))
+                    mndx = testidx;
+                testidx = PM_VAMPIRE_MAGE;
+                if (mon_poly_ok(testidx, maxmlev))
+                    mndx = testidx;
+            }
+
+            if (mndx == NON_PM && humanoid(mon->data))
+            {
+                if (!rn2(3))
+                {
+                    testidx = PM_SKELETON_KING;
+                    if (mon_poly_ok(testidx, maxmlev))
+                        mndx = testidx;
+                    testidx = PM_SKELETON_LORD;
+                    if (mon_poly_ok(testidx, maxmlev))
+                        mndx = testidx;
+                    testidx = PM_SKELETON_WARRIOR;
+                    if (mon_poly_ok(testidx, maxmlev))
+                        mndx = testidx;
+                    testidx = PM_VAMPIRE_KING;
+                    if (mon_poly_ok(testidx, maxmlev))
+                        mndx = testidx;
+                    testidx = PM_VAMPIRE_LORD;
+                    if (mon_poly_ok(testidx, maxmlev))
+                        mndx = testidx;
+                    testidx = PM_VAMPIRE_MAGE;
+                    if (mon_poly_ok(testidx, maxmlev))
+                        mndx = testidx;
+                }
+                else
+                {
+                    testidx = PM_VAMPIRE_KING;
+                    if (mon_poly_ok(testidx, maxmlev))
+                        mndx = testidx;
+                    testidx = PM_VAMPIRE_LORD;
+                    if (mon_poly_ok(testidx, maxmlev))
+                        mndx = testidx;
+                    testidx = PM_VAMPIRE_MAGE;
+                    if (mon_poly_ok(testidx, maxmlev))
+                        mndx = testidx;
+                    testidx = PM_SKELETON_KING;
+                    if (mon_poly_ok(testidx, maxmlev))
+                        mndx = testidx;
+                    testidx = PM_SKELETON_LORD;
+                    if (mon_poly_ok(testidx, maxmlev))
+                        mndx = testidx;
+                    testidx = PM_SKELETON_WARRIOR;
+                    if (mon_poly_ok(testidx, maxmlev))
+                        mndx = testidx;
+                }
+            }
+            if (mndx == NON_PM && is_steed(mon->data))
+            {
+                testidx = PM_KI_RIN;
+                if (mon_poly_ok(testidx, maxmlev))
+                    mndx = testidx;
+                testidx = PM_GORGON;
+                if (mon_poly_ok(testidx, maxmlev))
+                    mndx = testidx;
+            }
+            if (mndx == NON_PM && mon->data->mlet == S_QUADRUPED)
+            {
+                testidx = PM_MASTODON;
+                if (mon_poly_ok(testidx, maxmlev))
+                    mndx = testidx;
+                testidx = PM_OLIPHANT;
+                if (mon_poly_ok(testidx, maxmlev))
+                    mndx = testidx;
+            }
+            if (mndx == NON_PM && is_bird(mon->data) && rn2(3))
+            {
+                testidx = PM_GARGANTUAN_COCKATRICE;
+                if (mon_poly_ok(testidx, maxmlev))
+                    mndx = testidx;
+                testidx = PM_ROC;
+                if (mon_poly_ok(testidx, maxmlev))
+                    mndx = testidx;
+                testidx = PM_GIANT_COCKATRICE;
+                if (mon_poly_ok(testidx, maxmlev))
+                    mndx = testidx;
+                testidx = PM_VROCK;
+                if (mon_poly_ok(testidx, maxmlev))
+                    mndx = testidx;
+            }
+            if (mndx == NON_PM && is_gnoll(mon->data) && !rn2(2))
+            {
+                testidx = PM_FLIND_LORD;
+                if (mon_poly_ok(testidx, maxmlev))
+                    mndx = testidx;
+                testidx = PM_FLIND;
+                if (mon_poly_ok(testidx, maxmlev))
+                    mndx = testidx;
+            }
+
+            if (mndx == NON_PM && is_demon(mon->data) && rn2(4))
+            {
+                testidx = PM_BALOR;
+                if (mon_poly_ok(testidx, maxmlev))
+                    mndx = testidx;
+                testidx = PM_MARILITH;
+                if (mon_poly_ok(testidx, maxmlev))
+                    mndx = testidx;
+                testidx = PM_NALFESHNEE;
+                if (mon_poly_ok(testidx, maxmlev))
+                    mndx = testidx;
+                testidx = PM_GLABREZU;
+                if (mon_poly_ok(testidx, maxmlev))
+                    mndx = testidx;
+                testidx = PM_HEZROU;
+                if (mon_poly_ok(testidx, maxmlev))
+                    mndx = testidx;
+                testidx = PM_VROCK;
+                if (mon_poly_ok(testidx, maxmlev))
+                    mndx = testidx;
+            }
+
+            if (mndx == NON_PM && !rn2(3))
+            {
+                testidx = PM_ELDER_DRACOLICH;
+                if (mon_poly_ok(testidx, maxmlev))
+                    mndx = testidx;
+
+                testidx = PM_DRACOLICH;
+                if (mon_poly_ok(testidx, maxmlev))
+                    mndx = testidx;
+            }
+
+            if (mndx == NON_PM && !rn2(2))
+            {
+                testidx = PM_ARCH_LICH;
+                if (mon_poly_ok(testidx, maxmlev))
+                    mndx = testidx;
+
+                testidx = PM_MASTER_LICH;
+                if (mon_poly_ok(testidx, maxmlev))
+                    mndx = testidx;
+
+                testidx = PM_LICH;
+                if (mon_poly_ok(testidx, maxmlev))
+                    mndx = testidx;
+
+                testidx = PM_DEMILICH;
+                if (mon_poly_ok(testidx, maxmlev))
+                    mndx = testidx;
+            }
+
+            if (mndx == NON_PM && rn2(3))
+            {
+                if (!rn2(2))
+                {
+                    testidx = PM_ANCIENT_BLACK_DRAGON;
+                    if (mon_poly_ok(testidx, maxmlev))
+                        mndx = testidx;
+                }
+
+                testidx = PM_ANCIENT_GRAY_DRAGON + rn2(PM_ANCIENT_YELLOW_DRAGON - PM_ANCIENT_GRAY_DRAGON + 1);
+                if (mon_poly_ok(testidx, maxmlev))
+                    mndx = testidx;
+
+                if (mndx == NON_PM && !rn2(2))
+                {
+                    testidx = PM_BLACK_DRAGON;
+                    if (mon_poly_ok(testidx, maxmlev))
+                        mndx = testidx;
+                }
+            }
+
+            if (mndx == NON_PM && (!rn2(4) || ((mon->data->mlet == S_SPIDER || mon->data->mlet == S_WORM) && rn2(3))))
+            {
+                testidx = PM_PURPLE_WORM;
+                if (mon_poly_ok(testidx, maxmlev))
+                    mndx = testidx;
+            }
+
+            if (mndx == NON_PM && !rn2(3))
+            {
+                testidx = PM_ELDER_TENTACLED_ONE;
+                if (mon_poly_ok(testidx, maxmlev))
+                    mndx = testidx;
+                testidx = PM_DEATH_FLAYER;
+                if (mon_poly_ok(testidx, maxmlev))
+                    mndx = testidx;
+                testidx = PM_TENTACLED_ONE;
+                if (mon_poly_ok(testidx, maxmlev))
+                    mndx = testidx;
+            }
+
+            if (mndx == NON_PM && !rn2(4))
+            {
+                testidx = PM_OWLBEAR_PATRIARCH;
+                if (mon_poly_ok(testidx, maxmlev))
+                    mndx = testidx;
+            }
+
+            if (mndx == NON_PM && !rn2(4))
+            {
+                testidx = rn2(2) ? PM_MINOTAUR : PM_TITAN;
+                if (mon_poly_ok(testidx, maxmlev))
+                    mndx = testidx;
+            }
+
+            if (mndx == NON_PM)
+            {
+                testidx = pick_nasty(mon->data->difficulty);
+                if (mon_poly_ok(testidx, maxmlev))
+                    mndx = testidx;
+            }
+        }
+        else
+            allow_diff_below_mons = TRUE;
+    }
+#undef mon_poly_ok
+
     /* if no form was specified above, pick one at random now */
     if (mndx == NON_PM) 
     {
-        tryct = 50;
+        tryct = try_highest_level_first ? 70 : 50;
         struct permonst* pm = 0;
         do 
         {
             if ((pm = rndmonst()) != 0)
             {/* try to find first a monster of approriate level */
-                mndx = monsndx(pm);
+                if (tryct <= 50 || pm->difficulty > (allow_diff_below_mons ? min(mon->data->difficulty, maxmlev) - 3 : mon->data->difficulty))
+                    mndx = monsndx(pm);
+                else
+                    mndx = NON_PM;
             }
             else if (tryct < 30) /* and if that does not work out, randomize any monster */
                 mndx = rn1(SPECIAL_PM - LOW_PM, LOW_PM);
@@ -6352,9 +6615,7 @@ uchar style; /* 0 = dwarf lords and dwarf ladies, 1 = dwarf lords and ladies,
         return makeplural(malename);
 
     const char* conjunction = (style & 2) ? "or" : "and";
-    char *str = nextobuf();
-    str[0] = 0;
-
+    char *str = next_offset_init_obuf();
     char usedfemalename[BUFSZ];
     Strcpy(usedfemalename, femalename);
     if (style & 1)

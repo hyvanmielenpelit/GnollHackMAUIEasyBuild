@@ -92,6 +92,7 @@ struct monst *mon;
             }
             break;
 
+        case MASTER_KEY:
         case SKELETON_KEY:
             /* keep key in preference to lock-pick */
             if (key && key->otyp == LOCK_PICK
@@ -128,7 +129,10 @@ struct obj*
 m_has_wearable_armor_or_accessory(mon)
 struct monst* mon;
 {
-    for (struct obj* obj = mon->minvent; obj; obj = obj->nobj) 
+    if (!mon || !can_wear_objects(mon->data))
+        return (struct obj*)0;
+
+    for (struct obj* obj = mon->minvent; obj; obj = obj->nobj)
     {
         if (obj->oclass == ARMOR_CLASS || obj->oclass == AMULET_CLASS || obj->oclass == MISCELLANEOUS_CLASS || obj->oclass == RING_CLASS)
         {
@@ -220,11 +224,11 @@ struct obj *obj;
     if (obj->oclass == FOOD_CLASS) 
     {
         boolean is_veg = FALSE;
-        if (obj->otyp == CORPSE)
+        if (obj->otyp == CORPSE && obj->corpsenm >= LOW_PM)
         {
             mtmp->meating = 3 + (mons[obj->corpsenm].cwt >> 6);
             nutrit = mons[obj->corpsenm].cnutrit;
-            if (obj->corpsenm >= LOW_PM && (is_vegetarian_food(&mons[obj->corpsenm]) || is_vegan_food(&mons[obj->corpsenm])))
+            if (is_vegetarian_food(&mons[obj->corpsenm]) || is_vegan_food(&mons[obj->corpsenm]))
                 is_veg = TRUE;
         } 
         else 
@@ -381,7 +385,7 @@ boolean devour;
                     devour ? "devours" : "eats", distant_name(obj, doname));
 
                 if (catavenged)
-                    You_feel_ex(ATR_NONE, CLR_MSG_ATTENTION, "Schroedinger's cat has been avenged.");
+                    You_feel_ex(ATR_NONE, CLR_MSG_HINT, "Schroedinger's cat has been avenged.");
             }
         } 
         else if (seeobj)
@@ -422,6 +426,7 @@ boolean devour;
     else if (obj == uball) 
     {
         unpunish();
+        Sprintf(priority_debug_buf_3, "dog_eat: %d", obj->otyp);
         delobj(obj); /* we assume this can't be unpaid */
     } 
     else if (obj == uchain) 
@@ -434,7 +439,7 @@ boolean devour;
         if (is_obj_rotting_corpse(obj))
             dog_corpse_after_effect(mtmp, obj, (uchar)is_female_corpse_or_statue(obj));
         else
-            dog_food_after_effect(mtmp, obj, canseemon(mtmp));
+            dog_food_after_effect(mtmp, obj, canspotmon(mtmp));
 
         if (obj->unpaid)
         {
@@ -448,6 +453,7 @@ boolean devour;
         if (obj->otyp == STATUE)
             pre_break_statue(obj);
 
+        Sprintf(priority_debug_buf_3, "dog_eat2: %d", obj->otyp);
         delobj(obj);
     }
 
@@ -535,7 +541,7 @@ boolean verbose;
         /* Nothing currently */
         break;
     case EDIBLEFX_CURE_BLINDNESS:
-        mcureblindness(mtmp, canseemon(mtmp));
+        mcureblindness(mtmp, verbose);
         break;
     case EDIBLEFX_READ_FORTUNE:
         /* Nothing currently */
@@ -564,38 +570,36 @@ boolean verbose;
         break;
     }
     case EDIBLEFX_GAIN_STRENGTH:
-        m_gainstr(mtmp, otmp, 1, TRUE);
+        m_gainstr(mtmp, otmp, 1, verbose);
         break;
     case EDIBLEFX_GAIN_DEXTERITY:
-        (void)m_adjattrib(mtmp, A_DEX, (otmp && otmp->cursed) ? -1 : (otmp && otmp->blessed) ? rnd(2) : 1, TRUE);
+        (void)m_adjattrib(mtmp, A_DEX, (otmp && otmp->cursed) ? -1 : (otmp && otmp->blessed) ? rnd(2) : 1, verbose);
         break;
     case EDIBLEFX_GAIN_CONSTITUTION:
-        (void)m_adjattrib(mtmp, A_CON, (otmp && otmp->cursed) ? -1 : (otmp && otmp->blessed) ? rnd(2) : 1, TRUE);
+        (void)m_adjattrib(mtmp, A_CON, (otmp && otmp->cursed) ? -1 : (otmp && otmp->blessed) ? rnd(2) : 1, verbose);
         break;
     case EDIBLEFX_GAIN_INTELLIGENCE:
-        (void)m_adjattrib(mtmp, A_INT, (otmp && otmp->cursed) ? -1 : (otmp && otmp->blessed) ? rnd(2) : 1, TRUE);
+        (void)m_adjattrib(mtmp, A_INT, (otmp && otmp->cursed) ? -1 : (otmp && otmp->blessed) ? rnd(2) : 1, verbose);
         break;
     case EDIBLEFX_GAIN_WISDOM:
-        (void)m_adjattrib(mtmp, A_WIS, (otmp && otmp->cursed) ? -1 : (otmp && otmp->blessed) ? rnd(2) : 1, TRUE);
+        (void)m_adjattrib(mtmp, A_WIS, (otmp && otmp->cursed) ? -1 : (otmp && otmp->blessed) ? rnd(2) : 1, verbose);
         break;
     case EDIBLEFX_GAIN_CHARISMA:
-        (void)m_adjattrib(mtmp, A_CHA, (otmp && otmp->cursed) ? -1 : (otmp && otmp->blessed) ? rnd(2) : 1, TRUE);
+        (void)m_adjattrib(mtmp, A_CHA, (otmp && otmp->cursed) ? -1 : (otmp && otmp->blessed) ? rnd(2) : 1, verbose);
         break;
     case EDIBLEFX_RESTORE_ABILITY:
     {
         if (otmp->cursed)
         {
             if(verbose)
-                pline("Ulch!  That made %s feel mediocre!", mon_nam(mtmp));
+                pline_ex(ATR_NONE, CLR_MSG_ATTENTION, "Ulch!  That made %s feel mediocre!", mon_nam(mtmp));
             break;
         }
         else
         {
             int i, ii, lim;
-            pline("Wow!  This made %s feel %s!", mon_nam(mtmp),
-                (otmp->blessed)
-                ? (unfixable_trouble_count(FALSE) ? "better" : "great")
-                : "good");
+            if (verbose)
+                pline_ex(ATR_NONE, CLR_MSG_POSITIVE, "Wow!  That made %s feel %s!", mon_nam(mtmp), otmp->blessed ? "great" : "good");
             i = rn2(A_MAX); /* start at a random point */
             for (ii = 0; ii < A_MAX; ii++) 
             {
@@ -624,7 +628,7 @@ boolean verbose;
         break;
     }
     case EDIBLEFX_EGG:
-        if (flesh_petrifies(&mons[otmp->corpsenm]))
+        if (otmp->corpsenm >= LOW_PM && flesh_petrifies(&mons[otmp->corpsenm]))
         {
             if (!has_petrification_resistance(mtmp))
             {
@@ -637,7 +641,7 @@ boolean verbose;
         break;
     case EDIBLEFX_CURE_SICKNESS:
         if(!otmp->cursed)
-            mcuresickness(mtmp, TRUE);
+            mcuresickness(mtmp, verbose);
         break;
     case EDIBLEFX_APPLE:
         /* Nothing */
@@ -647,9 +651,9 @@ boolean verbose;
         {
             if (has_stoned(mtmp))
             {
-                (void)set_mon_property_b(mtmp, STONED, 0, canseemon(mtmp));
-                if(canseemon(mtmp))
-                    pline("%s looks limber!", Monnam(mtmp));
+                (void)set_mon_property_b(mtmp, STONED, 0, verbose);
+                if(verbose)
+                    pline_ex(ATR_NONE, CLR_MSG_POSITIVE, "%s looks limber!", Monnam(mtmp));
             }
 
             increase_mon_property(mtmp, STONE_RESISTANCE, 13);
@@ -699,7 +703,7 @@ register struct permonst* ptr;
             break;
         }
 
-        if (ptr->mlevel <= rn2(chance))
+        if ((int)ptr->mlevel <= rn2(chance))
             return; /* failed die roll */
     }
 
@@ -850,7 +854,7 @@ uchar gender UNUSED; /* 0 = male, 1 = female, 2 = unknown */
     {
         if (!is_stunned(mon))
             play_sfx_sound_at_location(SFX_ACQUIRE_STUN, mon->mx, mon->my);
-        increase_mon_property_b(mon, STUNNED, mons[pm].mlevel * 2 + 5 + rnd(20), canspotmon(mon));
+        increase_mon_property_b(mon, STUNNED, (int)mons[pm].mlevel * 2 + 5 + rnd(20), canspotmon(mon));
         donotcheckfurther = TRUE;
     }
 
@@ -1865,6 +1869,19 @@ int after; /* this is extra fast monster movement */
     else if (!udist)
         /* maybe we tamed him while being swallowed --jgm */
         return 0;
+
+
+    /* teleport if that lies in our nature */
+    if (has_teleportation(mtmp) && has_teleport_control(mtmp) && !is_cancelled(mtmp) && !level.flags.noteleport)
+    {
+        if (mtmp->mcomingtou && !m_canseeu(mtmp) && !couldsee(mtmp->mx, mtmp->my) && distu(mtmp->mx, mtmp->my) > 2)
+        {
+            mtmp->mcomingtou = 0;
+            mnexto2(mtmp, TRUE);
+            return 1;
+        }
+    }
+
 
     nix = omx; /* set before newdogpos */
     niy = omy;

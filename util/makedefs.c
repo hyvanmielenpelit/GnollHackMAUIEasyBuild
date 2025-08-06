@@ -2490,7 +2490,7 @@ do_animation_offsets()
 
         Fprintf(ofp, "\n\t%d, /* %s */", cnt, replacements[i].replacement_name);
         //Fprintf(ofp, "\n#define\t%s_%d_OFFSET\t%d /* %s */", "REPLACEMENT_NAME_HERE", i, cnt, replacements[i].replacement_name);
-        cnt += (int)replacements[i].number_of_tiles;
+        cnt += (int)replacements[i].number_of_tiles * (replacements[i].missile_dir >= 0 ? 8 : 1);
     }
     Fprintf(ofp, "\n};\n");
     repltot = cnt;
@@ -2512,7 +2512,7 @@ do_animation_offsets()
     Fprintf(ofp, "#ifndef ANIMTOTALS_H\n#define ANIMTOTALS_H\n");
     Fprintf(ofp, "\n#define\tTOTAL_NUM_ANIMATION_FRAMES\t%d", animtot);
     Fprintf(ofp, "\n#define\tTOTAL_NUM_ENLARGEMENT_TILES\t%d", enltot);
-    Fprintf(ofp, "\n#define\tTOTAL_NUM_REPLACEMENT_TILES\t%d", repltot);
+    Fprintf(ofp, "\n#define\tTOTAL_NUM_REPLACEMENT_GLYPHS\t%d", repltot);
     Fprintf(ofp, "\n\n#endif /* ANIMTOTALS_H */\n");
 
     Fclose(ofp);

@@ -203,7 +203,7 @@ struct materialcomponentlist matlists[] =
     { SPE_DETECT_BLESSEDNESS,
         "Piece of green glass",
         STRANGE_OBJECT,
-        2,
+        5,
         {
             {
                 {WORTHLESS_PIECE_OF_GREEN_GLASS, STRANGE_OBJECT, STRANGE_OBJECT, STRANGE_OBJECT, STRANGE_OBJECT, STRANGE_OBJECT, STRANGE_OBJECT, STRANGE_OBJECT, STRANGE_OBJECT, STRANGE_OBJECT},
@@ -496,7 +496,7 @@ struct materialcomponentlist matlists[] =
     { SPE_TELEPORT_MONSTER,
         "Blue glass, sporal powder",
         STRANGE_OBJECT,
-        8,
+        4,
         {
             {
                 {WORTHLESS_PIECE_OF_BLUE_GLASS, STRANGE_OBJECT, STRANGE_OBJECT, STRANGE_OBJECT, STRANGE_OBJECT, STRANGE_OBJECT, STRANGE_OBJECT, STRANGE_OBJECT, STRANGE_OBJECT, STRANGE_OBJECT},
@@ -1690,7 +1690,7 @@ struct materialcomponentlist matlists[] =
     { SPE_MASS_CONFLICT,
     "Mandrake, wolfsbane, sporal powder",
     STRANGE_OBJECT,
-    4,
+    2,
         {
             {
                 {SPRIG_OF_WOLFSBANE, STRANGE_OBJECT, STRANGE_OBJECT, STRANGE_OBJECT, STRANGE_OBJECT, STRANGE_OBJECT, STRANGE_OBJECT, STRANGE_OBJECT, STRANGE_OBJECT, STRANGE_OBJECT}, 
@@ -3624,7 +3624,7 @@ struct materialcomponentlist matlists[] =
     { SPE_HOLD_MONSTER,
     "Bat guano, spider silk",
     STRANGE_OBJECT,
-    6,
+    2,
         {
             {
                 {CLUMP_OF_BAT_GUANO, STRANGE_OBJECT, STRANGE_OBJECT, STRANGE_OBJECT, STRANGE_OBJECT, STRANGE_OBJECT, STRANGE_OBJECT, STRANGE_OBJECT, STRANGE_OBJECT, STRANGE_OBJECT}, 
@@ -3641,7 +3641,7 @@ struct materialcomponentlist matlists[] =
     { SPE_MASS_HOLD,
     "Bat guano, spider silk, sporal powder",
     STRANGE_OBJECT,
-    6,
+    2,
         {
             {
                 {CLUMP_OF_BAT_GUANO, STRANGE_OBJECT, STRANGE_OBJECT, STRANGE_OBJECT, STRANGE_OBJECT, STRANGE_OBJECT, STRANGE_OBJECT, STRANGE_OBJECT, STRANGE_OBJECT, STRANGE_OBJECT},
@@ -3662,7 +3662,7 @@ struct materialcomponentlist matlists[] =
     { SPE_HOLD_UNDEAD,
     "Garlic, spider silk",
     STRANGE_OBJECT,
-    8,
+    3,
         {
             {
                 {CLOVE_OF_GARLIC, STRANGE_OBJECT, STRANGE_OBJECT, STRANGE_OBJECT, STRANGE_OBJECT, STRANGE_OBJECT, STRANGE_OBJECT, STRANGE_OBJECT, STRANGE_OBJECT, STRANGE_OBJECT},
@@ -3728,7 +3728,7 @@ struct materialcomponentlist matlists[] =
     { SPE_CIRCLE_OF_TELEPORTATION,
     "Blue glass, 2 sporal powder",
     STRANGE_OBJECT,
-    7,
+    4,
         {
             {
                 {WORTHLESS_PIECE_OF_BLUE_GLASS, STRANGE_OBJECT, STRANGE_OBJECT, STRANGE_OBJECT, STRANGE_OBJECT, STRANGE_OBJECT, STRANGE_OBJECT, STRANGE_OBJECT, STRANGE_OBJECT, STRANGE_OBJECT},

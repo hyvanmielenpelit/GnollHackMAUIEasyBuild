@@ -172,18 +172,32 @@ struct obj **obj_p;
     if (!isok(x, y))
         return FALSE;
 
-    int glyphotyp = glyph_to_obj(glyph);
+    int glyphotyp = glyph_to_otyp(glyph);
+    if (glyphotyp < STRANGE_OBJECT || glyphotyp >= NUM_OBJECTS)
+        return FALSE;
+
     otmp = any_obj_at(glyphotyp, x, y);
 
     /* there might be a mimic here posing as an object */
     mtmp = m_at(x, y);
-    if (mtmp && is_obj_mappear(mtmp, (unsigned) glyphotyp)) {
-        otmp = 0;
+    if (mtmp && is_obj_mappear(mtmp, (unsigned) glyphotyp)) 
+    {
+        if (has_mobj(mtmp))
+        {
+            otmp = MOBJ(mtmp);
+            otmp->ox = x;
+            otmp->oy = y;
+            //otmp->where = OBJ_FLOOR;
+        }
+        else
+            otmp = 0;
         mimic_obj = TRUE;
-    } else
+    } 
+    else
         mtmp = 0;
 
-    if (!otmp || otmp->otyp != glyphotyp) {
+    if (!otmp || otmp->otyp != glyphotyp) 
+    {
         /* this used to exclude STRANGE_OBJECT; now caller deals with it */
         otmp = mksobj(glyphotyp, FALSE, FALSE, FALSE);
         if (!otmp)
@@ -193,37 +207,45 @@ struct obj **obj_p;
             otmp->quan = 2L; /* to force pluralization */
         else if (otmp->otyp == SLIME_MOLD)
             otmp->special_quality = context.current_fruit; /* give it a type */
-        if (mtmp && has_mcorpsenm(mtmp)) /* mimic as corpse/statue */
+        else if (otmp->otyp == EGG)
+            otmp->corpsenm = LOW_PM; /* make sure it is not NON_PM */
+        
+        if (mtmp && has_mcorpsenm(mtmp) && is_obj_mappear(mtmp, (unsigned)otmp->otyp)) /* mimic as corpse/statue */
             otmp->corpsenm = MCORPSENM(mtmp);
+        else if (mtmp && has_mobj(mtmp) && MOBJ(mtmp)->otyp == otmp->otyp) /* mimic as corpse/statue via MOBJ; goes here only if otmp->otyp != glyphotyp but still is_obj_mappear(mtmp, (unsigned) glyphotyp) == TRUE above, which indicates that things are not right */
+        {
+            otmp->quan = MOBJ(mtmp)->quan;
+            otmp->corpsenm = MOBJ(mtmp)->corpsenm;
+        }
         else if (otmp->otyp == CORPSE && glyph_is_body(glyph))
         {
-            otmp->corpsenm = abs(glyph) - GLYPH_BODY_OFF;
+            otmp->corpsenm = min(NUM_MONSTERS - 1, max(0, abs(glyph) - GLYPH_BODY_OFF) + LOW_PM);
             otmp->speflags |= SPEFLAGS_MALE;
             if (glyph < 0)
                 otmp->speflags |= SPEFLAGS_FACING_RIGHT;
         }
         else if (otmp->otyp == CORPSE && glyph_is_female_body(glyph))
         {
-            otmp->corpsenm = abs(glyph) - GLYPH_FEMALE_BODY_OFF;
+            otmp->corpsenm = min(NUM_MONSTERS - 1, max(0, abs(glyph) - GLYPH_FEMALE_BODY_OFF) + LOW_PM);
             otmp->speflags |= SPEFLAGS_FEMALE;
             if (glyph < 0)
                 otmp->speflags |= SPEFLAGS_FACING_RIGHT;
         }
         else if (otmp->otyp == STATUE && glyph_is_statue(glyph))
         {
-            otmp->corpsenm = abs(glyph) - GLYPH_STATUE_OFF;
+            otmp->corpsenm = min(NUM_MONSTERS - 1, max(0, abs(glyph) - GLYPH_STATUE_OFF) + LOW_PM);
             otmp->speflags |= SPEFLAGS_MALE;
             if (glyph < 0)
                 otmp->speflags |= SPEFLAGS_FACING_RIGHT;
         }
         else if (otmp->otyp == STATUE && glyph_is_female_statue(glyph))
         {
-            otmp->corpsenm = abs(glyph) - GLYPH_FEMALE_STATUE_OFF;
+            otmp->corpsenm = min(NUM_MONSTERS - 1, max(0, abs(glyph) - GLYPH_FEMALE_STATUE_OFF) + LOW_PM);
             otmp->speflags |= SPEFLAGS_FEMALE;
             if(glyph < 0)
                 otmp->speflags |= SPEFLAGS_FACING_RIGHT;
-
         }
+
         if (otmp->otyp == LEASH)
             otmp->leashmon = 0;
         /* extra fields needed for shop price with doname() formatting */
@@ -231,6 +253,10 @@ struct obj **obj_p;
         otmp->ox = x, otmp->oy = y;
         otmp->no_charge = (otmp->otyp == STRANGE_OBJECT && costly_spot(x, y));
     }
+
+    if (otmp && (otmp->otyp == CORPSE || otmp->otyp == STATUE || otmp->otyp == FIGURINE) && (otmp->corpsenm <= NON_PM || otmp->corpsenm >= NUM_MONSTERS)) /* Insurance */
+        otmp->corpsenm = LOW_PM;
+
     /* if located at adjacent spot, mark it as having been seen up close
        (corpse type will be known even if dknown is 0, so we don't need a
        touch check for cockatrice corpse--we're looking without touching) */
@@ -243,8 +269,10 @@ struct obj **obj_p;
         /* terrain mode views what's already known, doesn't learn new stuff */
         && !iflags.terrainmode) /* so don't set dknown when in terrain mode */
         otmp->dknown = 1; /* if a pile, clearly see the top item only */
+
     if (fakeobj && mtmp && mimic_obj &&
-        (otmp->dknown || (M_AP_FLAG(mtmp) & M_AP_F_DKNOWN))) {
+        (otmp->dknown || (M_AP_FLAG(mtmp) & M_AP_F_DKNOWN))) 
+    {
             mtmp->m_ap_type |= M_AP_F_DKNOWN;
             otmp->dknown = 1;
     }
@@ -263,15 +291,24 @@ int x, y, glyph;
     struct obj *otmp = 0;
     boolean fakeobj = object_from_map(glyph, x, y, &otmp);
 
-    if (otmp) {
-        Strcpy(buf, (otmp->otyp != STRANGE_OBJECT)
-                     ? (iflags.in_dumplog ? aqcxname(otmp) : distant_name(otmp, otmp->dknown ? doname_with_price : doname_vague_quan))
+    if (otmp)
+    {
+        Strcpy(buf, (otmp->otyp > STRANGE_OBJECT && otmp->otyp < NUM_OBJECTS)
+                     ? (iflags.in_dumplog ? /* Note: should be just aqcxname, but this is a place of a weird bug that needs to be narrowed down */
+                         (fakeobj ? (otmp->otyp == CORPSE || otmp->otyp == STATUE || otmp->otyp == EGG || otmp->otyp == TIN ? (otmp->otyp == CORPSE ? (otmp->corpsenm >= LOW_PM && otmp->corpsenm < NUM_MONSTERS ? aqcxname5(otmp) : aqcxname9(otmp)) : otmp->otyp == STATUE ? (otmp->corpsenm >= LOW_PM && otmp->corpsenm < NUM_MONSTERS ? aqcxname4(otmp) : aqcxname10(otmp)) : aqcxname3(otmp)) /* Most likely culprits */
+                                   : otmp->otyp <= NUM_OBJECTS / 4 ? aqcxname6(otmp) : otmp->otyp <= NUM_OBJECTS / 2 ? aqcxname7(otmp) : otmp->otyp <= (3 * NUM_OBJECTS) / 4 ? aqcxname8(otmp) : aqcxname2(otmp))  /* A bit of narrowing */
+                        : aqcxname(otmp)) 
+                     : (fakeobj ? distant_name2(otmp, otmp->dknown ? doname_with_price : doname_vague_quan) : distant_name(otmp, otmp->dknown ? doname_with_price : doname_vague_quan))
+                       )
                      : obj_descr[STRANGE_OBJECT].oc_name);
-        if (fakeobj) {
+
+        if (fakeobj) 
+        {
             otmp->where = OBJ_FREE; /* object_from_map set it to OBJ_FLOOR */
             dealloc_obj(otmp), otmp = 0;
         }
-    } else
+    } 
+    else
         Strcpy(buf, something); /* sanity precaution */
 
     if (otmp && otmp->where == OBJ_BURIED)
@@ -1054,15 +1091,15 @@ struct permonst **for_supplement;
 {
     static const char mon_interior[] = "the interior of a monster",
                       unreconnoitered[] = "unreconnoitered";
-    static char look_buf[BUFSZ];
-    static char simple_buf[BUFSZ];
-    static char x_buf[BUFSZ] = "";
-    char prefix[BUFSZ];
-    int i, alt_i, glyph = NO_GLYPH,
+    static char look_buf[BUFSZ * 5] = "";
+    static char simple_buf[BUFSZ * 2] = "";
+    static char x_buf[BUFSZ * 2] = "";
+    char prefix[BUFSZ * 2] = "";
+    int i = 0, alt_i = 0, glyph = NO_GLYPH,
         skipped_venom = 0, found = 0; /* count of matching syms found */
-    boolean hit_trap, need_to_look = FALSE,
+    boolean hit_trap = FALSE, need_to_look = FALSE,
             submerged = (Underwater && !Is_waterlevel(&u.uz));
-    const char *x_str;
+    const char *x_str = 0;
 
     if (iflags.using_gui_tiles)
     {
@@ -1072,9 +1109,8 @@ struct permonst **for_supplement;
     {
         if (looked)
         {
-            int oc;
-            uint64_t os;
-
+            int oc = 0;
+            uint64_t os = 0;
             struct layer_info layers = layers_at(cc.x, cc.y);
             glyph = abs(layers.glyph);
             /* Convert glyph at selected position to a symbol for use below. */
@@ -1255,7 +1291,7 @@ struct permonst **for_supplement;
                 x_str = defsyms[i].explanation;
                 if (defsyms[i].explanation && *defsyms[i].explanation)
                 {
-                    static char decoration_buf[BUFSZ] = "";
+                    static char decoration_buf[BUFSZ * 2] = "";
                     const char* dec_descr = get_decoration_description(cc.x, cc.y);
                     const char* carpet_descr = get_carpet_description(cc.x, cc.y);
                     if (dec_descr && *dec_descr)
@@ -1292,7 +1328,7 @@ struct permonst **for_supplement;
             /* alt_i is now 3 or more and no longer of interest */
         }
 
-        if (sym == (looked ? showsyms[i] : defsyms[i].sym) && *x_str) 
+        if (sym == (looked ? showsyms[i] : defsyms[i].sym) && x_str && *x_str)
         {
             /* avoid "an unexplored", "an stone", "an air", "a water",
                "a floor of a room", "a dark part of a room";
@@ -1414,8 +1450,8 @@ struct permonst **for_supplement;
 
         if (found > 1 || need_to_look)
         {
-            char temp_buf[BUFSZ];
-            char extrabuf[BUFSZ];
+            char temp_buf[BUFSZ * 5];
+            char extrabuf[BUFSZ * 2];
 
             pm = lookat(cc.x, cc.y, look_buf, simple_buf, extrabuf);
             if (pm && for_supplement)
@@ -1424,11 +1460,11 @@ struct permonst **for_supplement;
 
             if (*look_buf)
             {
-                char mdescbuf[BUFSZ];
+                char mdescbuf[BUFSZ * 2];
                 Strcpy(mdescbuf, "");
                 if (!Hallucination && pm && pm->mdescription && strcmp(pm->mdescription, ""))
                 {
-                    char mdescbuf2[BUFSZ];
+                    char mdescbuf2[BUFSZ * 2];
                     Strcpy(mdescbuf2, pm->mdescription);
                     //*mdescbuf2 = lowc(*mdescbuf2);
                     Sprintf(mdescbuf, ", %s", mdescbuf2);
@@ -1437,14 +1473,19 @@ struct permonst **for_supplement;
                 if (iflags.using_gui_tiles)
                 {
                     Sprintf(temp_buf, "%s%s", look_buf, mdescbuf);
-                    Strcpy(out_str, temp_buf);
+                    (void)strncpy(out_str, temp_buf, BUFSZ - 1);
+                    out_str[BUFSZ - 1] = 0;
                 }
                 else
                 {
                     Sprintf(temp_buf, " (%s%s)", look_buf, mdescbuf);
 
-                    (void)strncat(out_str, temp_buf,
-                        BUFSZ - strlen(out_str) - 1);
+                    int clen = BUFSZ - (int)strlen(out_str) - 1;
+                    if (clen > 0)
+                    {
+                        (void)strncat(out_str, temp_buf, (size_t)clen);
+                        out_str[BUFSZ - 1] = 0;
+                    }
                 }
                 found = 1; /* we have something to look up */
             }
@@ -1452,8 +1493,12 @@ struct permonst **for_supplement;
             if (extrabuf[0])
             {
                 Sprintf(temp_buf, " [seen: %s]", extrabuf);
-                (void) strncat(out_str, temp_buf,
-                               BUFSZ - strlen(out_str) - 1);
+                int clen = BUFSZ - (int)strlen(out_str) - 1;
+                if (clen > 0)
+                {
+                    (void)strncat(out_str, temp_buf, clen);
+                    out_str[BUFSZ - 1] = 0;
+                }
             }
         }
     }
@@ -1474,15 +1519,15 @@ coord *click_cc;
 {
     boolean quick = (mode == 1); /* use cursor; don't search for "more info" */
     boolean clicklook = (mode == 2); /* right mouse-click method */
-    char out_str[BUFSZ] = DUMMY;
-    const char *firstmatch = 0;
+    char out_str[BUFSZ * 5] = DUMMY;
+    const char *firstmatch = "unknown";
     struct permonst *pm = 0, *supplemental_pm = 0;
     int i = '\0', ans = 0;
-    nhsym sym;              /* typed symbol or converted glyph */
-    int found;            /* count of matching syms found */
-    coord cc;             /* screen pos of unknown glyph */
-    boolean save_verbose; /* saved value of flags.verbose */
-    boolean from_screen;  /* question from the screen */
+    nhsym sym = 0;              /* typed symbol or converted glyph */
+    int found = FALSE;            /* count of matching syms found */
+    coord cc = DUMMY;             /* screen pos of unknown glyph */
+    boolean save_verbose = FALSE; /* saved value of flags.verbose */
+    boolean from_screen = FALSE;  /* question from the screen */
 
     cc.x = 0;
     cc.y = 0;
@@ -1563,7 +1608,7 @@ coord *click_cc;
             char invlet;
             struct obj *invobj;
 
-            invlet = display_inventory((const char *) 0, TRUE, 1);
+            invlet = display_inventory((const char *) 0, TRUE, SHOWWEIGHTS_INVENTORY);
             if (!invlet || invlet == '\033')
                 return 0;
             *out_str = '\0';

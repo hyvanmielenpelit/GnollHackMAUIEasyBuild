@@ -317,6 +317,7 @@ moverock()
                               trap_type_definitions[ttmp->ttyp].name,
                               surface(rx, ry));
                     deltrap(ttmp);
+                    Sprintf(priority_debug_buf_3, "moverock: %d", otmp->otyp);
                     delobj(otmp);
                     bury_objs(rx, ry);
                     levl[rx][ry].wall_info &= ~W_NONDIGGABLE;
@@ -606,6 +607,7 @@ xchar x, y;
     if (boulder)
     {
         play_occupation_immediate_sound(oss, OCCUPATION_EATING, OCCUPATION_SOUND_TYPE_START);
+        Sprintf(priority_debug_buf_3, "still_chewing: %d", boulder->otyp);
         delobj(boulder);         /* boulder goes bye-bye */
         You("eat the boulder."); /* yum */
 
@@ -1064,11 +1066,10 @@ int mode;
                     if (amorphous(youmonst.data))
                         You_ex(ATR_NONE, CLR_MSG_ATTENTION, "try to ooze under the door, but can't squeeze your possessions through.");
 
-                    if (flags.autoopen && !context.run && !Confusion
-                        && !Stunned && !Fumbling)
+                    if (flags.autoopen && !context.run && ((tmpr->doormask & D_LOCKED) == 0 || (flags.autounlock && carrying_fitting_unlocking_tool_for_door(tmpr)) || !tmpr->click_kick_ok) && !Confusion && !Stunned && !Fumbling)
                     {
                         int open_res = doopen_indir(x, y);
-                        if (!open_res)
+                        if (open_res <= 0)
                             context.door_opened = context.move = 0;
                         else if (open_res == 1)
                             context.door_opened = context.move = 1;
@@ -1077,7 +1078,17 @@ int mode;
                             context.door_opened = 1; /* Make sure nomul is not called, since the player started picking the lock */
                             context.move = 0; /* But movement stops */
                         }
-
+                        /* Below works great using keyboard, but it is more difficult to do the same for mouse click side */
+                        //else if (open_res == 3 || open_res == -1)
+                        //{
+                        //    u.dx = dx, u.dy = dy, u.dz = 0;
+                        //    (void)dokick_indir(TRUE);
+                        //}
+                    }
+                    else if ((tmpr->doormask & D_LOCKED) != 0 && tmpr->click_kick_ok && !context.run && !Confusion && !Stunned && !Fumbling)
+                    {
+                        u.dx = dx, u.dy = dy, u.dz = 0;
+                        (void)dokick_indir(TRUE);
                     }
                     else if (x == ux || y == uy) 
                     {
@@ -1176,7 +1187,7 @@ int mode;
     /* Pick travel path that does not require crossing a trap.
      * Avoid water and lava using the usual running rules.
      * (but not u.ux/u.uy because findtravelpath walks toward u.ux/u.uy) */
-    if (context.run == 8 && (mode != DO_MOVE)
+    if (context.run == RUNCONTEXT_TRAVEL && (mode != DO_MOVE)
         && (x != u.ux || y != u.uy)) 
     {
         struct trap *t = t_at(x, y);
@@ -1206,8 +1217,8 @@ int mode;
 
     if (sobj_at(BOULDER, x, y) && (Sokoban || !Passes_walls))
     {
-        if (!(Blind || Hallucination) && (context.run >= 2)
-            && mode != TEST_TRAV) {
+        if (!(Blind || Hallucination) && (context.run >= RUNCONTEXT_RUSH) && mode != TEST_TRAV) 
+        {
             if (mode == DO_MOVE && iflags.mention_walls)
                 pline("A boulder blocks your path.");
             return FALSE;
@@ -1264,10 +1275,13 @@ int mode;
     /* if travel to adjacent, reachable location, use normal movement rules */
     if ((mode == TRAVP_TRAVEL || mode == TRAVP_VALID) && context.travel1
         && distmin(u.ux, u.uy, u.tx, u.ty) == 1
-        && !(u.ux != u.tx && u.uy != u.ty && NODIAG(u.umonnum))) {
-        context.run = 0;
-        if (test_move(u.ux, u.uy, u.tx - u.ux, u.ty - u.uy, TEST_MOVE)) {
-            if (mode == TRAVP_TRAVEL) {
+        && !(u.ux != u.tx && u.uy != u.ty && NODIAG(u.umonnum))) 
+    {
+        context.run = RUNCONTEXT_NONE;
+        if (test_move(u.ux, u.uy, u.tx - u.ux, u.ty - u.uy, TEST_MOVE)) 
+        {
+            if (mode == TRAVP_TRAVEL) 
+            {
                 u.dx = u.tx - u.ux;
                 u.dy = u.ty - u.uy;
                 nomul(0);
@@ -1276,7 +1290,8 @@ int mode;
             return TRUE;
         }
     }
-    if (u.tx != u.ux || u.ty != u.uy) {
+    if (u.tx != u.ux || u.ty != u.uy) 
+    {
         xchar travel[COLNO][ROWNO];
         xchar travelstepx[2][COLNO * ROWNO];
         xchar travelstepy[2][COLNO * ROWNO];
@@ -1290,12 +1305,15 @@ int mode;
          * goal is the position the player knows of, or might figure out
          * (couldsee) that is closest to the target on a straight path.
          */
-        if (mode == TRAVP_GUESS || mode == TRAVP_VALID) {
+        if (mode == TRAVP_GUESS || mode == TRAVP_VALID) 
+        {
             tx = u.ux;
             ty = u.uy;
             ux = u.tx;
             uy = u.ty;
-        } else {
+        } 
+        else 
+        {
             tx = u.tx;
             ty = u.ty;
             ux = u.ux;
@@ -1901,7 +1919,9 @@ domove_core()
                     && !(mtmp2->mon_flags & MON_FLAGS_SPOTTED_IN_RUN_AT_START) /* Hasn't been spotted at the start of running */
                     )
                 {
-                    You("spot %s%s.", a_monnam(mtmp2), iflags.run_spot_distance < 0 ? "" : distu(mtmp2->mx, mtmp2->my) <= RUN_SPOT_NEARBY_DISTANCE * RUN_SPOT_NEARBY_DISTANCE ? " nearby" : " at a distance");
+                    int multicolors[2] = { CLR_MSG_WARNING, NO_COLOR };
+                    int d2 = distu(mtmp2->mx, mtmp2->my);
+                    You_multi_ex(ATR_NONE, CLR_MSG_ATTENTION, no_multiattrs, multicolors, "spot %s%s.", a_monnam(mtmp2), iflags.run_spot_distance < 0 ? "" : d2 <= 2 ? " next to you" : d2 <= RUN_SPOT_NEARBY_DISTANCE * RUN_SPOT_NEARBY_DISTANCE ? " nearby" : " at a distance");
                     You("stop %s.", context.travel ? "travelling" : "running");
                     nomul(0);
                     context.move = 0;
@@ -1941,19 +1961,11 @@ domove_core()
             boolean blocksflying = loc_blocks_flying_and_leviation(x, y);
             if (is_pool_or_lava(x, y))
             {
+                boolean plunges_in_water_but_survives = Amphibious || Breathless || Swimming || is_swimmer(youmonst.data);
+                boolean does_not_plunge_in_water = Walks_on_water || (Flying && !blocksflying) || (Levitation && !blocksflying)
+                    || (is_flyer(youmonst.data) && !blocksflying) || (is_floater(youmonst.data) && !blocksflying);
                 if (
-                    (is_pool(x, y) && 
-                        (Walks_on_water
-                            || Amphibious 
-                            || Breathless
-                            || Swimming
-                            || (Flying && !blocksflying)
-                            || (Levitation && !blocksflying)
-                            || is_swimmer(youmonst.data)
-                            || (is_flyer(youmonst.data) && !blocksflying)
-                            || (is_floater(youmonst.data) && !blocksflying)
-                        )
-                    )
+                    (is_pool(x, y) && (does_not_plunge_in_water || (plunges_in_water_but_survives && !invent)))
                     || 
                     (is_lava(x, y) && 
                         ((Levitation && !blocksflying)
@@ -1969,7 +1981,6 @@ domove_core()
                 else
                 {
                     /* If blind, you still get the question */
-
                     char ynqbuf[BUFSZ];
                     Sprintf(ynqbuf, "Are you sure you want to enter the %s?", is_pool(x, y) ? (Is_waterlevel(&u.uz) ? "water" : "pool") : is_lava(x, y) ? "lava" : "location");
                     char tbuf[BUFSZ];
@@ -2053,7 +2064,8 @@ domove_core()
         }
 
         mtmp = m_at(x, y);
-        if (mtmp && !is_safepet(mtmp) && !is_displaceable_peaceful(mtmp)) {
+        if (mtmp && !is_safepet(mtmp) && !is_displaceable_peaceful(mtmp)) 
+        {
             /* Don't attack if you're running, and can see it */
             /* It's fine to displace pets, though */
             /* We should never get here if forcefight */
@@ -2061,7 +2073,8 @@ domove_core()
                                  && ((M_AP_TYPE(mtmp) != M_AP_FURNITURE
                                       && M_AP_TYPE(mtmp) != M_AP_OBJECT)
                                      || Protection_from_shape_changers))
-                                || sensemon(mtmp))) {
+                                || sensemon(mtmp))) 
+            {
                 nomul(0);
                 context.move = 0;
                 return;
@@ -2451,12 +2464,10 @@ domove_core()
 
 finish_move:
     reset_occupations();
-    if (context.run)
+    if (context.run && context.run < RUNCONTEXT_TRAVEL) // && !flags.ignore_stopping
     {
-        if (context.run < 8)
-            if (IS_DOOR(tmpr->typ) || IS_ROCK(tmpr->typ)
-                || IS_FURNITURE(tmpr->typ))
-                nomul(0);
+        if (IS_DOOR(tmpr->typ) || IS_ROCK(tmpr->typ) || IS_FURNITURE(tmpr->typ))
+            nomul(0);
     }
 
     if (hides_under(youmonst.data) || youmonst.data->mlet == S_EEL
@@ -2497,15 +2508,20 @@ finish_move:
 
     /* delay next move because of ball dragging */
     /* must come after we finished picking up, in spoteffects() */
-    if (cause_delay) {
+    if (cause_delay) 
+    {
         nomul(-2);
         multi_reason = "dragging an iron ball";
         nomovemsg = "";
+        nomovemsg_attr = ATR_NONE;
+        nomovemsg_color = NO_COLOR;
     }
 
-    if (context.run && (flags.runmode != RUN_TPORT || (context.travel && context.travel_mode > TRAVEL_MODE_NORMAL))) {
+    if (context.run && (flags.runmode != RUN_TPORT || (context.travel && context.travel_mode > TRAVEL_MODE_NORMAL))) 
+    {
         /* display every step or every 7th step depending upon mode */
-        if (flags.runmode != RUN_LEAP || (context.travel && context.travel_mode > TRAVEL_MODE_NORMAL) || !(moves % 7L)) {
+        if (flags.runmode != RUN_LEAP || (context.travel && context.travel_mode > TRAVEL_MODE_NORMAL) || !(moves % 7L)) 
+        {
             if (flags.time)
                 context.botl = 1;
             curs_on_u();
@@ -2827,7 +2843,7 @@ boolean pick;
             action_taken = TRUE;
             update_m_action_core(mtmp, ACTION_TILE_SPECIAL_ATTACK, 2, NEWSYM_FLAGS_KEEP_OLD_FLAGS | NEWSYM_FLAGS_SHOW_DROPPING_PIERCER);
             play_sfx_sound(SFX_PIERCER_DROPS);
-            m_wait_until_action();
+            m_wait_until_action(mtmp, ACTION_TILE_SPECIAL_ATTACK);
             pline_ex(ATR_NONE, CLR_MSG_WARNING, "%s suddenly drops from the %s!", Amonnam(mtmp),
                   ceiling(u.ux, u.uy));
 
@@ -2858,7 +2874,7 @@ boolean pick;
                     delay_output_milliseconds(25);
                     play_player_ouch_sound(MONSTER_OUCH_SOUND_OUCH);
                 }
-                damage = adjust_damage(d(max(1, mtmp->data->mlevel - 1), 6), (struct monst*)0, &youmonst, AD_PHYS, ADFLAGS_NONE);
+                damage = adjust_damage(d(max(1, (int)mtmp->data->mlevel - 1), 6), (struct monst*)0, &youmonst, AD_PHYS, ADFLAGS_NONE);
                 mdamageu(mtmp, damage, TRUE);
             }
             break;
@@ -2882,14 +2898,14 @@ boolean pick;
                 action_taken = TRUE;
                 update_m_action_core(mtmp, ACTION_TILE_SPECIAL_ATTACK, 2, NEWSYM_FLAGS_SHOW_DROPPING_PIERCER);
                 play_sfx_sound(SFX_SURPRISE_ATTACK);
-                m_wait_until_action();
+                m_wait_until_action(mtmp, ACTION_TILE_SPECIAL_ATTACK);
                 pline_ex(ATR_NONE, CLR_MSG_WARNING, "%s attacks you by surprise!", Amonnam(mtmp));
 
             }
             break;
         }
         if(action_taken)
-            m_wait_until_end();
+            m_wait_until_end(mtmp, ACTION_TILE_SPECIAL_ATTACK);
         update_m_action_revert(mtmp, ACTION_TILE_NO_ACTION);
         newsym(mtmp->mx, mtmp->my);
         mnexto(mtmp); /* have to move the monster */
@@ -3465,7 +3481,7 @@ lookaround()
         return;
     }
 
-    if (Blind || context.run == 0)
+    if (Blind || context.run == RUNCONTEXT_NONE)
         return;
     for (x = u.ux - 1; x <= u.ux + 1; x++)
         for (y = u.uy - 1; y <= u.uy + 1; y++) {
@@ -3487,7 +3503,7 @@ lookaround()
                     return;
                 }
 
-                if ((context.run != 1 && !is_tame(mtmp))
+                if ((context.run != RUNCONTEXT_DEFAULT && !is_peaceful(mtmp))
                     || (x == u.ux + u.dx && y == u.uy + u.dy && !context.travel))
                 {
                     if (iflags.mention_walls)
@@ -3509,7 +3525,8 @@ lookaround()
             {
                 if (x != u.ux && y != u.uy)
                     continue;
-                if (context.run != 1) {
+                if (context.run != RUNCONTEXT_DEFAULT && !(context.run == RUNCONTEXT_TRAVEL && flags.ignore_stopping))
+                {
                     if (iflags.mention_walls)
                         You("stop in front of the door.");
                     goto stop;
@@ -3521,14 +3538,15 @@ lookaround()
  bcorr:
                 if (!(levl[u.ux][u.uy].typ == ROOM || levl[u.ux][u.uy].typ == GRASS || levl[u.ux][u.uy].typ == GROUND))
                 {
-                    if (context.run == 1 || context.run == 3
-                        || context.run == 8) {
+                    if (context.run == RUNCONTEXT_DEFAULT || context.run == RUNCONTEXT_RUN || context.run == RUNCONTEXT_TRAVEL) 
+                    {
                         i = dist2(x, y, u.ux + u.dx, u.uy + u.dy);
                         if (i > 2)
                             continue;
                         if (corrct == 1 && dist2(x, y, x0, y0) != 1)
                             noturn = 1;
-                        if (i < i0) {
+                        if (i < i0) 
+                        {
                             i0 = i;
                             x0 = x;
                             y0 = y;
@@ -3541,7 +3559,7 @@ lookaround()
             } 
             else if ((trap = t_at(x, y)) && trap->tseen) 
             {
-                if (context.run == 1)
+                if (context.run == RUNCONTEXT_DEFAULT)
                     goto bcorr; /* if you must */
                 if (x == u.ux + u.dx && y == u.uy + u.dy)
                 {
@@ -3573,9 +3591,9 @@ lookaround()
                 }
                 continue;
             } else { /* e.g. objects or trap or stairs */
-                if (context.run == 1)
+                if (context.run == RUNCONTEXT_DEFAULT)
                     goto bcorr;
-                if (context.run == 8)
+                if (context.run == RUNCONTEXT_TRAVEL)
                     continue;
                 if (mtmp)
                     continue; /* d */
@@ -3588,13 +3606,13 @@ lookaround()
             return;
         } /* end for loops */
 
-    if (corrct > 1 && context.run == 2) 
+    if (corrct > 1 && context.run == RUNCONTEXT_RUSH) // && !flags.ignore_stopping
     {
         if (iflags.mention_walls)
             pline_The("corridor widens here.");
         goto stop;
     }
-    if ((context.run == 1 || context.run == 3 || context.run == 8) && !noturn
+    if ((context.run == RUNCONTEXT_DEFAULT || context.run == RUNCONTEXT_RUN || context.run == RUNCONTEXT_TRAVEL) && !noturn
         && !m0 && i0 && (corrct == 1 || (corrct == 2 && i0 == 1))) {
         /* make sure that we do not turn too far */
         if (i0 == 2) {
@@ -3685,7 +3703,14 @@ monster_nearby()
                 && (!is_hider(mtmp->data) || !mtmp->mundetected)
                 && mon_can_move(mtmp)
                 && !onscary(u.ux, u.uy, mtmp) && canspotmon(mtmp))
+            {
+                if (!Hallucination && !is_peaceful(mtmp))
+                {
+                    int multicolors[2] = { CLR_MSG_WARNING, NO_COLOR };
+                    You_multi_ex(ATR_NONE, CLR_MSG_ATTENTION, no_multiattrs, multicolors, "spot %s%s.", a_monnam(mtmp), " next to you");
+                }
                 return 1;
+            }
         }
     return 0;
 }
@@ -3707,14 +3732,27 @@ register int nval;
 /* called when a non-movement, multi-turn action has completed */
 void
 unmul(msg_override)
+const char* msg_override;
+{
+    unmul_ex(ATR_NONE, NO_COLOR, msg_override);
+}
+
+void
+unmul_ex(attr, color, msg_override)
+int attr, color;
 const char *msg_override;
 {
     multi = 0; /* caller will usually have done this already */
     if (msg_override)
+    {
         nomovemsg = msg_override;
+        nomovemsg_attr = attr;
+        nomovemsg_color = color;
+    }
     else if (!nomovemsg)
     {
         nomovemsg = You_can_move_again;
+        nomovemsg_attr = ATR_NONE;
         nomovemsg_color = CLR_MSG_SUCCESS;
     }
     if (*nomovemsg)
@@ -3803,15 +3841,33 @@ int k_format;
 void
 losehp(n, knam, k_format)
 double n;
+register const char* knam;
+int k_format;
+{
+    losehp_core(n, knam, k_format, FALSE);
+}
+
+void
+losehp_core(n, knam, k_format, verbose)
+double n;
 register const char *knam;
 int k_format;
+boolean verbose;
 {
     if (Invulnerable) //Note you must set damage to zero so it does not get displayed to the player
         return;
 
-    if (Upolyd) 
+    int damage_dealt;
+    if (Upolyd)
     {
+        int mh_before = u.mh;
         deduct_player_hp(n);
+        int mh_after = u.mh;
+        damage_dealt = mh_before - mh_after;
+        if (verbose && damage_dealt > 0)
+        {
+            You_multi_ex(ATR_NONE, NO_COLOR, no_multiattrs, multicolor_red1, "sustain %d damage!", damage_dealt);
+        }
         if (u.mh < 1)
             rehumanize();
         else if (n > 0 && u.mh * 10 < u.mhmax && Unchanging)
@@ -3819,7 +3875,14 @@ int k_format;
         return;
     }
 
+    int uhp_before = u.uhp;
     deduct_player_hp(n);
+    int uhp_after = u.uhp;
+    damage_dealt = uhp_before - uhp_after;
+    if (verbose && damage_dealt > 0)
+    {
+        You_multi_ex(ATR_NONE, NO_COLOR, no_multiattrs, multicolor_red1, "sustain %d damage!", damage_dealt);
+    }
 
     if(n > 0)
         clear_run_and_travel();
@@ -4126,7 +4189,7 @@ mark_spotted_monsters_in_run(VOID_ARGS)
     struct monst* mtmp;
     for (mtmp = fmon; mtmp; mtmp = mtmp->nmon)
     {
-        if (!DEADMONSTER(mtmp) && canspotmon(mtmp) && isok(mtmp->mx, mtmp->my) && couldsee(mtmp->mx, mtmp->my))
+        if (!DEADMONSTER(mtmp) && isok(mtmp->mx, mtmp->my) && canspotmon(mtmp) && couldsee(mtmp->mx, mtmp->my))
             mtmp->mon_flags |= MON_FLAGS_SPOTTED_IN_RUN_AT_START;
         else
             mtmp->mon_flags &= ~MON_FLAGS_SPOTTED_IN_RUN_AT_START;

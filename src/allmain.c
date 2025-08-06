@@ -295,7 +295,7 @@ uchar resuming; /* 0 = new game, 1 = loaded a saved game, 2 = continued playing 
                                  && !rn2(80 - (20 * night())))
                             change = 2;
 
-                        if (change && !Unchanging) 
+                        if (change && !Unchanging && !Polymorph_resistance)
                         {
                             if (multi >= 0) {
                                 stop_occupation();
@@ -1061,12 +1061,14 @@ stop_occupation()
 {
     if (occupation) {
         if (!maybe_finished_meal(TRUE))
-            You("stop %s.", occtxt);
+            You_ex(occattr, occclr, "stop %s.", occtxt);
         stop_occupation_ambient_sound(occsoundset, occtyp);
         play_occupation_immediate_sound(occsoundset, occtyp, OCCUPATION_SOUND_TYPE_INTERRUPTED);
         occupation = 0;
         occsoundset = 0;
         occtyp = 0;
+        occattr = ATR_NONE;
+        occclr = NO_COLOR;
         context.botl = TRUE; /* in case u.uhs changed */
         nomul(0);
         pushch(0);
@@ -1439,10 +1441,11 @@ newgame(VOID_ARGS)
     init_animations();
     init_tiledata();
 
-#ifdef USE_TILES
-    flags.screen_scale_adjustment = flags.preferred_screen_scale == 0 ? 0.0
-        : max(MIN_SCREEN_SCALE_ADJUSTMENT, min(MAX_SCREEN_SCALE_ADJUSTMENT, ((double)flags.preferred_screen_scale) / 100.0 - 1.0));
-#endif
+    issue_simple_gui_command(GUI_CMD_ZOOM_NORMAL);
+//#ifdef USE_TILES
+    //flags.screen_scale_adjustment = flags.preferred_screen_scale == 0 ? 0.0
+    //    : max(MIN_SCREEN_SCALE_ADJUSTMENT, min(MAX_SCREEN_SCALE_ADJUSTMENT, ((double)flags.preferred_screen_scale) / 100.0 - 1.0));
+//#endif
 
     for (i = LOW_PM; i < NUM_MONSTERS; i++)
         if((mons[i].geno & G_NOCORPSE) != 0)
@@ -1499,9 +1502,9 @@ newgame(VOID_ARGS)
     }
 
     /* Game is starting now */
-    context.game_started = TRUE;
     urealtime.realtime = 0L;
     urealtime.start_timing = (int64_t)getnow();
+    context.game_started = TRUE;
 
 #ifdef INSURANCE
     save_currentstate();
@@ -1653,7 +1656,8 @@ interrupt_multi(msg, attr, color)
 const char *msg;
 int attr, color;
 {
-    if (multi > 0 && !context.travel && !context.run) {
+    if (multi > 0 && !context.travel && !context.run) 
+    {
         nomul(0);
         if (flags.verbose && msg)
             Norep_ex(attr, color, "%s", msg);

@@ -483,7 +483,7 @@ boolean voluntary; /* taking gloves off on purpose? */
     if (obj != uwep && obj != uarms)
         return;
 
-    if (touch_petrifies(&mons[obj->corpsenm]) && !Stone_resistance) {
+    if (obj->corpsenm >= LOW_PM && touch_petrifies(&mons[obj->corpsenm]) && !Stone_resistance) {
         You("now wield %s in your bare %s.",
             corpse_xname(obj, (const char *) 0, CXN_ARTICLE),
             makeplural(body_part(HAND)));
@@ -847,6 +847,9 @@ struct obj* uitem;
         && !objects[uitem->otyp].oc_name_known
         && !objects[uitem->otyp].oc_uname)
         docall(uitem, dcbuf);
+    Sprintf(priority_debug_buf_2, "item_change_sex_and_useup: %d", uitem->otyp);
+    Strcpy(priority_debug_buf_3, "item_change_sex_and_useup");
+    Strcpy(priority_debug_buf_4, "item_change_sex_and_useup");
     useup(uitem);
     newsym(u.ux, u.uy);
 }
@@ -1191,6 +1194,8 @@ cancel_don()
          || afternmv == Gloves_on || afternmv == Armor_on);
     afternmv = (int NDECL((*))) 0;
     nomovemsg = (char *) 0;
+    nomovemsg_attr = ATR_NONE;
+    nomovemsg_color = NO_COLOR;
     multi = 0;
     context.takeoff.delay = 0;
     context.takeoff.what = 0L;
@@ -1230,7 +1235,7 @@ struct obj *stolenobj; /* no message if stolenobj is already being doffing */
         buf[0] = '\0';   /* silently stop doffing stolenobj */
         result = -multi; /* remember this before calling unmul() */
     }
-    unmul(buf);
+    unmul_ex(ATR_NONE, CLR_MSG_WARNING, buf);
     /* while putting on, item becomes worn immediately but side-effects are
        deferred until the delay expires; when interrupted, make it unworn
        (while taking off, item stays worn until the delay expires; when
@@ -1494,6 +1499,8 @@ register struct obj *otmp;
     if (delay) {
         nomul(delay);
         multi_reason = "disrobing";
+        nomovemsg_attr = ATR_NONE;
+        nomovemsg_color = NO_COLOR;
         if (is_helmet(otmp)) {
             /* ick... */
             nomovemsg = !strcmp(helm_simple_name(otmp), "hat")
@@ -1685,7 +1692,7 @@ int* result_style_ptr;
         if (contoccupation)
         {
             You("continue %s.", context.takeoff.disrobing);
-            set_occupation(take_off, context.takeoff.disrobing, occsoundset, occtyp, OCCUPATION_SOUND_TYPE_RESUME, 0);
+            set_occupation(take_off, context.takeoff.disrobing, ATR_NONE, CLR_MSG_WARNING, occsoundset, occtyp, OCCUPATION_SOUND_TYPE_RESUME, 0);
             return 0;
         }
         else
@@ -2010,12 +2017,15 @@ int* result_style_ptr;
             }
             err++;
         }
-        else if (Upolyd && !feet_fit_boots(youmonst.data))
+        else if (Upolyd && !mon_can_wear_boots_itself(&youmonst))
         {
             if (noisy)
             {
                 play_sfx_sound(SFX_GENERAL_CURRENT_FORM_DOES_NOT_ALLOW);
-                pline_ex(ATR_NONE, CLR_MSG_FAIL, "Your %s are not of the shape that allow you to wear %s.", makeplural(body_part(FOOT)), c_boots);
+                if (!mon_can_wear_boots(&youmonst)) /* Boots won't fit */
+                    pline_ex(ATR_NONE, CLR_MSG_FAIL, "Your %s are not fit for %s.", makeplural(body_part(FOOT)), c_boots);
+                else /* Cannot put on boots, e.g. because of no hands etc. */
+                    pline_ex(ATR_NONE, CLR_MSG_FAIL, "You are not in a form in which you are able to put on %s.", c_boots);
             }
             err++;
         }
@@ -2591,7 +2601,9 @@ int* result_style_ptr;
             nomul(delay);
             multi_reason = "dressing up";
             nomovemsg = "You finish your dressing maneuver.";
-        } 
+            nomovemsg_attr = ATR_NONE;
+            nomovemsg_color = NO_COLOR;
+        }
         else 
         {
             unmul(""); /* call (*aftermv)(), clear it+nomovemsg+multi_reason */
@@ -2805,11 +2817,11 @@ find_ac()
 
     if (Magical_stoneskin)
         uac -= MAGICAL_STONESKIN_AC_BONUS;
-    else if (Magical_barkskin)
+    if (Magical_barkskin)
         uac -= MAGICAL_BARKSKIN_AC_BONUS;
-    else if (Magical_shielding)
+    if (Magical_shielding)
         uac -= MAGICAL_SHIELDING_AC_BONUS;
-    else if (Magical_protection)
+    if (Magical_protection)
         uac -= MAGICAL_PROTECTION_AC_BONUS;
     
     /* Divine protection */
@@ -3661,7 +3673,7 @@ take_off(VOID_ARGS)
         if (don->delay > 0)
             don->delay--;
 
-        set_occupation(take_off, doff->disrobing, otmp ? objects[otmp->otyp].oc_soundset : OBJECT_SOUNDSET_NONE, OCCUPATION_TAKING_OFF, OCCUPATION_SOUND_TYPE_RESUME, 0);
+        set_occupation(take_off, doff->disrobing, ATR_NONE, CLR_MSG_WARNING, otmp ? objects[otmp->otyp].oc_soundset : OBJECT_SOUNDSET_NONE, OCCUPATION_TAKING_OFF, OCCUPATION_SOUND_TYPE_RESUME, 0);
         return 1; /* get busy */
 
     } 
@@ -3776,7 +3788,7 @@ take_off(VOID_ARGS)
     if (doff->delay > 0)
         doff->delay--;
 
-    set_occupation(take_off, doff->disrobing, otmp ? objects[otmp->otyp].oc_soundset : OBJECT_SOUNDSET_NONE, OCCUPATION_TAKING_OFF, OCCUPATION_SOUND_TYPE_RESUME, 0);
+    set_occupation(take_off, doff->disrobing, ATR_NONE, CLR_MSG_WARNING, otmp ? objects[otmp->otyp].oc_soundset : OBJECT_SOUNDSET_NONE, OCCUPATION_TAKING_OFF, OCCUPATION_SOUND_TYPE_RESUME, 0);
     return 1; /* get busy */
 }
 
@@ -3802,7 +3814,7 @@ doddoremarm()
 
     if (context.takeoff.what || context.takeoff.mask) {
         You("continue %s.", context.takeoff.disrobing);
-        set_occupation(take_off, context.takeoff.disrobing, occsoundset, occtyp, OCCUPATION_SOUND_TYPE_RESUME, 0);
+        set_occupation(take_off, context.takeoff.disrobing, ATR_NONE, CLR_MSG_WARNING, occsoundset, occtyp, OCCUPATION_SOUND_TYPE_RESUME, 0);
         return 0;
     } else if (!uwep && !uarms && !uswapwep && !uswapwep2 && !uquiver && !uamul && !ublindf && !uleft
                && !uright && !umisc && !umisc2 && !umisc3 && !umisc4 && !umisc5 && !wearing_armor()) {
@@ -3839,7 +3851,7 @@ int retry;
         n = query_category("What type of things do you want to take off?",
                            invent, (WORN_TYPES | ALL_TYPES
                                     | UNPAID_TYPES | UNIDENTIFIED_TYPES | UNKNOWN_TYPES | BUCX_TYPES),
-                           &pick_list, PICK_ANY);
+                           &pick_list, PICK_ANY, 0);
         if (!n)
             return 0;
         for (i = 0; i < n; i++) {
@@ -3865,7 +3877,7 @@ int retry;
     n = query_objlist("What do you want to take off?", &invent,
                       (SIGNAL_NOMENU | USE_INVLET | INVORDER_SORT),
                       &pick_list, PICK_ANY,
-                      all_worn_categories ? is_worn : is_worn_by_type, 0);
+                      all_worn_categories ? is_worn : is_worn_by_type, SHOWWEIGHTS_NONE);
     if (n > 0) {
         for (i = 0; i < n; i++)
             (void) select_off(pick_list[i].item.a_obj);
@@ -3892,7 +3904,7 @@ int retry;
         n = query_category("What type of things do you want to wear?",
             invent, (WEARABLE_TYPES | ALL_TYPES
                 | UNPAID_TYPES | UNIDENTIFIED_TYPES | UNKNOWN_TYPES | BUCX_TYPES),
-            &pick_list, PICK_ANY);
+            &pick_list, PICK_ANY, 0);
         if (!n)
             return 0;
         for (i = 0; i < n; i++) {
@@ -3919,7 +3931,7 @@ int retry;
     n = query_objlist("What do you want to wear?", &invent,
         (SIGNAL_NOMENU | USE_INVLET | INVORDER_SORT | WORN_UNSELECTABLE),
         &pick_list, PICK_ANY,
-        all_wearable_categories ? is_wearable : is_wearable_by_type, 0);
+        all_wearable_categories ? is_wearable : is_wearable_by_type, SHOWWEIGHTS_NONE);
     if (n > 0) {
         for (i = 0; i < n; i++)
             (void)select_on(pick_list[i].item.a_obj);
@@ -3944,7 +3956,7 @@ ddowear()
 
     if (context.wear.what || context.wear.mask) {
         You("continue %s.", context.takeoff.disrobing);
-        set_occupation(take_off, context.takeoff.disrobing, occsoundset, occtyp, OCCUPATION_SOUND_TYPE_RESUME, 0);
+        set_occupation(take_off, context.takeoff.disrobing, ATR_NONE, CLR_MSG_WARNING, occsoundset, occtyp, OCCUPATION_SOUND_TYPE_RESUME, 0);
         return 0;
     }
 
@@ -3975,12 +3987,16 @@ register struct obj *atmp;
          ? (otmp->in_use = TRUE) != 0             \
          : FALSE)
 
+    Strcpy(priority_debug_buf_3, "destroy_arm");
+    Strcpy(priority_debug_buf_4, "destroy_arm");
+
     if (DESTROY_ARM(uarmc)) {
         if (donning(otmp))
             cancel_don();
         play_sfx_sound(SFX_ITEM_CRUMBLES_TO_DUST);
         Your_ex(ATR_NONE, CLR_MSG_WARNING, "%s crumbles and turns to dust!", cloak_simple_name(uarmc));
         (void) Cloak_off();
+        Sprintf(priority_debug_buf_2, "destroy_arm: %d", otmp->otyp);
         useup(otmp);
     } else if (DESTROY_ARM(uarmo)) {
         if (donning(otmp))
@@ -3988,6 +4004,7 @@ register struct obj *atmp;
         play_sfx_sound(SFX_ITEM_CRUMBLES_TO_DUST);
         Your_ex(ATR_NONE, CLR_MSG_WARNING, "%s crumbles and turns to dust!", robe_simple_name(uarmc));
         (void)Robe_off();
+        Sprintf(priority_debug_buf_2, "destroy_arm2: %d", otmp->otyp);
         useup(otmp);
     } else if (DESTROY_ARM(uarm)) {
         if (donning(otmp))
@@ -3995,6 +4012,7 @@ register struct obj *atmp;
         play_sfx_sound(SFX_ITEM_CRUMBLES_TO_DUST);
         Your_ex(ATR_NONE, CLR_MSG_WARNING, "armor turns to dust and falls to the %s!", surface(u.ux, u.uy));
         (void) Armor_gone();
+        Sprintf(priority_debug_buf_2, "destroy_arm3: %d", otmp->otyp);
         useup(otmp);
     } else if (DESTROY_ARM(uarmu)) {
         if (donning(otmp))
@@ -4002,6 +4020,7 @@ register struct obj *atmp;
         play_sfx_sound(SFX_ITEM_CRUMBLES_TO_DUST);
         Your_ex(ATR_NONE, CLR_MSG_WARNING, "shirt crumbles into tiny threads and falls apart!");
         (void) Shirt_off();
+        Sprintf(priority_debug_buf_2, "destroy_arm4: %d", otmp->otyp);
         useup(otmp);
     } else if (DESTROY_ARM(uarmh)) {
         if (donning(otmp))
@@ -4009,6 +4028,7 @@ register struct obj *atmp;
         play_sfx_sound(SFX_ITEM_CRUMBLES_TO_DUST);
         Your_ex(ATR_NONE, CLR_MSG_WARNING, "%s turns to dust and is blown away!", helm_simple_name(uarmh));
         (void) Helmet_off();
+        Sprintf(priority_debug_buf_2, "destroy_arm5: %d", otmp->otyp);
         useup(otmp);
     } else if (DESTROY_ARM(uarmb)) {
         if (donning(otmp))
@@ -4016,6 +4036,7 @@ register struct obj *atmp;
         play_sfx_sound(SFX_ITEM_VANISHES);
         Your_ex(ATR_NONE, CLR_MSG_WARNING, "bracers vanish!");
         (void)Bracers_off();
+        Sprintf(priority_debug_buf_2, "destroy_arm6: %d", otmp->otyp);
         useup(otmp);
     } else if (DESTROY_ARM(uarmg)) {
         if (donning(otmp))
@@ -4023,6 +4044,7 @@ register struct obj *atmp;
         play_sfx_sound(SFX_ITEM_VANISHES);
         Your_ex(ATR_NONE, CLR_MSG_WARNING, "gloves vanish!");
         (void) Gloves_off();
+        Sprintf(priority_debug_buf_2, "destroy_arm7: %d", otmp->otyp);
         useup(otmp);
         selftouch("You");
     } else if (DESTROY_ARM(uarmf)) {
@@ -4031,14 +4053,16 @@ register struct obj *atmp;
         play_sfx_sound(SFX_ITEM_CRUMBLES_TO_DUST);
         Your_ex(ATR_NONE, CLR_MSG_WARNING, "boots disintegrate!");
         (void) Boots_off();
+        Sprintf(priority_debug_buf_2, "destroy_arm8: %d", otmp->otyp);
         useup(otmp);
     }
-    else if (DESTROY_ARM(uarms) && is_shield(otmp)) {
+    else if (uarms && is_shield(uarms) && DESTROY_ARM(uarms)) {
         if (donning(otmp))
             cancel_don();
         play_sfx_sound(SFX_ITEM_CRUMBLES_TO_DUST);
         Your_ex(ATR_NONE, CLR_MSG_WARNING, "shield crumbles away!");
         (void) Shield_off();
+        Sprintf(priority_debug_buf_2, "destroy_arm9: %d", otmp->otyp);
         useup(otmp);
     } else {
         return 0; /* could not destroy anything */

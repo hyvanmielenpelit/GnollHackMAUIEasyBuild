@@ -968,7 +968,9 @@ register struct obj *obj;
 {
     register struct obj *curr;
 
-    Strcpy(debug_buf_2, "delete_contents");
+    Sprintf(debug_buf_2, "delete_contents: container otyp=%d", obj->otyp);
+    Sprintf(debug_buf_3, "delete_contents: container otyp=%d", obj->otyp);
+    Sprintf(debug_buf_4, "delete_contents: container otyp=%d", obj->otyp);
     while ((curr = obj->cobj) != 0) {
         obj_extract_self(curr);
         obfree(curr, (struct obj *) 0);
@@ -984,6 +986,8 @@ register struct obj *obj, *merge;
     register struct bill_x *bpm;
     register struct monst *shkp;
 
+    int had_contents = Has_contents(obj);
+
     if (obj->otyp == LEASH && obj->leashmon)
         o_unleash(obj);
     if (obj->oclass == FOOD_CLASS)
@@ -994,6 +998,14 @@ register struct obj *obj, *merge;
         delete_contents(obj);
     if (Is_container(obj))
         maybe_reset_pick(obj);
+    
+    if (!context.suppress_container_deletion_warning && Is_proper_container(obj))
+    {
+        char debugbuf[BUFSZ * 17];
+        Sprintf(debugbuf, "obfree on container: otyp:%d, has_cobjs:%d, in_use:%d, P1:%s, P2:%s, P3:%s, P4:%s, B1:%s, B2:%s, B3:%s, B4:%s", obj->otyp, had_contents, (int)obj->in_use, 
+            priority_debug_buf_1, priority_debug_buf_2, priority_debug_buf_3, priority_debug_buf_4, debug_buf_1, debug_buf_2, debug_buf_3, debug_buf_4);
+        issue_gui_command(GUI_CMD_DEBUGLOG, DEBUGLOG_PRIORITY, 0, debugbuf);
+    }
 
     shkp = 0;
     if (obj->unpaid) {
@@ -1060,6 +1072,7 @@ register struct obj *obj, *merge;
            can't call remove_worn_item() to get <X>_off() side-effects */
         setnotworn(obj);
     }
+    Sprintf(debug_buf_4, "obfree: %d", obj->otyp);
     dealloc_obj(obj);
 }
 
@@ -1251,7 +1264,7 @@ register boolean silentkops;
     make_happy_shoppers(silentkops);
 }
 
-/* called by make_happy_shk() and also by losedogs() for migrating shk */
+/* called by make_happy_shk() and also by arrival_from_mydogs_and_migrating_mons() for migrating shk */
 void
 make_happy_shoppers(silentkops)
 boolean silentkops;
@@ -1819,7 +1832,7 @@ boolean itemize;
             bp->useup = 0;
             buy = PAY_SOME;
         } else { /* completely used-up, so get rid of it */
-            Strcpy(debug_buf_2, "dopayobj");
+            Sprintf(debug_buf_2, "dopayobj: %d", obj->otyp);
             obj_extract_self(obj);
             /* assert( obj == *obj_p ); */
             dealloc_obj(obj);
@@ -3472,6 +3485,7 @@ xchar x, y;
                     : "relinquish %s and acquire %ld gold piece%s in %scredit.",
                 tmpcr, (eshkp->credit > 0L) ? "additional " : "");
             eshkp->credit += tmpcr;
+            play_sfx_sound(SFX_TRANSACT_SINGLE_ITEM);
             subfrombill(obj, shkp);
         } else {
             if (c == 'q')
@@ -4155,6 +4169,7 @@ boolean catchup; /* restoring a level */
             if (otmp->otyp == BOULDER || otmp->otyp == ROCK) {
                 Strcpy(debug_buf_2, "repair_damage");
                 obj_extract_self(otmp);
+                Strcpy(priority_debug_buf_4, "repair_damage");
                 obfree(otmp, (struct obj *) 0);
             } else {
                 int trylimit = 50;

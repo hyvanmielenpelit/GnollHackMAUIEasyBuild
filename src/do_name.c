@@ -22,8 +22,11 @@ STATIC_DCL void NDECL(namefloorobj);
 STATIC_DCL char *FDECL(bogusmon, (char *,char *));
 STATIC_DCL void FDECL(print_catalogue, (winid, struct obj*, int, uint64_t));
 STATIC_DCL void FDECL(print_artifact_catalogue, (winid, struct obj*));
+STATIC_DCL void FDECL(print_mythic_power_catalogue, (winid, struct obj*));
 STATIC_DCL int FDECL(CFDECLSPEC citemsortcmp, (const void*, const void*));
 STATIC_DCL int FDECL(CFDECLSPEC artilistsortcmp, (const void*, const void*));
+STATIC_DCL int FDECL(CFDECLSPEC mythicprefixsortcmp, (const void*, const void*));
+STATIC_DCL int FDECL(CFDECLSPEC mythicsuffixsortcmp, (const void*, const void*));
 STATIC_DCL const char* FDECL(gettitle, (short*, const char* const*, int, int, uint64_t, uint64_t));
 STATIC_DCL void NDECL(set_valid_pos_flags);
 STATIC_DCL void NDECL(clear_valid_pos_flags);
@@ -599,8 +602,8 @@ int cx, cy;
 {
     coord cc;
     nhsym sym = 0;
-    char tmpbuf[BUFSZ];
-    char descbuf[BUFSZ];
+    char tmpbuf[BUFSZ * 2];
+    char descbuf[BUFSZ * 5];
     const char *firstmatch = "unknown";
 
     cc.x = cx;
@@ -634,8 +637,8 @@ int gloc;
     anything any;
     int i, pick_cnt;
     menu_item *picks = (menu_item *) 0;
-    char descbuf[BUFSZ];
-    char tmpbuf[BUFSZ];
+    char descbuf[BUFSZ * 5];
+    char tmpbuf[BUFSZ * 2];
 
     gather_locs(&garr, &gcount, gloc);
 
@@ -654,7 +657,7 @@ int gloc;
 
     /* gather_locs returns array[0] == you. skip it. */
     for (i = 1; i < gcount; i++) {
-        char fullbuf[BUFSZ];
+        char fullbuf[BUFSZ * 5];
         coord tmpcc;
         const char *firstmatch = "unknown";
         nhsym sym = 0;
@@ -730,6 +733,7 @@ enum game_cursor_types cursor_style;
     coord *garr[NUM_GLOCS] = DUMMY;
     int gcount[NUM_GLOCS] = DUMMY;
     int gidx[NUM_GLOCS] = DUMMY;
+    boolean getpos_arrows_at_start = iflags.getpos_arrows;
 
     flags.show_cursor_on_u = TRUE;
     flags.force_paint_at_cursor = TRUE;
@@ -770,7 +774,7 @@ enum game_cursor_types cursor_style;
 #endif
     curs(WIN_MAP, cx, cy);
     flush_screen(0);
-    if(cursor_style != CURSOR_STYLE_TELEPORT_CURSOR)
+    if (getpos_arrows_at_start || cursor_style == CURSOR_STYLE_LOOK_CURSOR || cursor_style == CURSOR_STYLE_TRAVEL_CURSOR) // (cursor_style != CURSOR_STYLE_TELEPORT_CURSOR)
         issue_simple_gui_command(GUI_CMD_SAVE_AND_DISABLE_TRAVEL_MODE);
 #if defined(MAC) || defined(ANDROID)
     lock_mouse_cursor(TRUE);
@@ -1140,7 +1144,7 @@ enum game_cursor_types cursor_style;
     flags.force_paint_at_cursor = TRUE;
     flags.active_cursor_style = CURSOR_STYLE_GENERIC_CURSOR;
     update_cursor(flags.active_cursor_style, flags.force_paint_at_cursor, flags.show_cursor_on_u);
-    if (cursor_style != CURSOR_STYLE_TELEPORT_CURSOR)
+    if (getpos_arrows_at_start || cursor_style == CURSOR_STYLE_LOOK_CURSOR || cursor_style == CURSOR_STYLE_TRAVEL_CURSOR) // (cursor_style != CURSOR_STYLE_TELEPORT_CURSOR)
         issue_simple_gui_command(GUI_CMD_RESTORE_TRAVEL_MODE);
     create_context_menu(CREATE_CONTEXT_MENU_NORMAL);
     clear_valid_pos_flags();
@@ -1544,7 +1548,7 @@ const char *name;
     size_t lth;
     char buf[PL_PSIZ];
 
-    lth = *name ? (strlen(name) + 1) : 0;
+    lth = name && *name ? (strlen(name) + 1) : 0;
     if (lth > PL_PSIZ) {
         lth = PL_PSIZ;
         name = strncpy(buf, name, PL_PSIZ - 1);
@@ -1934,7 +1938,7 @@ namefloorobj()
     } else {
         docall(obj, (char*)0);
     }
-    if (fakeobj) {
+    if (fakeobj && obj) {
         obj->where = OBJ_FREE; /* object_from_map() sets it to OBJ_FLOOR */
         dealloc_obj(obj);
     }
@@ -2146,7 +2150,10 @@ boolean called;
                 if ((bp = strstri(name, " the ")) != 0)
                     Sprintf(buf, "%s%s %s", tmpbuf, pm_name, name);
                 else
-                    Sprintf(buf, "%s%s the %s", tmpbuf, name, pm_name);
+                {
+                    boolean is_high_level = (int)mtmp->m_lev >= (int)mdat->mlevel + 5 && (int)mtmp->m_lev >= (5 * (int)mdat->mlevel) / 4;
+                    Sprintf(buf, "%s%s the %s%s", tmpbuf, name, is_high_level ? "high-level " : "", pm_name);
+                }
             }
             else
                 Sprintf(buf, "%s%s", tmpbuf, name);
@@ -3959,7 +3966,7 @@ uint64_t excludedtitles, excludedtitles2; /* Requires a 64-bit long to work for 
     if (excludedtitles)
     {
         int i;
-        for (i = 0; i < 32 && i < num; i++)
+        for (i = 0; i < 64 && i < num; i++)
         {
             uint64_t bit = (uint64_t)1 << i;
             if (excludedtitles & bit)
@@ -3971,9 +3978,9 @@ uint64_t excludedtitles, excludedtitles2; /* Requires a 64-bit long to work for 
     if (excludedtitles2)
     {
         int i;
-        for (i = 32; i < 64 && i < num; i++)
+        for (i = 64; i < 128 && i < num; i++)
         {
-            uint64_t bit = (uint64_t)1 << (i - 32);
+            uint64_t bit = (uint64_t)1 << (i - 64);
             if (excludedtitles2 & bit)
             {
                 k--;
@@ -3991,15 +3998,15 @@ uint64_t excludedtitles, excludedtitles2; /* Requires a 64-bit long to work for 
             for (j = 0; j < num; j++)
             {
                 uint64_t bit = 0UL;
-                if (j < 32)
+                if (j < 64)
                 {
                     bit = (uint64_t)1 << j;
                     if (excludedtitles & bit)
                         continue;
                 }
-                else if (j < 64)
+                else if (j < 128)
                 {
-                    bit = (uint64_t)1 << (j - 32);
+                    bit = (uint64_t)1 << (j - 64);
                     if (excludedtitles2 & bit)
                         continue;
                 }
@@ -4014,7 +4021,7 @@ uint64_t excludedtitles, excludedtitles2; /* Requires a 64-bit long to work for 
 
     if (titleidx)  /* Randomized or non-randomized if titleidx != 0 */
     {
-        if (*titleidx == -1)
+        if (*titleidx < 0)
             *titleidx = j; /* Randomized, set titleidx to the randomized index */
         else if (*titleidx >= 0 && *titleidx < arraysize)
             j = *titleidx;  /* Set to value determined by titleidx */
@@ -4027,6 +4034,8 @@ noveltitle(novidx, excludedtitles, excludedtitles2)
 short* novidx;
 uint64_t excludedtitles, excludedtitles2;
 {
+    if (novidx && *novidx == -1)
+        return (const char*)0; /* Blank */
     return gettitle(novidx, sir_Terry_novels, SIZE(sir_Terry_novels), SIZE(sir_Terry_novels), excludedtitles, excludedtitles2);
 }
 
@@ -4046,14 +4055,16 @@ STATIC_VAR const char* const manual_names[MAX_MANUAL_TYPES] = {
     /* Catalogues */
     "Catalogue of Weapons", "Catalogue of Armor", "Catalogue of Rings", "Catalogue of Potions", "Catalogue of Scrolls", "Catalogue of Wands",
     "Catalogue of Miscellaneous Magic Items", "Catalogue of Tools", "Catalogue of Magic Spells", "Catalogue of Clerical Spells",
-    "Catalogue of Comestibles", "Catalogue of Gems and Stones", "Catalogue of Artifacts", "Catalogue of Amulets",
+    "Catalogue of Comestibles", "Catalogue of Gems and Stones", "Catalogue of Artifacts", "Catalogue of Amulets", "Catalogue of Mythic Powers",
 };
 
 const char*
 manualtitle(mnlidx, excludedtitles, excludedtitles2)
-short* mnlidx;
+short* mnlidx; /* >= 0 from array, -1 = blank, -2 = random */
 uint64_t excludedtitles, excludedtitles2;
 {
+    if (mnlidx && *mnlidx == -1)
+        return (const char*)0; /* Blank */
     return gettitle(mnlidx, manual_names, SIZE(manual_names), NUM_RANDOM_MANUALS, excludedtitles, excludedtitles2);
 }
 
@@ -4099,6 +4110,35 @@ const void* q;
 
     return namediff;
 }
+
+STATIC_OVL int
+mythicprefixsortcmp(p, q)
+const void* p;
+const void* q;
+{
+    short sp = *(short*)p;
+    short sq = *(short*)q;
+    const char* namep = mythic_prefix_qualities[sp].name;
+    const char* nameq = mythic_prefix_qualities[sq].name;
+    int namediff = namep && nameq ? strcmpi(namep, nameq) : namep ? 1 : nameq ? -1 : 0;
+
+    return namediff;
+}
+
+STATIC_OVL int
+mythicsuffixsortcmp(p, q)
+const void* p;
+const void* q;
+{
+    short sp = *(short*)p;
+    short sq = *(short*)q;
+    const char* namep = mythic_suffix_qualities[sp].name;
+    const char* nameq = mythic_suffix_qualities[sq].name;
+    int namediff = namep && nameq ? strcmpi(namep, nameq) : namep ? 1 : nameq ? -1 : 0;
+
+    return namediff;
+}
+
 
 STATIC_VAR short sorted_citems[NUM_OBJECTS];
 
@@ -4264,6 +4304,87 @@ struct obj* obj;
     }
 }
 
+STATIC_OVL void
+print_mythic_power_catalogue(datawin, obj)
+winid datawin;
+struct obj* obj UNUSED; /* Could be used to check for cursed status etc. */
+{
+    int prefixcnt = 0;
+    int suffixcnt = 0;
+    int nowishcnt = 0;
+    int i, idx;
+    char buf[BUFSZ];
+    char qualbuf[BUFSZ];
+
+    short sorted_prefixes[MAX_MYTHIC_PREFIXES - 1];
+    for (i = MYTHIC_PREFIX_NONE + 1; i < MAX_MYTHIC_PREFIXES; i++)
+    {
+        sorted_prefixes[i - 1] = i;
+        prefixcnt++;
+    }
+    qsort((genericptr_t)sorted_prefixes, prefixcnt, sizeof(short), mythicprefixsortcmp);
+
+    suffixcnt = 0;
+    short sorted_suffixes[MAX_MYTHIC_SUFFIXES - 1];
+    for (i = MYTHIC_SUFFIX_NONE + 1; i < MAX_MYTHIC_SUFFIXES; i++)
+    {
+        sorted_suffixes[i - 1] = i;
+        suffixcnt++;
+    }
+    qsort((genericptr_t)sorted_suffixes, suffixcnt, sizeof(short), mythicsuffixsortcmp);
+
+    Strcpy(buf, "Mythic prefix qualities");
+    putstr(datawin, ATR_NONE, buf);
+    for (i = 0; i < prefixcnt; i++)
+    {
+        idx = sorted_prefixes[i];
+        if (!mythic_prefix_qualities[idx].name)
+            continue;
+
+        boolean has_desc = mythic_prefix_qualities[idx].description && *mythic_prefix_qualities[idx].description;
+        boolean not_directly_wishable = (mythic_prefix_qualities[idx].mythic_flags & MYTHIC_FLAG_DIRECTLY_WISHABLE) == 0;
+        if (not_directly_wishable)
+            nowishcnt++;
+        Strcpy(qualbuf, mythic_prefix_qualities[idx].name);
+        qualbuf[0] = highc(qualbuf[0]);
+        Sprintf(buf, "%3d - %s%s%s%s", i + 1,
+            qualbuf,
+            not_directly_wishable ? "*" : "",
+            has_desc ? ": " : "",
+            has_desc ? mythic_prefix_qualities[idx].description : "");
+        putstr(datawin, ATR_INDENT_AT_DASH | ATR_ORDERED_LIST, buf);
+    }
+
+    putstr(datawin, ATR_NONE, "");
+    Strcpy(buf, "Mythic suffix qualities");
+    putstr(datawin, ATR_NONE, buf);
+    for (i = 0; i < suffixcnt; i++)
+    {
+        idx = sorted_suffixes[i];
+        if (!mythic_suffix_qualities[idx].name)
+            continue;
+
+        boolean has_desc = mythic_suffix_qualities[idx].description && *mythic_suffix_qualities[idx].description;
+        boolean not_directly_wishable = (mythic_suffix_qualities[idx].mythic_flags & MYTHIC_FLAG_DIRECTLY_WISHABLE) == 0;
+        if (not_directly_wishable)
+            nowishcnt++;
+        Strcpy(qualbuf, mythic_suffix_qualities[idx].name);
+        qualbuf[0] = highc(qualbuf[0]);
+        Sprintf(buf, "%3d - %s%s%s%s", i + 1,
+            qualbuf,
+            not_directly_wishable ? "*" : "",
+            has_desc ? ": " : "",
+            has_desc ? mythic_suffix_qualities[idx].description : "");
+        putstr(datawin, ATR_INDENT_AT_DASH | ATR_ORDERED_LIST, buf);
+    }
+
+    if (nowishcnt > 0)
+    {
+        putstr(datawin, 0, "");
+        putstr(datawin, ATR_INDENT_AT_DASH, "* Wishing for this quality is not guaranteed to succeed");
+    }
+}
+
 void
 read_manual(obj)
 struct obj* obj;
@@ -4273,7 +4394,12 @@ struct obj* obj;
 
     short mnlidx = obj->manualidx;
 
-    if (mnlidx < 0)
+    if (mnlidx == -1)
+    {
+        pline1("This manual is all blank.");
+        return;
+    }
+    if (mnlidx < -1)
     {
         pline("%s unintelligibly scribbled.", Tobjnam(obj, "be"));
         return;
@@ -4290,6 +4416,13 @@ struct obj* obj;
             putstr(datawin, ATR_HEADING, "The manual contains a list of artifacts found in Yendor:");
             putstr(datawin, 0, "");
             print_artifact_catalogue(datawin, obj);
+
+        }
+        else if (mnlidx == MANUAL_CATALOGUE_OF_MYTHIC_POWERS)
+        {
+            putstr(datawin, ATR_HEADING, "The manual contains a list of mythic powers:");
+            putstr(datawin, 0, "");
+            print_mythic_power_catalogue(datawin, obj);
 
         }
         else
@@ -4656,6 +4789,9 @@ struct obj* obj;
     Sprintf(buf, "[%s]", manual_names[mnlidx]);
     putmsghistory(buf, FALSE);
 
+    uint64_t bit = (uint64_t)1 << mnlidx;
+    initial_flags.found_manuals |= bit;
+    iflags.found_manuals |= bit;
 }
 
 const char *
@@ -4664,7 +4800,6 @@ const char *lookname;
 short* idx;
 {
     short k;
-
     /* Take American or U.K. spelling of this one */
     if (!strcmpi(The(lookname), "The Color of Magic"))
         lookname = sir_Terry_novels[0];
@@ -4690,7 +4825,6 @@ const char* lookname;
 short* idx;
 {
     short k;
-
     for (k = 0; k < SIZE(manual_names); ++k) {
         if (!strcmpi(lookname, manual_names[k])
             || !strcmpi(The(lookname), manual_names[k])) {

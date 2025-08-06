@@ -477,6 +477,8 @@ gotobj:
                 nomul(-armordelay);
                 multi_reason = "taking off clothes";
                 nomovemsg = 0;
+                nomovemsg_attr = ATR_NONE;
+                nomovemsg_color = NO_COLOR;
                 remove_worn_item(otmp, TRUE);
                 otmp->cursed = curssv;
                 if (multi < 0) {
@@ -512,7 +514,7 @@ gotobj:
     play_sfx_sound(SFX_STEAL_ITEM);
     pline_ex(ATR_NONE, CLR_MSG_NEGATIVE, "%s stole %s.", named ? "She" : Monnam(mtmp), doname(otmp));
     could_petrify =
-        (otmp->otyp == CORPSE && touch_petrifies(&mons[otmp->corpsenm]));
+        (otmp->otyp == CORPSE && otmp->corpsenm >= LOW_PM && touch_petrifies(&mons[otmp->corpsenm]));
     (void) mpickobj(mtmp, otmp); /* may free otmp */
 
     if (could_petrify && !(mtmp->worn_item_flags & W_ARMG))
@@ -729,7 +731,8 @@ boolean verbosely, set_found;
     int omx = mon->mx, omy = mon->my;
     boolean update_mon = FALSE;
 
-    if (obj->owornmask) 
+    obj->item_flags &= ~ITEM_FLAGS_GIVEN_BY_HERO;
+    if (obj->owornmask)
     {
         /* perform worn item handling if the monster is still alive */
         if (!DEADMONSTER(mon)) 
@@ -796,6 +799,7 @@ struct monst *mon;
            for the other roles are not */
         if (is_obj_unremovable_from_the_game(obj) || is_quest_artifact(obj))
         {
+            obj->item_flags &= ~ITEM_FLAGS_GIVEN_BY_HERO;
             Strcpy(debug_buf_2, "mdrop_special_objs");
             obj_extract_self(obj);
             if (mon->mx) 
@@ -837,6 +841,7 @@ boolean is_mon_dead;
                   canseemon(mtmp) ? "vanishes" : "seems to vanish");
         Strcpy(debug_buf_2, "release_monster_objects1");
         obj_extract_self(otmp);
+        Sprintf(priority_debug_buf_4, "release_monster_objects: %d", otmp->otyp);
         obfree(otmp, (struct obj *) 0);
     } /* isgd && has gold */
 
@@ -898,6 +903,7 @@ boolean is_mon_dead;
             {
                 artifact_taken_away(otmp->oartifact); //It can now be generated again some time later
             }
+            Sprintf(priority_debug_buf_4, "release_monster_objects2: %d", otmp->otyp);
             obfree(otmp, (struct obj*) 0); //Delete the item
         }
         else

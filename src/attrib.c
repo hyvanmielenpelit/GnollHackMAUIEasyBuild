@@ -840,7 +840,7 @@ update_extrinsics()
 
                     const struct mythic_power_definition* mythic_powers = (j == 0 ? mythic_prefix_powers : mythic_suffix_powers);
                     const struct mythic_definition* mythic_definitions = (j == 0 ? mythic_prefix_qualities : mythic_suffix_qualities);
-                    uchar max_mythic_powers = (j == 0 ? MAX_MYTHIC_PREFIX_POWERS : MAX_MYTHIC_SUFFIX_POWERS);
+                    uchar max_mythic_powers = (j == 0 ? (uchar)MAX_MYTHIC_PREFIX_POWERS : (uchar)MAX_MYTHIC_SUFFIX_POWERS);
 
                     for (uchar i = 0; i < max_mythic_powers; i++)
                     {
@@ -1832,9 +1832,7 @@ int propidx; /* OBSOLETE: special cases can have negative values */
                 Sprintf(buf, because_of, ustuckbuf);
                 because_used = TRUE;
             }
-            else if (
-                ((obj = what_gives(propidx)) != 0 && (wizard || object_stats_known(obj)))
-                )
+            else if ((obj = what_gives(propidx, !wizard)) != 0)
             {
                 Sprintf(buf, because_of, yname(obj));
                 because_used = TRUE;
@@ -2392,7 +2390,7 @@ struct monst* mon;
                         {
                             u.uarcherybonus += (schar)(multiplier * objects[otyp].oc_attribute_bonus);
                             if (objects[otyp].oc_enchantable && !(objects[otyp].oc_bonus_attributes & IGNORE_ENCHANTMENT))
-                                u.uarcherybonus += (schar)applicable_enchantment;
+                                u.uarcherybonus += (schar)(applicable_enchantment * 2);
                         }
                         else if (i == A_MAX + 7 && is_you)
                         {

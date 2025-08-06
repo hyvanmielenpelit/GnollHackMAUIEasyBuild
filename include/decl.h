@@ -8,6 +8,8 @@
 #ifndef DECL_H
 #define DECL_H
 
+#include "config.h"
+#include "flag.h"
 #include "general.h"
 #include "layer.h"
 #include "monsym.h"
@@ -28,9 +30,9 @@ E int locknum;
 E char *catmore;
 #endif /* DEF_PAGER */
 
-E char SAVEF[];
+E char SAVEF[SAVESIZE];
 #ifdef MICRO
-E char SAVEP[];
+E char SAVEP[SAVESIZE];
 #endif
 
 /* max size of a windowtype option */
@@ -293,8 +295,16 @@ E NEARDATA const char getobj_toss_objs[];
 E NEARDATA const char getobj_tippables[];
 E NEARDATA const char getobj_zap_syms[];
 E NEARDATA const char getobj_favorites[];
+E NEARDATA const char getobj_enchant_weapon_objects[];
+E NEARDATA const char getobj_enchant_armor_objects[];
+E NEARDATA const char getobj_enchant_accessory_objects[];
 
 E NEARDATA boolean is_gui_in_debug_mode;
+#ifdef DEBUG
+#define no_wizard_or_debug (TRUE)
+#else
+#define no_wizard_or_debug (!wizard || is_gui_in_debug_mode)
+#endif
 
 E int64_t done_money;
 E NEARDATA char plname[PL_NSIZ];
@@ -334,6 +344,8 @@ E char preferred_pet;
 E NEARDATA uint64_t n_game_recoveries;
 
 E const char *occtxt; /* defined when occupation != NULL */
+E int occattr;
+E int occclr;
 E enum object_soundset_types occsoundset; /* defined when occupation != NULL */
 E enum object_occupation_types occtyp; /* defined when occupation != NULL */
 
@@ -595,7 +607,7 @@ E const char *const monexplain[], invisexplain[], *const oclass_names[];
 #define PREFIX_COUNT 10
 /* used in files.c; xxconf.h can override if needed */
 #ifndef FQN_MAX_FILENAME
-#define FQN_MAX_FILENAME 512
+#define FQN_MAX_FILENAME (SAVESIZE + 512)
 #endif
 
 #if defined(NOCWD_ASSUMPTIONS) || defined(VAR_PLAYGROUND)
@@ -679,6 +691,11 @@ E char debug_buf_1[BUFSZ * 2];
 E char debug_buf_2[BUFSZ * 2];
 E char debug_buf_3[BUFSZ * 2];
 E char debug_buf_4[BUFSZ * 2];
+
+E char priority_debug_buf_1[BUFSZ * 2];
+E char priority_debug_buf_2[BUFSZ * 2];
+E char priority_debug_buf_3[BUFSZ * 2];
+E char priority_debug_buf_4[BUFSZ * 2];
 
 #undef E
 

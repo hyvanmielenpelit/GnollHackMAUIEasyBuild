@@ -106,7 +106,7 @@ const struct material_definition material_definitions[MAX_MATERIAL_TYPES] = {
     0, -1, 0, 0, 0, 0, NO_POWER, NO_POWER, 4, 3, -5,
     0UL, 0UL, 0UL, O4_DOUBLE_MYTHIC_CHANCE, O5_DOUBLE_EXCEPTIONALITY_CHANCE, 0UL },
 {"silver",      "silver",      "silvery",     PHASE_SOLID,    HIT_SURFACE_METAL,      FLOOR_SURFACE_METAL,    FALSE, FALSE, FALSE, FALSE,   FALSE, FALSE, FALSE, TRUE, FALSE,    FALSE, FALSE, FALSE, FALSE,   FALSE, FALSE, TRUE,  TRUE,        "silver",        "silvery",            HI_SILVER,
-    {0, 0, 0, 0, 0, 0, 0, 0, 0}, {0, 0, 0, 0, 0, 0, 0, 0, 0}, {0, 0, 0, 0, 0, 0, 0, 0, 0}, 1.0, 1.0, 2.0, 25.0,
+    {0, 0, 0, 0, 0, 0, 0, 0, 0}, {0, 0, 0, 0, 0, 0, 0, 0, 0}, {0, 0, 0, 0, 0, 0, 0, 0, 0}, 1.0, 1.0, SILVER_COST_MULTIPIER, 25.0,
     { NO_POWER, NO_POWER, NO_POWER, NO_POWER, NO_POWER, NO_POWER, NO_POWER, NO_POWER, NO_POWER }, 
     { NO_POWER, NO_POWER, NO_POWER, NO_POWER, NO_POWER, NO_POWER, NO_POWER, NO_POWER, NO_POWER }, 
     0, 0, 0, 0, 0, 0, NO_POWER, NO_POWER, 1, 1, -5,
@@ -133,13 +133,13 @@ const struct material_definition material_definitions[MAX_MATERIAL_TYPES] = {
     {5, 4, 4, 4, 4, 0, 0, 0, 4}, {0, 0, 0, 0, 0, 0, 0, 0, 0}, {1.0, 0, 0, 0, 0 ,0 ,0 ,0 ,0}, 1.0, 1.0, 2.5, 100.0,
     { DISINTEGRATION_RESISTANCE, DISINTEGRATION_RESISTANCE, NO_POWER, NO_POWER, NO_POWER, NO_POWER, NO_POWER, NO_POWER, NO_POWER }, 
     { BISECTION_RESISTANCE, NO_POWER, NO_POWER, NO_POWER, NO_POWER, NO_POWER, NO_POWER, NO_POWER, NO_POWER }, 
-    0, 6, 0, 0, 6, 0, NO_POWER, NO_POWER, 5, 4, 20,
+    0, 3, 1, 0, 3, 1, NO_POWER, NO_POWER, 5, 4, 20,
     O1_INDESTRUCTIBLE | O1_DISINTEGRATION_RESISTANT, 0UL, 0UL, O4_VERY_RARE, O5_HALF_EXCEPTIONALITY_CHANCE, 0UL },
 {"mithril",     "mithril",     "mithril",     PHASE_SOLID,    HIT_SURFACE_METAL,      FLOOR_SURFACE_METAL,    FALSE, FALSE, FALSE, FALSE,   FALSE, FALSE, FALSE, TRUE, FALSE,    FALSE, FALSE, FALSE, FALSE,   FALSE, FALSE, TRUE,  TRUE,        "metal",         "silvery",            HI_SILVER,
     {3, 2, 2, 2, 2, 0, 0, 0, 2}, {3, 1, 1, 1, 1 ,0 ,0 ,0 ,1}, {-1.0, 0, 0, 0, 0 ,0 ,0 ,0 ,0}, 0.9, 0.5, 2.5, 100.0,
     { BISECTION_RESISTANCE, NO_POWER, NO_POWER, NO_POWER, NO_POWER, NO_POWER, NO_POWER, NO_POWER, NO_POWER }, 
     { NO_POWER, NO_POWER, NO_POWER, NO_POWER, NO_POWER, NO_POWER, NO_POWER, NO_POWER, NO_POWER }, 
-    0, 3, 0, 0, 3, 0, NO_POWER, NO_POWER, 4, 3, 15,
+    0, 2, 0, 0, 2, 0, NO_POWER, NO_POWER, 4, 3, 15,
     0UL, 0UL, 0UL, O4_VERY_RARE, O5_HALF_EXCEPTIONALITY_CHANCE, 0UL },
 {"plastic",     "plastic",     "plastic",     PHASE_SOLID,    HIT_SURFACE_LEATHER,    FLOOR_SURFACE_CARPET,   TRUE,  FALSE, FALSE, FALSE,   TRUE,  FALSE, FALSE, FALSE, FALSE,   FALSE, FALSE, FALSE, FALSE,   FALSE, TRUE,  TRUE,  FALSE,        "plastic",       (char*)0,       CLR_WHITE,
     {0, 0, 0, 0, 0, 0, 0, 0, 0}, {0, 0, 0, 0, 0, 0, 0, 0, 0}, {0, 0, 0, 0, 0, 0, 0, 0, 0}, 1.0, 1.0, 1.0, 0.0,
@@ -163,7 +163,7 @@ const struct material_definition material_definitions[MAX_MATERIAL_TYPES] = {
     {0, 0, 0, 0, 0, 0, 0, 0, 0}, {0, 0, 0, 0, 0, 0, 0, 0, 0}, {-1.0, 0, 0, 0, 0 ,0 ,0 ,0 ,0}, 0.2, 1.0, 2.0, 100.0,
     { REFLECTING, NO_POWER, NO_POWER, NO_POWER, NO_POWER, NO_POWER, NO_POWER, NO_POWER, NO_POWER }, 
     { NO_POWER, NO_POWER, NO_POWER, NO_POWER, NO_POWER, NO_POWER, NO_POWER, NO_POWER, NO_POWER }, 
-    0, 3, 0, 0, 2, 0, NO_POWER, NO_POWER, 4, 3, 5,
+    0, 1, 1, 0, 1, 1, NO_POWER, NO_POWER, 4, 3, 5,
     0UL, 0UL, 0UL, O4_VERY_RARE, O5_HALF_EXCEPTIONALITY_CHANCE, 0UL },
 {"gemstone",    "gemstone",    "gemstone",    PHASE_SOLID,    HIT_SURFACE_GLASS,      FLOOR_SURFACE_STONE,    FALSE, FALSE, FALSE, FALSE,   FALSE, FALSE, FALSE, FALSE, FALSE,   TRUE,  FALSE, FALSE, FALSE,   FALSE, FALSE, TRUE,  FALSE,       "gemstone",      (char*)0,         CLR_BRIGHT_GREEN,
     {4, 3, 3, 3, 3, 0, 0, 0, 3}, {0, 0, 0, 0, 0, 0, 0, 0, 0}, {0, 0, 0, 0, 0, 0, 0, 0, 0}, 1.0, 1.0, 2.0, 100.0,
@@ -206,82 +206,98 @@ NEARDATA const struct mythic_definition mythic_prefix_qualities[MAX_MYTHIC_PREFI
 {
     { "", "", "", 0, 1.0, 0L, 0UL, 0UL },
     { 
-        "Stygian", "Stygian ", "", 15, MYTHIC_STANDARD_PRICE_MULTIPLIER, MYTHIC_STANDARD_PRICE_ADDITION,
+        "Stygian", "Stygian ", "Causes level drain in weapons; confers death and drain resistance in armors", 
+        15, MYTHIC_STANDARD_PRICE_MULTIPLIER, MYTHIC_STANDARD_PRICE_ADDITION,
         MYTHIC_PREFIX_POWER_LEVEL_DRAIN | MYTHIC_PREFIX_POWER_ARMOR_DEATH_RESISTANCE | MYTHIC_PREFIX_POWER_ARMOR_DRAIN_RESISTANCE,
         MYTHIC_FLAG_NO_CELESTIAL_WEAPONS | MYTHIC_FLAG_RACIAL_PREFIX
     },
     {
-        "Hyperborean", "Hyperborean ", "", 25, MYTHIC_STANDARD_PRICE_MULTIPLIER, MYTHIC_STANDARD_PRICE_ADDITION,
+        "Hyperborean", "Hyperborean ", "Spell casting bonus and added enchantability; increases mana in armors", 
+        25, MYTHIC_STANDARD_PRICE_MULTIPLIER, MYTHIC_STANDARD_PRICE_ADDITION,
         MYTHIC_PREFIX_POWER_ARMOR_MANA_GAIN | MYTHIC_PREFIX_POWER_SPELL_CASTING | MYTHIC_PREFIX_POWER_ADDED_ENCHANTABILITY,
-        MYTHIC_FLAG_DIRECTLY_WISHABLE | MYTHIC_FLAG_RACIAL_PREFIX
+        MYTHIC_FLAG_DIRECTLY_WISHABLE | MYTHIC_FLAG_RACIAL_PREFIX | MYTHIC_FLAG_NO_THROWN_OR_AMMO
     },
     {
-        "Asgardian", "Asgardian ", "", 25, MYTHIC_STANDARD_PRICE_MULTIPLIER, MYTHIC_STANDARD_PRICE_ADDITION,
+        "Asgardian", "Asgardian ", "Confers enhanced accuracy and damage in weapons; increases hit points in armors", 
+        25, MYTHIC_STANDARD_PRICE_MULTIPLIER, MYTHIC_STANDARD_PRICE_ADDITION,
         MYTHIC_PREFIX_POWER_ARMOR_HP_GAIN | MYTHIC_PREFIX_POWER_GREAT_ACCURACY | MYTHIC_PREFIX_POWER_GREAT_DAMAGE,
         MYTHIC_FLAG_DIRECTLY_WISHABLE | MYTHIC_FLAG_RACIAL_PREFIX
     },
     {
-        "Atlantean", "Atlantean ", "", 20, MYTHIC_STANDARD_PRICE_MULTIPLIER, MYTHIC_STANDARD_PRICE_ADDITION,
+        "Atlantean", "Atlantean ", "Confers mana regeneration (armors only)", 
+        20, MYTHIC_STANDARD_PRICE_MULTIPLIER, MYTHIC_STANDARD_PRICE_ADDITION,
         MYTHIC_PREFIX_POWER_ARMOR_MANA_REGENERATION,
         MYTHIC_FLAG_DIRECTLY_WISHABLE | MYTHIC_FLAG_ARMOR_REQUIRED | MYTHIC_FLAG_RACIAL_PREFIX
     },
     {
-        "Elysian", "Elysian ", "", 20, MYTHIC_STANDARD_PRICE_MULTIPLIER, MYTHIC_STANDARD_PRICE_ADDITION,
+        "Elysian", "Elysian ", "Confers regeneration (armors only)", 
+        20, MYTHIC_STANDARD_PRICE_MULTIPLIER, MYTHIC_STANDARD_PRICE_ADDITION,
         MYTHIC_PREFIX_POWER_ARMOR_REGENERATION,
         MYTHIC_FLAG_DIRECTLY_WISHABLE | MYTHIC_FLAG_ARMOR_REQUIRED | MYTHIC_FLAG_RACIAL_PREFIX
     },
     {
-        "Cyclopean", "Cyclopean ", "", 20, MYTHIC_STANDARD_PRICE_MULTIPLIER, MYTHIC_STANDARD_PRICE_ADDITION,
+        "Cyclopean", "Cyclopean ", "Triple base damage and added enchantability (weapons only)", 
+        20, MYTHIC_STANDARD_PRICE_MULTIPLIER, MYTHIC_STANDARD_PRICE_ADDITION,
         MYTHIC_PREFIX_POWER_TRIPLE_BASE_DAMAGE | MYTHIC_PREFIX_POWER_ADDED_ENCHANTABILITY,
         MYTHIC_FLAG_DIRECTLY_WISHABLE | MYTHIC_FLAG_WEAPON_REQUIRED | MYTHIC_FLAG_RACIAL_PREFIX
     },
     {
-        "Herculean", "Herculean ", "", 20, MYTHIC_STANDARD_PRICE_MULTIPLIER, MYTHIC_STANDARD_PRICE_ADDITION,
+        "Herculean", "Herculean ", "Increases strength to 18/00 + enchantment (suits only)", 
+        20, MYTHIC_STANDARD_PRICE_MULTIPLIER, MYTHIC_STANDARD_PRICE_ADDITION,
         MYTHIC_PREFIX_POWER_GREAT_STRENGTH,
         MYTHIC_FLAG_DIRECTLY_WISHABLE | MYTHIC_FLAG_SUIT_REQUIRED | MYTHIC_FLAG_RACIAL_PREFIX
     },
     {
-        "vampiric", "vampiric ", "", 20, MYTHIC_STANDARD_PRICE_MULTIPLIER, MYTHIC_STANDARD_PRICE_ADDITION,
+        "vampiric", "vampiric ", "Causes life leech (weapons only)", 
+        20, MYTHIC_STANDARD_PRICE_MULTIPLIER, MYTHIC_STANDARD_PRICE_ADDITION,
         MYTHIC_PREFIX_POWER_LIFE_DRAINING,
         MYTHIC_FLAG_DIRECTLY_WISHABLE | MYTHIC_FLAG_WEAPON_REQUIRED | MYTHIC_FLAG_NO_THROWN_OR_AMMO
     },
     {
-        "radiant", "radiant ", "", 20, MYTHIC_STANDARD_PRICE_MULTIPLIER, MYTHIC_STANDARD_PRICE_ADDITION,
+        "radiant", "radiant ", "Causes a weapon to shine light", 
+        20, MYTHIC_STANDARD_PRICE_MULTIPLIER, MYTHIC_STANDARD_PRICE_ADDITION,
         MYTHIC_PREFIX_POWER_SHINES_LIGHT,
         MYTHIC_FLAG_DIRECTLY_WISHABLE | MYTHIC_FLAG_WEAPON_REQUIRED | MYTHIC_FLAG_NO_THROWN_OR_AMMO
     },
     {
-        "hallowed", "hallowed ", "", 20, MYTHIC_STANDARD_PRICE_MULTIPLIER, MYTHIC_STANDARD_PRICE_ADDITION,
+        "hallowed", "hallowed ", "Uncurseable and counts as silver; armors confer curse resistance", 
+        20, MYTHIC_STANDARD_PRICE_MULTIPLIER, MYTHIC_STANDARD_PRICE_ADDITION,
         MYTHIC_PREFIX_POWER_ARMOR_CURSE_RESISTANCE | MYTHIC_PREFIX_POWER_UNCURSEABLE | MYTHIC_PREFIX_POWER_COUNTS_AS_SILVER,
-        MYTHIC_FLAG_DIRECTLY_WISHABLE | MYTHIC_FLAG_NO_INFERNAL_WEAPONS | MYTHIC_FLAG_NO_PRIMORDIAL_WEAPONS | MYTHIC_FLAG_NO_THROWN_OR_AMMO | MYTHIC_FLAG_NO_DEMONIC_ITEMS
+        MYTHIC_FLAG_DIRECTLY_WISHABLE | MYTHIC_FLAG_NO_INFERNAL_WEAPONS | MYTHIC_FLAG_NO_PRIMORDIAL_WEAPONS | MYTHIC_FLAG_NO_DEMONIC_ITEMS
     },
     {
-        "witch-king's", "witch-king's ", "", 4, MYTHIC_STANDARD_PRICE_MULTIPLIER + 0.5, MYTHIC_STANDARD_PRICE_ADDITION * 3L,
+        "witch-king's", "witch-king's ", "Causes level drain in weapons; enhances spell casting; increases mana and hit point in armors; added enchantability", 
+        4, MYTHIC_STANDARD_PRICE_MULTIPLIER + 0.5, MYTHIC_STANDARD_PRICE_ADDITION * 3L,
         MYTHIC_PREFIX_POWER_LEVEL_DRAIN | MYTHIC_PREFIX_POWER_SPELL_CASTING | MYTHIC_PREFIX_POWER_ARMOR_MANA_GAIN | MYTHIC_PREFIX_POWER_ARMOR_HP_GAIN | MYTHIC_PREFIX_POWER_ADDED_ENCHANTABILITY,
-        MYTHIC_FLAG_NO_CELESTIAL_WEAPONS | MYTHIC_FLAG_RACIAL_PREFIX
+        MYTHIC_FLAG_NO_CELESTIAL_WEAPONS | MYTHIC_FLAG_RACIAL_PREFIX | MYTHIC_FLAG_NO_THROWN_OR_AMMO
     },
     {
-        "sorcerer's", "sorcerer's ", "", 20,  MYTHIC_STANDARD_PRICE_MULTIPLIER, MYTHIC_STANDARD_PRICE_ADDITION,
+        "sorcerer's", "sorcerer's ", "No spell-casting penalty (armors only)", 
+        20,  MYTHIC_STANDARD_PRICE_MULTIPLIER, MYTHIC_STANDARD_PRICE_ADDITION,
         MYTHIC_PREFIX_POWER_SORCERY,
         MYTHIC_FLAG_DIRECTLY_WISHABLE | MYTHIC_FLAG_ARMOR_REQUIRED | MYTHIC_FLAG_NO_LOW_SPELLCASTING_PENALTY_ITEMS | MYTHIC_FLAG_NO_OTHER_SORCERY
     },
     {
-        "Olympian", "Olympian ", "", 5, MYTHIC_STANDARD_PRICE_MULTIPLIER + 0.5, MYTHIC_STANDARD_PRICE_ADDITION * 2L,
+        "Olympian", "Olympian ", "Triple base damage; added enchantability; uncurseable; counts as silver (weapons only)", 
+        5, MYTHIC_STANDARD_PRICE_MULTIPLIER + 0.5, MYTHIC_STANDARD_PRICE_ADDITION * 2L,
         MYTHIC_PREFIX_POWER_TRIPLE_BASE_DAMAGE | MYTHIC_PREFIX_POWER_ADDED_ENCHANTABILITY | MYTHIC_PREFIX_POWER_ARMOR_CURSE_RESISTANCE | MYTHIC_PREFIX_POWER_UNCURSEABLE | MYTHIC_PREFIX_POWER_COUNTS_AS_SILVER,
-        MYTHIC_FLAG_WEAPON_REQUIRED | MYTHIC_FLAG_RACIAL_PREFIX | MYTHIC_FLAG_NO_INFERNAL_WEAPONS | MYTHIC_FLAG_NO_PRIMORDIAL_WEAPONS | MYTHIC_FLAG_NO_THROWN_OR_AMMO | MYTHIC_FLAG_NO_DEMONIC_ITEMS
+        MYTHIC_FLAG_WEAPON_REQUIRED | MYTHIC_FLAG_RACIAL_PREFIX | MYTHIC_FLAG_NO_INFERNAL_WEAPONS | MYTHIC_FLAG_NO_PRIMORDIAL_WEAPONS | MYTHIC_FLAG_NO_DEMONIC_ITEMS
     },
     {
-        "Jotunheimian", "Jotunheimian ", "", 5, MYTHIC_STANDARD_PRICE_MULTIPLIER + 0.5, MYTHIC_STANDARD_PRICE_ADDITION * 3L,
+        "Jotunheimian", "Jotunheimian ", "Triple base damage and causes life leech; added enchantability (weapons only)", 
+        5, MYTHIC_STANDARD_PRICE_MULTIPLIER + 0.5, MYTHIC_STANDARD_PRICE_ADDITION * 3L,
         MYTHIC_PREFIX_POWER_TRIPLE_BASE_DAMAGE | MYTHIC_PREFIX_POWER_ADDED_ENCHANTABILITY | MYTHIC_PREFIX_POWER_LIFE_DRAINING,
         MYTHIC_FLAG_WEAPON_REQUIRED | MYTHIC_FLAG_RACIAL_PREFIX | MYTHIC_FLAG_NO_THROWN_OR_AMMO | MYTHIC_FLAG_NO_CELESTIAL_WEAPONS
     },
     {
-        "Cimmerian", "Cimmerian ", "", 20, MYTHIC_STANDARD_PRICE_MULTIPLIER, MYTHIC_STANDARD_PRICE_ADDITION,
+        "Cimmerian", "Cimmerian ", "Increases constitution to 18 + enchantment (suits only)", 
+        20, MYTHIC_STANDARD_PRICE_MULTIPLIER, MYTHIC_STANDARD_PRICE_ADDITION,
         MYTHIC_PREFIX_POWER_GREAT_CONSTITUTION,
         MYTHIC_FLAG_DIRECTLY_WISHABLE | MYTHIC_FLAG_SUIT_REQUIRED | MYTHIC_FLAG_RACIAL_PREFIX
     },
     {
-        "Melnibonean", "Melnibonean ", "", 3, MYTHIC_STANDARD_PRICE_MULTIPLIER + 0.5, MYTHIC_STANDARD_PRICE_ADDITION * 4L,
+        "Melnibonean", "Melnibonean ", "Causes life leech, great accurancy and damage in weapons; regeneration and mana regeneration in armors; added enchantability; enhanced spell casting", 
+        3, MYTHIC_STANDARD_PRICE_MULTIPLIER + 0.5, MYTHIC_STANDARD_PRICE_ADDITION * 4L,
         MYTHIC_PREFIX_POWER_LIFE_DRAINING | MYTHIC_PREFIX_POWER_GREAT_ACCURACY | MYTHIC_PREFIX_POWER_GREAT_DAMAGE | MYTHIC_PREFIX_POWER_SPELL_CASTING | MYTHIC_PREFIX_POWER_ARMOR_MANA_REGENERATION | MYTHIC_PREFIX_POWER_ARMOR_REGENERATION | MYTHIC_PREFIX_POWER_ADDED_ENCHANTABILITY,
         MYTHIC_FLAG_NO_CELESTIAL_WEAPONS | MYTHIC_FLAG_NO_THROWN_OR_AMMO | MYTHIC_FLAG_RACIAL_PREFIX
     },
@@ -323,137 +339,164 @@ NEARDATA const struct mythic_definition mythic_suffix_qualities[MAX_MYTHIC_SUFFI
 {
     { "", "", "", 0, 1.0, 0L, 0UL, 0UL },
     { 
-        "lightness", " of lightness", "", 20, MYTHIC_STANDARD_PRICE_MULTIPLIER, MYTHIC_STANDARD_PRICE_ADDITION,
+        "lightness", " of lightness", "Weighs one-eight of normal (armors only)", 
+        20, MYTHIC_STANDARD_PRICE_MULTIPLIER, MYTHIC_STANDARD_PRICE_ADDITION,
         MYTHIC_SUFFIX_POWER_LIGHTNESS, 
         MYTHIC_FLAG_DIRECTLY_WISHABLE | MYTHIC_FLAG_ARMOR_REQUIRED
     },
     { 
-        "sorcery", " of sorcery", "", 20,  MYTHIC_STANDARD_PRICE_MULTIPLIER, MYTHIC_STANDARD_PRICE_ADDITION,
+        "sorcery", " of sorcery", "No spell-casting penalty (armors only)", 
+        20,  MYTHIC_STANDARD_PRICE_MULTIPLIER, MYTHIC_STANDARD_PRICE_ADDITION,
         MYTHIC_SUFFIX_POWER_SORCERY,
         MYTHIC_FLAG_DIRECTLY_WISHABLE | MYTHIC_FLAG_ARMOR_REQUIRED | MYTHIC_FLAG_NO_LOW_SPELLCASTING_PENALTY_ITEMS | MYTHIC_FLAG_NO_OTHER_SORCERY
     },
     {
-        "troll slaying", " of troll slaying", "", 15, MYTHIC_STANDARD_PRICE_MULTIPLIER, MYTHIC_STANDARD_PRICE_ADDITION,
+        "troll slaying", " of troll slaying", "Extra damage to trolls; prevents troll revival (weapons only)", 
+        15, MYTHIC_STANDARD_PRICE_MULTIPLIER, MYTHIC_STANDARD_PRICE_ADDITION,
         MYTHIC_SUFFIX_POWER_TROLL_SLAYING | MYTHIC_SUFFIX_POWER_TROLL_REVIVAL_PREVENTION,
         MYTHIC_FLAG_DIRECTLY_WISHABLE | MYTHIC_FLAG_WEAPON_REQUIRED
     },
     {
-        "ogre slaying", " of ogre slaying", "", 15, MYTHIC_STANDARD_PRICE_MULTIPLIER, MYTHIC_STANDARD_PRICE_ADDITION,
+        "ogre slaying", " of ogre slaying", "Extra damage to ogres (weapons only)", 
+        15, MYTHIC_STANDARD_PRICE_MULTIPLIER, MYTHIC_STANDARD_PRICE_ADDITION,
         MYTHIC_SUFFIX_POWER_OGRE_SLAYING,
         MYTHIC_FLAG_DIRECTLY_WISHABLE | MYTHIC_FLAG_WEAPON_REQUIRED
     },
     {
-        "demon slaying", " of demon slaying", "", 15, MYTHIC_STANDARD_PRICE_MULTIPLIER, MYTHIC_STANDARD_PRICE_ADDITION,
+        "demon slaying", " of demon slaying", "Extra damage to demons (weapons only)", 
+        15, MYTHIC_STANDARD_PRICE_MULTIPLIER, MYTHIC_STANDARD_PRICE_ADDITION,
         MYTHIC_SUFFIX_POWER_DEMON_SLAYING,
         MYTHIC_FLAG_DIRECTLY_WISHABLE | MYTHIC_FLAG_WEAPON_REQUIRED | MYTHIC_FLAG_NO_INFERNAL_WEAPONS | MYTHIC_FLAG_NO_PRIMORDIAL_WEAPONS | MYTHIC_FLAG_NO_DEMONIC_ITEMS
     },
     {
-        "dragon slaying", " of dragon slaying", "", 20, MYTHIC_STANDARD_PRICE_MULTIPLIER, MYTHIC_STANDARD_PRICE_ADDITION,
+        "dragon slaying", " of dragon slaying", "Extra damage to dragons (weapons only)", 
+        20, MYTHIC_STANDARD_PRICE_MULTIPLIER, MYTHIC_STANDARD_PRICE_ADDITION,
         MYTHIC_SUFFIX_POWER_DRAGON_SLAYING,
         MYTHIC_FLAG_DIRECTLY_WISHABLE | MYTHIC_FLAG_WEAPON_REQUIRED
     },
     {
-        "giant slaying", " of giant slaying", "", 15, MYTHIC_STANDARD_PRICE_MULTIPLIER, MYTHIC_STANDARD_PRICE_ADDITION,
+        "giant slaying", " of giant slaying", "Extra damage to giants (weapons only)", 
+        15, MYTHIC_STANDARD_PRICE_MULTIPLIER, MYTHIC_STANDARD_PRICE_ADDITION,
         MYTHIC_SUFFIX_POWER_GIANT_SLAYING,
         MYTHIC_FLAG_DIRECTLY_WISHABLE | MYTHIC_FLAG_WEAPON_REQUIRED
     },
     {
-        "lycanthrope slaying", " of lycanthrope slaying", "", 15, MYTHIC_STANDARD_PRICE_MULTIPLIER, MYTHIC_STANDARD_PRICE_ADDITION,
+        "lycanthrope slaying", " of lycanthrope slaying", "Extra damage to lycanthropes; confers lycanthropy resistance (weapons only)", 
+        15, MYTHIC_STANDARD_PRICE_MULTIPLIER, MYTHIC_STANDARD_PRICE_ADDITION,
         MYTHIC_SUFFIX_POWER_WERE_SLAYING | MYTHIC_SUFFIX_POWER_LYCANTHROPY_RESISTANCE,
         MYTHIC_FLAG_DIRECTLY_WISHABLE | MYTHIC_FLAG_WEAPON_REQUIRED
     },
     {
-        "disruption", " of disruption", "", 15, MYTHIC_STANDARD_PRICE_MULTIPLIER, MYTHIC_STANDARD_PRICE_ADDITION,
+        "disruption", " of disruption", "Extra damage to undead (weapons only)", 
+        15, MYTHIC_STANDARD_PRICE_MULTIPLIER, MYTHIC_STANDARD_PRICE_ADDITION,
         MYTHIC_SUFFIX_POWER_UNDEAD_DESTRUCTION,
         MYTHIC_FLAG_DIRECTLY_WISHABLE | MYTHIC_FLAG_WEAPON_REQUIRED | MYTHIC_FLAG_BLUDGEONING_WEAPONS_ONLY | MYTHIC_FLAG_NO_INFERNAL_WEAPONS | MYTHIC_FLAG_NO_PRIMORDIAL_WEAPONS | MYTHIC_FLAG_NO_DEMONIC_ITEMS
     },
     {
-        "speed", " of speed", "", 15, MYTHIC_STANDARD_PRICE_MULTIPLIER, MYTHIC_STANDARD_PRICE_ADDITION,
+        "speed", " of speed", "Confers very fast speed (weapons only)", 
+        15, MYTHIC_STANDARD_PRICE_MULTIPLIER, MYTHIC_STANDARD_PRICE_ADDITION,
         MYTHIC_SUFFIX_POWER_SPEED,
         MYTHIC_FLAG_DIRECTLY_WISHABLE | MYTHIC_FLAG_WEAPON_REQUIRED | MYTHIC_FLAG_NO_THROWN_OR_AMMO
     },
     {
-        "wounding", " of wounding", "", 20, MYTHIC_STANDARD_PRICE_MULTIPLIER, MYTHIC_STANDARD_PRICE_ADDITION,
+        "wounding", " of wounding", "Causes permanent damage (weapons only)", 
+        20, MYTHIC_STANDARD_PRICE_MULTIPLIER, MYTHIC_STANDARD_PRICE_ADDITION,
         MYTHIC_SUFFIX_POWER_WOUNDING,
         MYTHIC_FLAG_DIRECTLY_WISHABLE | MYTHIC_FLAG_WEAPON_REQUIRED | MYTHIC_FLAG_NO_BLUDGEONING_WEAPONS
     },
     {
-        "defense", " of defense", "", 20, MYTHIC_STANDARD_PRICE_MULTIPLIER, MYTHIC_STANDARD_PRICE_ADDITION,
+        "defense", " of defense", "Weapon acts also as an armor", 
+        20, MYTHIC_STANDARD_PRICE_MULTIPLIER, MYTHIC_STANDARD_PRICE_ADDITION,
         MYTHIC_SUFFIX_POWER_DEFENSE,
         MYTHIC_FLAG_DIRECTLY_WISHABLE | MYTHIC_FLAG_WEAPON_REQUIRED | MYTHIC_FLAG_NO_THROWN_OR_AMMO
     },
     {
-        "sharpness", " of sharpness", "", 5, MYTHIC_STANDARD_PRICE_MULTIPLIER, MYTHIC_STANDARD_PRICE_ADDITION,
+        "sharpness", " of sharpness", "Has a chance of causing substantial extra damage (weapons only)", 
+        5, MYTHIC_STANDARD_PRICE_MULTIPLIER, MYTHIC_STANDARD_PRICE_ADDITION,
         MYTHIC_SUFFIX_POWER_SHARPNESS,
         MYTHIC_FLAG_WEAPON_REQUIRED | MYTHIC_FLAG_SLASHING_WEAPONS_ONLY
     },
     {
-        "reach", " of reach", "", 30, MYTHIC_STANDARD_PRICE_MULTIPLIER, MYTHIC_STANDARD_PRICE_ADDITION,
+        "reach", " of reach", "Has extended range (polearm-type weapons only)", 
+        30, MYTHIC_STANDARD_PRICE_MULTIPLIER, MYTHIC_STANDARD_PRICE_ADDITION,
         MYTHIC_SUFFIX_POWER_REACH,
         MYTHIC_FLAG_DIRECTLY_WISHABLE | MYTHIC_FLAG_WEAPON_REQUIRED | MYTHIC_FLAG_POLEARM_LANCE_SPEAR_ONLY
     },
     {
-        "providence", " of providence", "", 20, MYTHIC_STANDARD_PRICE_MULTIPLIER, MYTHIC_STANDARD_PRICE_ADDITION,
+        "providence", " of providence", "Confers luck", 
+        20, MYTHIC_STANDARD_PRICE_MULTIPLIER, MYTHIC_STANDARD_PRICE_ADDITION,
         MYTHIC_SUFFIX_POWER_LUCK,
         MYTHIC_FLAG_DIRECTLY_WISHABLE | MYTHIC_FLAG_NO_THROWN_OR_AMMO
     },
     {
-        "free action", " of free action", "", 15, MYTHIC_STANDARD_PRICE_MULTIPLIER, MYTHIC_STANDARD_PRICE_ADDITION,
+        "free action", " of free action", "Confers paralysis resistance", 
+        15, MYTHIC_STANDARD_PRICE_MULTIPLIER, MYTHIC_STANDARD_PRICE_ADDITION,
         MYTHIC_SUFFIX_POWER_FREE_ACTION,
         MYTHIC_FLAG_DIRECTLY_WISHABLE | MYTHIC_FLAG_NO_THROWN_OR_AMMO
     },
     {
-        "fire resistance", " of fire resistance", "", 20, MYTHIC_STANDARD_PRICE_MULTIPLIER, MYTHIC_STANDARD_PRICE_ADDITION,
+        "fire resistance", " of fire resistance", "Confers fire resistance (armors only)", 
+        20, MYTHIC_STANDARD_PRICE_MULTIPLIER, MYTHIC_STANDARD_PRICE_ADDITION,
         MYTHIC_SUFFIX_POWER_FIRE_RESISTANCE,
         MYTHIC_FLAG_DIRECTLY_WISHABLE | MYTHIC_FLAG_ARMOR_REQUIRED
     },
     {
-        "cold resistance", " of cold resistance", "", 20, MYTHIC_STANDARD_PRICE_MULTIPLIER, MYTHIC_STANDARD_PRICE_ADDITION,
+        "cold resistance", " of cold resistance", "Confers cold resistance (armors only)", 
+        20, MYTHIC_STANDARD_PRICE_MULTIPLIER, MYTHIC_STANDARD_PRICE_ADDITION,
         MYTHIC_SUFFIX_POWER_COLD_RESISTANCE,
         MYTHIC_FLAG_DIRECTLY_WISHABLE | MYTHIC_FLAG_ARMOR_REQUIRED
     },
     {
-        "shock resistance", " of shock resistance", "", 20, MYTHIC_STANDARD_PRICE_MULTIPLIER, MYTHIC_STANDARD_PRICE_ADDITION,
+        "shock resistance", " of shock resistance", "Confers shock resistance (armors only)", 
+        20, MYTHIC_STANDARD_PRICE_MULTIPLIER, MYTHIC_STANDARD_PRICE_ADDITION,
         MYTHIC_SUFFIX_POWER_SHOCK_RESISTANCE,
         MYTHIC_FLAG_DIRECTLY_WISHABLE | MYTHIC_FLAG_ARMOR_REQUIRED
     },
     {
-        "cockatrice slaying", " of cockatrice slaying", "", 10, MYTHIC_STANDARD_PRICE_MULTIPLIER, MYTHIC_STANDARD_PRICE_ADDITION,
+        "cockatrice slaying", " of cockatrice slaying", "Extra damage to cockatrices; confers petrification resistance (weapons only)", 
+        10, MYTHIC_STANDARD_PRICE_MULTIPLIER, MYTHIC_STANDARD_PRICE_ADDITION,
         MYTHIC_SUFFIX_POWER_COCKATRICE_SLAYING | MYTHIC_SUFFIX_POWER_STONE_RESISTANCE,
         MYTHIC_FLAG_DIRECTLY_WISHABLE | MYTHIC_FLAG_WEAPON_REQUIRED
     },
     {
-        "eyes", " of eyes", "", 20, MYTHIC_STANDARD_PRICE_MULTIPLIER, MYTHIC_STANDARD_PRICE_ADDITION,
+        "eyes", " of eyes", "Confers searching and see invisible (armors only)", 
+        20, MYTHIC_STANDARD_PRICE_MULTIPLIER, MYTHIC_STANDARD_PRICE_ADDITION,
         MYTHIC_SUFFIX_POWER_SEARCHING | MYTHIC_SUFFIX_POWER_SEE_INVISIBLE,
         MYTHIC_FLAG_DIRECTLY_WISHABLE | MYTHIC_FLAG_ARMOR_REQUIRED
     },
     {
-        "elemental protection", " of elemental protection", "", 2, MYTHIC_STANDARD_PRICE_MULTIPLIER + 0.5, MYTHIC_STANDARD_PRICE_ADDITION * 6L,
+        "elemental protection", " of elemental protection", "Confers fire, cold, and shock resistances (armors only)", 
+        2, MYTHIC_STANDARD_PRICE_MULTIPLIER + 0.5, MYTHIC_STANDARD_PRICE_ADDITION * 6L,
         MYTHIC_SUFFIX_POWER_FIRE_RESISTANCE | MYTHIC_SUFFIX_POWER_COLD_RESISTANCE | MYTHIC_SUFFIX_POWER_SHOCK_RESISTANCE,
         MYTHIC_FLAG_ARMOR_REQUIRED
     },
     {
-        "orc slaying", " of orc slaying", "", 10, MYTHIC_STANDARD_PRICE_MULTIPLIER, MYTHIC_STANDARD_PRICE_ADDITION,
+        "orc slaying", " of orc slaying", "Extra damage to orcs (weapons only)", 
+        10, MYTHIC_STANDARD_PRICE_MULTIPLIER, MYTHIC_STANDARD_PRICE_ADDITION,
         MYTHIC_SUFFIX_POWER_ORC_SLAYING,
         MYTHIC_FLAG_DIRECTLY_WISHABLE | MYTHIC_FLAG_WEAPON_REQUIRED | MYTHIC_FLAG_NO_ORCISH_ITEMS
     },
     {
-        "elf slaying", " of elf slaying", "", 5, MYTHIC_STANDARD_PRICE_MULTIPLIER, MYTHIC_STANDARD_PRICE_ADDITION,
+        "elf slaying", " of elf slaying", "Extra damage to elves (weapons only)", 
+        5, MYTHIC_STANDARD_PRICE_MULTIPLIER, MYTHIC_STANDARD_PRICE_ADDITION,
         MYTHIC_SUFFIX_POWER_ELF_SLAYING,
         MYTHIC_FLAG_DIRECTLY_WISHABLE | MYTHIC_FLAG_WEAPON_REQUIRED | MYTHIC_FLAG_NO_ELVEN_ITEMS
     },
     {
-        "returning", " of returning", "", 5, MYTHIC_STANDARD_PRICE_MULTIPLIER, MYTHIC_STANDARD_PRICE_ADDITION,
+        "returning", " of returning", "Returns to hand after thrown (throwing weapons only)", 
+        5, MYTHIC_STANDARD_PRICE_MULTIPLIER, MYTHIC_STANDARD_PRICE_ADDITION,
         MYTHIC_SUFFIX_POWER_RETURN_TO_HAND_AFTER_THROW,
         MYTHIC_FLAG_DIRECTLY_WISHABLE | MYTHIC_FLAG_WEAPON_REQUIRED | MYTHIC_FLAG_THROWN_WEAPON_ONLY | MYTHIC_FLAG_NO_RETURNING_WEAPONS
     },
     {
-        "banishment", " of banishment", "", 4, MYTHIC_STANDARD_PRICE_MULTIPLIER + 0.5, MYTHIC_STANDARD_PRICE_ADDITION * 6L,
+        "banishment", " of banishment", "Extra damage to undead and demons (weapons only)", 
+        4, MYTHIC_STANDARD_PRICE_MULTIPLIER + 0.5, MYTHIC_STANDARD_PRICE_ADDITION * 6L,
         MYTHIC_SUFFIX_POWER_UNDEAD_DESTRUCTION | MYTHIC_SUFFIX_POWER_DEMON_SLAYING,
         MYTHIC_FLAG_WEAPON_REQUIRED | MYTHIC_FLAG_BLUDGEONING_WEAPONS_ONLY | MYTHIC_FLAG_NO_INFERNAL_WEAPONS | MYTHIC_FLAG_NO_PRIMORDIAL_WEAPONS | MYTHIC_FLAG_NO_DEMONIC_ITEMS
     },
     {
-        "Last Alliance", " of the Last Alliance", "", 4, MYTHIC_STANDARD_PRICE_MULTIPLIER + 0.5, MYTHIC_STANDARD_PRICE_ADDITION * 2L,
+        "Last Alliance", " of the Last Alliance", "Extra damage to orcs, ogres, giants, and trolls; prevents troll revival (weapons only)", 
+        4, MYTHIC_STANDARD_PRICE_MULTIPLIER + 0.5, MYTHIC_STANDARD_PRICE_ADDITION * 2L,
         MYTHIC_SUFFIX_POWER_ORC_SLAYING | MYTHIC_SUFFIX_POWER_OGRE_SLAYING | MYTHIC_SUFFIX_POWER_GIANT_SLAYING | MYTHIC_SUFFIX_POWER_TROLL_SLAYING | MYTHIC_SUFFIX_POWER_TROLL_REVIVAL_PREVENTION,
         MYTHIC_FLAG_WEAPON_REQUIRED | MYTHIC_FLAG_NO_ORCISH_ITEMS
     },
@@ -1428,7 +1471,7 @@ uchar *prefix_ptr, *suffix_ptr;
         int ok_cnt[2] = { 0, 0 };
         for (int j = 0; j <= 1; j++)
         {
-            uchar max_mythic = (j == 0 ? MAX_MYTHIC_PREFIXES : MAX_MYTHIC_SUFFIXES);
+            uchar max_mythic = (j == 0 ? (uchar)MAX_MYTHIC_PREFIXES : (uchar)MAX_MYTHIC_SUFFIXES);
             for (uchar i = 1; i < max_mythic; i++)
             {
                 if (!is_mythic_affix_ok(j, i, obj, is_wish))
@@ -1469,7 +1512,7 @@ uchar *prefix_ptr, *suffix_ptr;
     {
         const struct mythic_definition* mythic_definitions = (j == 0 ? mythic_prefix_qualities : mythic_suffix_qualities);
         uchar* eligible = (j == 0 ? eligible_prefix : eligible_suffix);
-        uchar max_mythic = (j == 0 ? MAX_MYTHIC_PREFIXES : MAX_MYTHIC_SUFFIXES);
+        uchar max_mythic = (j == 0 ? (uchar)MAX_MYTHIC_PREFIXES : (uchar)MAX_MYTHIC_SUFFIXES);
         uchar* affix_ptr = (j == 0 ? prefix_ptr : suffix_ptr);
 
         int cnt = 0;
@@ -1547,7 +1590,7 @@ uchar is_wish; /* 1 = mythic wishing, 2 = legendary wishing */
         return FALSE;
     if ((mythic_definitions[affix_idx].mythic_flags & MYTHIC_FLAG_NO_INFERNAL_WEAPONS) && obj->exceptionality == EXCEPTIONALITY_INFERNAL)
         return FALSE;
-    if ((mythic_definitions[affix_idx].mythic_flags & MYTHIC_FLAG_POLEARM_LANCE_SPEAR_ONLY) && !(is_pole(obj) || is_lance(obj) || is_spear(obj)))
+    if ((mythic_definitions[affix_idx].mythic_flags & MYTHIC_FLAG_POLEARM_LANCE_SPEAR_ONLY) && !(is_pole(obj) || is_lance(obj) || is_spear(obj) || is_trident(obj)))
         return FALSE;
     if ((mythic_definitions[affix_idx].mythic_flags & MYTHIC_FLAG_NO_WEAPON) && is_weapon(obj))
         return FALSE;
@@ -1591,7 +1634,7 @@ struct monst* mattacker UNUSED;
 
         const struct mythic_power_definition* mythic_powers = (j == 0 ? mythic_prefix_powers : mythic_suffix_powers);
         const struct mythic_definition* mythic_definitions = (j == 0 ? mythic_prefix_qualities : mythic_suffix_qualities);
-        uchar max_mythic_powers = (j == 0 ? MAX_MYTHIC_PREFIX_POWERS : MAX_MYTHIC_SUFFIX_POWERS);
+        uchar max_mythic_powers = (j == 0 ? (uchar)MAX_MYTHIC_PREFIX_POWERS : (uchar)MAX_MYTHIC_SUFFIX_POWERS);
 
         for (uchar i = 0; i < max_mythic_powers; i++)
         {

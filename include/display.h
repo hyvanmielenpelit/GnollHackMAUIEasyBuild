@@ -382,7 +382,7 @@
 #define GLYPH_COMMAND_TILE_OFF  (P_NUM_SKILLS + GLYPH_SKILL_TILE_OFF)
 #define GLYPH_BUFF_OFF  (MAX_COMMAND_TILES + GLYPH_COMMAND_TILE_OFF)
 #define GLYPH_REPLACEMENT_OFF  (MAX_BUFF_TILES + GLYPH_BUFF_OFF)
-#define GLYPH_ANIMATION_OFF  (TOTAL_NUM_REPLACEMENT_TILES + GLYPH_REPLACEMENT_OFF)
+#define GLYPH_ANIMATION_OFF  (TOTAL_NUM_REPLACEMENT_GLYPHS + GLYPH_REPLACEMENT_OFF)
 #define GLYPH_ENLARGEMENT_OFF  (TOTAL_NUM_ANIMATION_FRAMES + GLYPH_ANIMATION_OFF)
 #define MAX_GLYPH         (TOTAL_NUM_ENLARGEMENT_TILES + GLYPH_ENLARGEMENT_OFF)
 
@@ -471,7 +471,7 @@
 #define any_seen_mon_to_glyph(mon, rng) (canseemon(mon) || is_tame(mon) ? any_mon_to_glyph(mon, rng) : GLYPH_INVISIBLE)
 
 #define is_obj_activated(obj) \
-  ((obj)->lamplit || (obj)->invokeon || (obj)->detectioncount > 0)
+  ((obj)->lamplit || ((obj)->item_flags & ITEM_FLAGS_MEMORY_OBJECT_LAMPLIT) != 0 || (obj)->invokeon || (obj)->detectioncount > 0)
 
 /* This has the unfortunate side effect of needing a global variable    */
 /* to store a result. 'otg_temp' is defined and declared in decl.{ch}.  */
@@ -726,6 +726,9 @@
 #define glyph_is_missile(glyph) \
      (glyph_is_object_missile(glyph) || glyph_is_artifact_missile(glyph))
 
+#define glyph_missile_direction(glyph) \
+     (!glyph_is_missile(glyph) ? -1 : glyph_is_object_missile(glyph) ? (abs(glyph) - GLYPH_OBJ_MISSILE_OFF) % NUM_MISSILE_DIRS : (abs(glyph) - GLYPH_ARTIFACT_MISSILE_OFF) % NUM_MISSILE_DIRS)
+
 #define glyph_is_player(glyph) \
     ((abs(glyph)) >= GLYPH_PLAYER_OFF && (abs(glyph)) < (GLYPH_PLAYER_OFF + NUM_PLAYER_CHARACTERS))
 
@@ -941,7 +944,7 @@
 #define glyph_to_warning(glyph) \
     (glyph_is_warning(glyph) ? ((abs(glyph)) - GLYPH_WARNING_OFF) : 0);
 
-#define glyph_to_obj(glyph) \
+#define glyph_to_otyp(glyph) \
     (glyph_is_body(glyph) || glyph_is_female_body(glyph)  \
          ? CORPSE                                \
          : glyph_is_statue(glyph) || glyph_is_female_statue(glyph) \
@@ -949,7 +952,7 @@
          : glyph_is_cmap_boulder(glyph) \
                ? BOULDER                          \
              : glyph_is_artifact(glyph)                \
-                   ? artifact_to_obj(glyph_to_artifact(glyph))   \
+                   ? artifact_to_otyp(glyph_to_artifact(glyph))   \
                    : glyph_is_normal_object(glyph)   \
                          ? ((abs(glyph)) - GLYPH_OBJ_OFF) \
                          : STRANGE_OBJECT)

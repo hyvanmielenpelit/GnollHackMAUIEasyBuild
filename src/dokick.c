@@ -720,10 +720,12 @@ xchar x, y; /* coordinates where object was before the impact, not after */
                     stolen_value(otmp, x, y, is_peaceful(shkp), TRUE);
             }
             if (otmp->quan > 1L) {
+                Sprintf(priority_debug_buf_2, "container_impact_dmg: %d", otmp->otyp);
                 useup(otmp);
             } else {
                 Strcpy(debug_buf_2, "container_impact_dmg");
                 obj_extract_self(otmp);
+                Sprintf(priority_debug_buf_4, "container_impact_dmg: %d", otmp->otyp);
                 obfree(otmp, (struct obj *) 0);
             }
             /* contents of this container are no longer known */
@@ -809,7 +811,7 @@ boolean is_golf_swing;
         return 1;
     }
 
-    if (!uarmf && kickedobj->otyp == CORPSE
+    if (!uarmf && kickedobj->otyp == CORPSE && kickedobj->corpsenm >= LOW_PM
         && touch_petrifies(&mons[kickedobj->corpsenm]) && !Stone_resistance) 
     {
         if (is_golf_swing)
@@ -946,7 +948,7 @@ boolean is_golf_swing;
         {
             if (!rn2(5) || (martial() && !rn2(2))) 
             {
-                if (kickedobj->keyotyp == STRANGE_OBJECT || kickedobj->keyotyp == NON_PM || kickedobj->keyotyp == SKELETON_KEY)
+                if (kickedobj->keyotyp == STRANGE_OBJECT || kickedobj->keyotyp == NON_PM || kickedobj->keyotyp == SKELETON_KEY || kickedobj->keyotyp == MASTER_KEY)
                 {
                     play_simple_container_sound(kickedobj, CONTAINER_SOUND_TYPE_BREAK_LOCK);
                     You_ex(ATR_NONE, CLR_MSG_SUCCESS, "break open the lock!");
@@ -1157,9 +1159,11 @@ autokick()
     if (yn_query("Kick it open?") == 'y')
         dokick_indir(TRUE);
 }
+#endif
 
 int
-dokick() {
+dokick() 
+{
     return dokick_indir(FALSE);
 }
 
@@ -1167,10 +1171,6 @@ int
 dokick_indir(has_dir)
 boolean has_dir;
 {
-#else
-int
-dokick() {
-#endif
     int x, y;
     int avrg_attrib;
     int dmg = 0, glyph, oldglyph = -1;
@@ -1267,12 +1267,7 @@ dokick() {
         return 0;
     }
 
-    if (
-#ifdef ANDROID
-        !has_dir &&
-#endif
-        !getdir((char *) 0)
-        )
+    if (!has_dir && !getdir((char *) 0))
         return 0;
     if (!u.dx && !u.dy)
         return 0;
@@ -2267,6 +2262,7 @@ boolean shop_floor_obj;
         }
         Strcpy(debug_buf_2, "ship_object");
         obj_extract_self(otmp);
+        Sprintf(priority_debug_buf_4, "ship_object: %d", otmp->otyp);
         obfree(otmp, (struct obj *) 0);
         return TRUE;
     }
@@ -2350,6 +2346,7 @@ boolean near_hero;
                         continue;
                 } else if (breaktest(otmp)) {
                     /* assume it broke before player arrived, no messages */
+                    Sprintf(priority_debug_buf_3, "obj_delivery: %d", otmp->otyp);
                     delobj(otmp);
                     continue;
                 }
@@ -2365,6 +2362,7 @@ boolean near_hero;
             otmp->ox = otmp->oy = 0;
             if (rloco(otmp) && !nobreak && breaktest(otmp)) {
                 /* assume it broke before player arrived, no messages */
+                Sprintf(priority_debug_buf_3, "obj_delivery2: %d", otmp->otyp);
                 delobj(otmp);
             }
         }

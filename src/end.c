@@ -86,6 +86,9 @@ STATIC_DCL char FDECL(special_yn_query, (const char*, const char*));
 #define NH_abort NH_abort_
 #endif
 
+#ifdef GNH_MOBILE
+#define NH_abort_() gnollhack_exit(EXIT_FAILURE)
+#else
 #ifdef AMIGA
 #define NH_abort_() Abort(0)
 #else
@@ -99,6 +102,7 @@ STATIC_DCL char FDECL(special_yn_query, (const char*, const char*));
 #endif
 #endif /* !SYSV */
 #endif /* !AMIGA */
+#endif /* GNH_MOBILE */
 
 #ifdef PANICTRACE
 #include <errno.h>
@@ -777,7 +781,15 @@ VA_DECL(const char *, str)
         Vsprintf(buf, str, VA_ARGS);
         raw_print(buf);
         paniclog("panic", buf);
+
 #ifdef GNOLLHACK_MAIN_PROGRAM
+        if (issue_gui_command)
+        {
+            char dbufs[BUFSZ * 18];
+            Sprintf(dbufs, "panic: %s, P1:%s, P2:%s, P3:%s, P4:%s, B1:%s, B2:%s, B3:%s, B4:%s", buf, priority_debug_buf_1, priority_debug_buf_2, priority_debug_buf_3, priority_debug_buf_4, debug_buf_1, debug_buf_2, debug_buf_3, debug_buf_4);
+            issue_debuglog_priority(0, dbufs);
+        }
+
         if (open_special_view)
         {
             /* Add mode to posted panic */
@@ -795,7 +807,7 @@ VA_DECL(const char *, str)
         //    issue_gui_command(GUI_CMD_POST_DIAGNOSTIC_DATA, DIAGNOSTIC_DATA_PANIC, 0, buf);
 #endif
     }
-#ifdef WIN32
+#if defined(WIN32) && !defined(GNH_MOBILE)
     interject(INTERJECT_PANIC);
 #endif
 
@@ -941,12 +953,12 @@ time_t when; /* date+time at end of game */
     }
     if (iflags.wc2_statuslines > 3)
     {
-        char partybuf[BUFSZ * 2];
-        char partybuf2[BUFSZ * 2];
-        char partybuf3[BUFSZ * 2];
-        char partybuf4[BUFSZ * 2];
-        char partybuf5[BUFSZ * 2];
-        compose_partystatline(partybuf, partybuf2, partybuf3, partybuf4, partybuf5);
+        char partybuf[BUFSZ * 3];
+        char partybuf2[BUFSZ * 3];
+        char partybuf3[BUFSZ * 3];
+        char partybuf4[BUFSZ * 3];
+        char partybuf5[BUFSZ * 3];
+        compose_partystatline(partybuf, partybuf2, partybuf3, partybuf4, partybuf5, BUFSZ * 3);
         char* partylines[5] = { partybuf, partybuf2, partybuf3, partybuf4, partybuf5 };
         int i;
         for (i = 0; i < iflags.wc2_statuslines - 3 && i < 5; i++)
@@ -962,9 +974,10 @@ time_t when; /* date+time at end of game */
     dump_plines();
     putstr(NHW_DUMPTXT, 0, "");
     putstr(0, ATR_HEADING, "Inventory:");
-    (void) display_inventory((char *) 0, TRUE, 0);
-    container_contents(invent, how != SNAPSHOT, TRUE, FALSE, 0);
-    enlightenment(how == SNAPSHOT ? BASICENLIGHTENMENT : (BASICENLIGHTENMENT | MAGICENLIGHTENMENT),
+    (void) display_inventory((char *) 0, TRUE, SHOWWEIGHTS_NONE);
+    container_contents(invent, how != SNAPSHOT, TRUE, FALSE, SHOWWEIGHTS_NONE);
+    magic_chest_contents(how != SNAPSHOT, TRUE, FALSE, SHOWWEIGHTS_NONE);
+    enlightenment(how == SNAPSHOT ? BASICENLIGHTENMENT | GAMEENLIGHTENMENT : (BASICENLIGHTENMENT | MAGICENLIGHTENMENT | GAMEENLIGHTENMENT),
                   how == SNAPSHOT ? ENL_GAMEINPROGRESS : (how >= PANICKED) ? ENL_GAMEOVERALIVE : ENL_GAMEOVERDEAD);
     putstr(NHW_DUMPTXT, 0, "");
     dump_skills();
@@ -1090,8 +1103,9 @@ boolean taken;
         
         if (c == 'y') {
             /* caller has already ID'd everything */
-            (void) display_inventory((char *) 0, FALSE, 0);
-            container_contents(invent, TRUE, TRUE, FALSE, 0);
+            (void) display_inventory((char *) 0, FALSE, SHOWWEIGHTS_NONE);
+            container_contents(invent, TRUE, TRUE, FALSE, SHOWWEIGHTS_NONE);
+            magic_chest_contents(TRUE, TRUE, FALSE, SHOWWEIGHTS_NONE);
         }
         if (c == 'q')
             done_stopprint++;
@@ -1103,7 +1117,7 @@ boolean taken;
                               defquery, ynq2descs)
                 : defquery;
         if (c == 'y')
-            enlightenment((BASICENLIGHTENMENT | MAGICENLIGHTENMENT),
+            enlightenment((BASICENLIGHTENMENT | MAGICENLIGHTENMENT | GAMEENLIGHTENMENT),
                           (how >= PANICKED) ? ENL_GAMEOVERALIVE
                                             : ENL_GAMEOVERDEAD);
         if (c == 'q')
@@ -1176,6 +1190,7 @@ int how;
     }
 
     nomovemsg = "You survived that attempt on your life.";
+    nomovemsg_attr = ATR_NONE;
     nomovemsg_color = CLR_MSG_SUCCESS;
     context.move = 0;
     if (multi > 0)
@@ -1365,6 +1380,52 @@ struct obj* list;
         if (Has_contents(otmp))
         {
             struct item_score_count_result cont_cnt = count_artifacts(otmp->cobj);
+            cnt.quantity += cont_cnt.quantity;
+            cnt.score += cont_cnt.score;
+        }
+    }
+    return cnt;
+}
+
+struct item_score_count_result
+count_historic_statues(list)
+struct obj* list;
+{
+    struct obj* otmp;
+    struct item_score_count_result cnt = { 0 };
+    for (otmp = list; otmp; otmp = otmp->nobj)
+    {
+        if (otmp->otyp == STATUE && otmp->special_quality == SPEQUAL_STATUE_HISTORIC)
+        {
+            cnt.quantity += otmp->quan;
+            cnt.score += ARCHAEOLOGIST_PER_HISTORIC_STATUE_SCORE * otmp->quan;
+        }
+        if (Has_contents(otmp))
+        {
+            struct item_score_count_result cont_cnt = count_historic_statues(otmp->cobj);
+            cnt.quantity += cont_cnt.quantity;
+            cnt.score += cont_cnt.score;
+        }
+    }
+    return cnt;
+}
+
+struct item_score_count_result
+count_valuable_art_objects(list)
+struct obj* list;
+{
+    struct obj* otmp;
+    struct item_score_count_result cnt = { 0 };
+    for (otmp = list; otmp; otmp = otmp->nobj)
+    {
+        if (otmp->oclass == ART_CLASS)
+        {
+            cnt.quantity += otmp->quan;
+            cnt.score += get_object_base_value(otmp) * otmp->quan;
+        }
+        if (Has_contents(otmp))
+        {
+            struct item_score_count_result cont_cnt = count_valuable_art_objects(otmp->cobj);
             cnt.quantity += cont_cnt.quantity;
             cnt.score += cont_cnt.score;
         }
@@ -1591,6 +1652,7 @@ int how;
                 bless(potion);
                 (void) peffects(potion); /* always -1 for restore ability */
                 /* not useup(); we haven't put this potion into inventory */
+                Sprintf(priority_debug_buf_4, "done: %d", potion->otyp);
                 obfree(potion, (struct obj *) 0);
             }
             killer.name[0] = '\0';
@@ -1655,11 +1717,14 @@ int how;
                 play_sfx_sound(SFX_ITEM_CRUMBLES_TO_DUST);
                 pline_The_ex(ATR_NONE, CLR_MSG_ATTENTION, "medallion crumbles to dust!");
                 if (uamul)
+                {
+                    Sprintf(priority_debug_buf_2, "done: %d", uamul->otyp);
                     useup(uamul);
+                }
             }
             else
             {
-                struct obj* lifesaver = what_gives(LIFESAVED);
+                struct obj* lifesaver = what_gives(LIFESAVED, FALSE);
                 if (lifesaver)
                 {
                     pline_ex(ATR_NONE, CLR_MSG_ATTENTION, "%s %s!", Yname2(lifesaver), !Blind ? "begins to glow" : "feels warm");
@@ -1669,7 +1734,10 @@ int how;
                     play_sfx_sound(SFX_ITEM_CRUMBLES_TO_DUST);
                     pline_The_ex(ATR_NONE, CLR_MSG_ATTENTION, "%s crumbles to dust!", cxname(lifesaver));
                     if (lifesaver)
+                    {
+                        Sprintf(priority_debug_buf_2, "done2: %d", lifesaver->otyp);
                         useup(lifesaver);
+                    }
                 }
             }
             special_effect_wait_until_end(0);
@@ -1701,6 +1769,7 @@ int how;
             survive = TRUE;
             boolean teleinstead = FALSE;
             incr_itimeout(&HInvulnerable, 2);
+            HConflict &= ~TIMEOUT;
             refresh_u_tile_gui_info(TRUE);
             if (!In_endgame(&u.uz))
             {
@@ -1887,9 +1956,15 @@ int how;
     /* maybe not on object lists; if an active light source, would cause
        big trouble (`obj_is_local' panic) for savebones() -> savelev() */
     if (thrownobj && thrownobj->where == OBJ_FREE)
+    {
+        Sprintf(priority_debug_buf_4, "really_done: %d", thrownobj->otyp);
         obfree(thrownobj, (struct obj*)0);
+    }
     if (kickedobj && kickedobj->where == OBJ_FREE)
+    {
+        Sprintf(priority_debug_buf_4, "really_done2: %d", kickedobj->otyp);
         obfree(kickedobj, (struct obj*)0);
+    }
 
     /* remember time of death here instead of having bones, rip, and
        topten figure it out separately and possibly getting different
@@ -2069,9 +2144,9 @@ int how;
        be done even sooner, but we need it to come after dump_everything()
        so that any accompanying pets are still on the map during dump) */
     if (how == ESCAPED)
-        keepdogs(TRUE, TRUE); /* Just nearby pets following to the ground level */
+        move_monsters_to_mydogs(TRUE, TRUE); /* Just nearby pets following to the ground level */
     else if (how == ASCENDED)
-        keepdogs(TRUE, FALSE); /* All pets surviving to the point of ascension */
+        move_monsters_to_mydogs(TRUE, FALSE); /* All pets surviving to the point of ascension */
 
     /* calculate score, before creating bones [container gold] */
     {
@@ -2481,16 +2556,7 @@ int show_weights;
     boolean cat, dumping = iflags.in_dumplog;
     int count = 0;
     int totalweight = 0;
-    boolean loadstonecorrectly = FALSE;
-
-    if (show_weights == 1) // Inventory
-        loadstonecorrectly = TRUE;
-    else if (show_weights == 2) 
-    { // Pick up
-        loadstonecorrectly = (boolean)objects[LOADSTONE].oc_name_known;
-    }
-    else if (show_weights == 3) // Drop
-        loadstonecorrectly = TRUE;
+    boolean loadstonecorrectly = loadstone_weight_shown_correctly(show_weights);
 
     for (box = list; box; box = box->nobj) 
     {
@@ -2558,7 +2624,7 @@ int show_weights;
                         else
                             totalweight += obj->owt;
     
-                        Sprintf(&buf[2], "%2d - %s", count, show_weights > 0 ? (flags.inventory_weights_last ? doname_with_price_and_weight_last(obj, loadstonecorrectly) : doname_with_price_and_weight_first(obj, loadstonecorrectly)) : doname_with_price(obj));
+                        Sprintf(&buf[2], "%2d - %s", count, show_weights > SHOWWEIGHTS_NONE ? (flags.inventory_weights_last ? doname_with_price_and_weight_last(obj, loadstonecorrectly) : doname_with_price_and_weight_first(obj, loadstonecorrectly)) : doname_with_price(obj));
                         //Strcpy(&buf[2], doname_with_price_and_weight_first(obj));
                         putstr(tmpwin, ATR_INDENT_AT_DASH | ATR_ORDERED_LIST, buf);
                     }
@@ -2594,6 +2660,87 @@ int show_weights;
             break;
     }
 }
+
+void
+magic_chest_contents(identified, all_containers, reportempty, show_weights)
+boolean identified, all_containers, reportempty;
+int show_weights;
+{
+    register struct obj* obj;
+    char buf[BUFSZ];
+    boolean dumping = iflags.in_dumplog;
+    int count = 0;
+    int totalweight = 0;
+    boolean loadstonecorrectly = loadstone_weight_shown_correctly(show_weights);
+    const char* chest_name = objects[MAGIC_CHEST].oc_name_known || identified ? OBJ_NAME(objects[MAGIC_CHEST]) : OBJ_DESCR(objects[MAGIC_CHEST]);
+
+    if (magic_objs)
+    {
+        winid tmpwin = create_nhwindow(NHW_MENU);
+        Loot* sortedcobj, * srtc;
+        unsigned sortflags;
+
+        count = 0;
+
+        Sprintf(buf, "Contents of your %s:", chest_name);
+        putstr(tmpwin, ATR_TITLE, buf);
+        if (!dumping)
+            putstr(tmpwin, ATR_HALF_SIZE, " ");
+        buf[0] = buf[1] = ' '; /* two leading spaces */
+        if (magic_objs)
+        {
+            sortflags = (((flags.sortloot == 'l'
+                || flags.sortloot == 'f')
+                ? SORTLOOT_LOOT : 0)
+                | (flags.sortpack ? SORTLOOT_PACK : 0));
+            sortedcobj = sortloot(&magic_objs, sortflags, FALSE,
+                (boolean FDECL((*), (OBJ_P))) 0);
+            totalweight = 0;
+            for (srtc = sortedcobj; ((obj = srtc->obj) != 0); ++srtc)
+            {
+                if (identified)
+                {
+                    discover_object(obj->otyp, TRUE, FALSE);
+                    obj->known = obj->bknown = obj->dknown
+                        = obj->rknown = obj->nknown = obj->aknown = obj->mknown = 1;
+                    if (Is_container(obj) || obj->otyp == STATUE)
+                        obj->cknown = obj->lknown = obj->tknown = 1;
+                }
+                count++;
+
+                /* total sum here */
+                if (obj->otyp == LOADSTONE && !loadstonecorrectly)
+                    totalweight += objects[LUCKSTONE].oc_weight;
+                else
+                    totalweight += obj->owt;
+
+                Sprintf(&buf[2], "%2d - %s", count, show_weights > SHOWWEIGHTS_NONE ? (flags.inventory_weights_last ? doname_with_price_and_weight_last(obj, loadstonecorrectly) : doname_with_price_and_weight_first(obj, loadstonecorrectly)) : doname_with_price(obj));
+                //Strcpy(&buf[2], doname_with_price_and_weight_first(obj));
+                putstr(tmpwin, ATR_INDENT_AT_DASH | ATR_ORDERED_LIST, buf);
+            }
+            if (flags.show_weight_summary)
+            {
+                if (flags.inventory_weights_last)
+                    putstr(tmpwin, ATR_HALF_SIZE, " ");
+                add_weight_summary_putstr(tmpwin, totalweight, show_weights);
+            }
+
+            unsortloot(&sortedcobj);
+        }
+        if (dumping)
+            putstr(0, ATR_HALF_SIZE, " ");
+        display_nhwindow(tmpwin, TRUE);
+        destroy_nhwindow(tmpwin);
+        if (all_containers)
+            container_contents(magic_objs, identified, TRUE, reportempty, show_weights);
+    }
+    else if (reportempty)
+    {
+        pline("Your %s is empty.", chest_name);
+        display_nhwindow(WIN_MESSAGE, FALSE);
+    }
+}
+
 
 /* should be called with either EXIT_SUCCESS or EXIT_FAILURE */
 /* called between displaying gamewindows and before newgame / restore, after getlock doclearlocks must be set to TRUE */
@@ -3040,7 +3187,7 @@ int final;
         {
             char dbuf[BUFSZ];
             Sprintf(dbuf, "print_selfies: selfiescore of %lld does not match context.role_score of %lld.", (long long)selfiescore, (long long)context.role_score);
-            issue_debuglog(DEBUGLOG_GENERAL, dbuf);
+            issue_debuglog(0, dbuf);
             context.role_score = selfiescore;
         }
         int64_t score_percentage = ((selfiescore + (int64_t)u.uachieve.role_achievement * TOURIST_ROLE_ACHIEVEMENT_SCORE) * 100) / MAXIMUM_ROLE_SCORE;
@@ -3140,7 +3287,7 @@ int final;
         {
             char dbuf[BUFSZ];
             Sprintf(dbuf, "print_knight_slayings: killscore of %lld does not match context.role_score of %lld.", (long long)killscore, (long long)context.role_score);
-            issue_debuglog(DEBUGLOG_GENERAL, dbuf);
+            issue_debuglog(0, dbuf);
             context.role_score = killscore;
         }
         int64_t score_percentage = ((killscore + (int64_t)u.uachieve.role_achievement * KNIGHT_ROLE_ACHIEVEMENT_SCORE) * 100) / MAXIMUM_ROLE_SCORE;
@@ -3568,7 +3715,11 @@ get_current_game_score(VOID_ARGS)
     {
         struct item_score_count_result cnt = count_artifacts(invent);
         struct item_score_count_result cnt2 = count_artifacts(magic_objs);
-        Role_Specific_Score = cnt.score + cnt2.score;
+        struct item_score_count_result cnt3 = count_historic_statues(invent);
+        struct item_score_count_result cnt4 = count_historic_statues(magic_objs);
+        struct item_score_count_result cnt5 = count_valuable_art_objects(invent);
+        struct item_score_count_result cnt6 = count_valuable_art_objects(magic_objs);
+        Role_Specific_Score = cnt.score + cnt2.score + cnt3.score + cnt4.score + (cnt5.score + cnt6.score) * ARCHAEOLOGIST_ART_OBJECT_SCORE_MULTIPLIER;
         Role_Achievement_Score = ARCHAEOLOGIST_ROLE_ACHIEVEMENT_SCORE * (int64_t)u.uachieve.role_achievement;
         break;
     }
@@ -3656,6 +3807,9 @@ get_current_game_score(VOID_ARGS)
         lootvalue += money_cnt(invent);
         lootvalue += hidden_gold() + magic_gold(); /* accumulate gold from containers */
         lootvalue += carried_gem_value() + magic_gem_value();
+        struct item_score_count_result cnt = count_valuable_art_objects(invent);
+        struct item_score_count_result cnt2 = count_valuable_art_objects(magic_objs);
+        lootvalue += cnt.score + cnt2.score;
         Role_Specific_Score = lootvalue;
         Role_Achievement_Score = ROGUE_ROLE_ACHIEVEMENT_SCORE * (int64_t)u.uachieve.role_achievement;
         break;
@@ -3716,8 +3870,8 @@ get_current_game_score(VOID_ARGS)
     double Turn_Count_Multiplier = sqrt(50000.0) / sqrt((double)max(1L, moves));
     double Ascension_Multiplier = u.uachieve.ascended ? min(16.0, max(2.0, 4.0 * Turn_Count_Multiplier)) : 1.0;
     double Difficulty_Multiplier = pow(10.0, 0.5 * (double)context.game_difficulty);
-    double mortexp = (double)(u.utruemortality > 6 ? 7 : u.utruemortality + 1);
-    double mortmult = (double)(u.utruemortality > 6 ? u.utruemortality - 5 : 1);
+    double mortexp = (double)(u.utruemortality > 2 ? 3 : u.utruemortality + 1);
+    double mortmult = (double)(u.utruemortality > 2 ? u.utruemortality - 1 : 1);
     double Modern_Multiplier = ModernMode ? 1.0 / (pow(3, mortexp) * mortmult) : 1.0;
 
     utotal = (int64_t)(round((double)Base_Score * Ascension_Multiplier * Difficulty_Multiplier * Modern_Multiplier));
@@ -4029,9 +4183,8 @@ void
 tally_realtime(VOID_ARGS)
 {
     if (!context.game_started)
-    {
         return;
-    }
+
     urealtime.finish_time = getnow();
     urealtime.realtime += (urealtime.finish_time - urealtime.start_timing);
     issue_simple_gui_command(GUI_CMD_REPORT_PLAY_TIME);

@@ -269,6 +269,7 @@ stoned_dialogue()
         nomul(-3); /* can't move anymore */
         multi_reason = "getting stoned";
         nomovemsg = You_can_move_again; /* not unconscious */
+        nomovemsg_attr = ATR_NONE;
         nomovemsg_color = CLR_MSG_SUCCESS;
         /* "your limbs have turned to stone" so terminate wounded legs */
         if (Wounded_legs && !u.usteed)
@@ -672,7 +673,7 @@ nh_timeout()
         phaze_dialogue();
     if (u.mtimedone && !--u.mtimedone) {
         if (Unchanging)
-            u.mtimedone = rnd(100 * youmonst.data->mlevel + 1);
+            u.mtimedone = rnd(100 * (int)youmonst.data->mlevel + 1);
         else if (is_were(youmonst.data))
             you_unwere(FALSE); /* if polycontrl, asks whether to rehumanize */
         else
@@ -872,6 +873,7 @@ nh_timeout()
                 if (uamul && uamul->otyp == AMULET_OF_STRANGULATION) {
                     play_sfx_sound(SFX_ITEM_VANISHES);
                     Your_ex(ATR_NONE, CLR_MSG_ATTENTION, "amulet vanishes!");
+                    Sprintf(priority_debug_buf_2, "nh_timeout: %d", uamul->otyp);
                     useup(uamul);
                 }
                 break;
@@ -920,6 +922,8 @@ nh_timeout()
                     nomul(-2);
                     multi_reason = "fumbling";
                     nomovemsg = "";
+                    nomovemsg_attr = ATR_NONE;
+                    nomovemsg_color = NO_COLOR;
                     /* The more you are carrying the more likely you
                      * are to make noise when you fumble.  Adjustments
                      * to this number must be thoroughly play tested.
@@ -1293,6 +1297,9 @@ nh_timeout()
             case SLIME_RESISTANCE:
                 Your_ex(ATR_NONE, CLR_MSG_ATTENTION, "skin is starting to feel less fiery than before.");
                 break;
+            case POLYMORPH_RESISTANCE:
+                You_ex(ATR_NONE, CLR_MSG_ATTENTION, "are starting to feel more prone to change than before.");
+                break;
             }
         }
         else if ((upp->intrinsic & TIMEOUT) > 0)
@@ -1449,12 +1456,14 @@ int64_t timeout;
     silent = (timeout != monstermoves); /* hatched while away */
 
     /* only can hatch when in INVENT, FLOOR, MINVENT */
-    if (get_obj_location(egg, &x, &y, 0)) {
+    if (get_obj_location(egg, &x, &y, 0)) 
+    {
         hatchcount = rnd((int) egg->quan);
-        cansee_hatchspot = cansee(x, y) && !silent;
-        if (!(mons[mnum].geno & G_UNIQ)
-            && !(mvitals[mnum].mvflags & (MV_GENOCIDED | MV_EXTINCT))) {
-            for (i = hatchcount; i > 0; i--) {
+        cansee_hatchspot = isok(x, y) && cansee(x, y) && !silent;
+        if (isok(x, y) && !(mons[mnum].geno & G_UNIQ) && !(mvitals[mnum].mvflags & (MV_GENOCIDED | MV_EXTINCT))) 
+        {
+            for (i = hatchcount; i > 0; i--) 
+            {
                 if (!enexto(&cc, x, y, &mons[mnum])
                     || !(mon = makemon(&mons[mnum], cc.x, cc.y, MM_NO_MONSTER_INVENTORY)))
                     break;
@@ -1462,7 +1471,8 @@ int64_t timeout;
                    same dungeon level, or any dragon egg which hatches
                    while it's in your inventory */
                 if ((tamed && !silent)
-                    || (carried(egg) && mon->data->mlet == S_DRAGON)) {
+                    || (carried(egg) && mon->data->mlet == S_DRAGON)) 
+                {
                     if (tamedog(mon, (struct obj *) 0, TAMEDOG_NO_FORCED_TAMING, FALSE, 0, FALSE, FALSE)) {
                         if (carried(egg) && mon->data->mlet != S_DRAGON)
                         {
@@ -1510,11 +1520,13 @@ int64_t timeout;
 #endif
     }
 
-    if (mon) {
+    if (mon) 
+    {
         char monnambuf[BUFSZ], carriedby[BUFSZ];
         boolean siblings = (hatchcount > 1), redraw = FALSE;
 
-        if (cansee_hatchspot) {
+        if (cansee_hatchspot) 
+        {
             /* [bug?  m_monnam() yields accurate monster type
                regardless of hallucination] */
             Sprintf(monnambuf, "%s%s", siblings ? "some " : "",
@@ -1547,6 +1559,7 @@ int64_t timeout;
             }
             break;
 
+        case OBJ_MAGIC:
         case OBJ_FLOOR:
             if (cansee_hatchspot) {
                 knows_egg = TRUE;
@@ -1590,11 +1603,13 @@ int64_t timeout;
             /* Instead of ordinary egg timeout use a short one */
             attach_egg_hatch_timeout(egg, (int64_t) rnd(12));
         } else if (carried(egg)) {
+            Sprintf(priority_debug_buf_2, "hatch_egg: %d", egg->otyp);
             useup(egg);
         } else {
             /* free egg here because we use it above */
             Strcpy(debug_buf_2, "hatch_egg");
             obj_extract_self(egg);
+            Sprintf(priority_debug_buf_4, "hatch_egg: %d", egg->otyp);
             obfree(egg, (struct obj *) 0);
         }
         if (redraw)
@@ -1717,7 +1732,7 @@ slip_or_trip()
         } else {
             You_ex(ATR_NONE, CLR_MSG_ATTENTION,  "trip over %s.", what);
         }
-        if (!uarmf && otmp->otyp == CORPSE
+        if (!uarmf && otmp->otyp == CORPSE && otmp->corpsenm >= LOW_PM
             && touch_petrifies(&mons[otmp->corpsenm]) && !Stone_resistance) {
             Sprintf(killer.name, "tripping over %s corpse",
                     an(corpse_monster_name(otmp)));
@@ -1908,6 +1923,7 @@ int64_t timeout;
                    nor is it migrating */
                 Strcpy(debug_buf_2, "burn_object1");
                 obj_extract_self(obj);
+                Sprintf(priority_debug_buf_4, "burn_object: %d", obj->otyp);
                 obfree(obj, (struct obj *) 0);
                 obj = (struct obj *) 0;
             }
@@ -1952,6 +1968,7 @@ int64_t timeout;
         Strcpy(debug_buf_3, "burn_object2");
         end_burn(obj, FALSE); /* turn off light source */
         if (carried(obj)) {
+            Sprintf(priority_debug_buf_3, "burn_object: %d", obj->otyp);
             useupall(obj);
         } else {
             /* clear migrating obj's destination code before obfree
@@ -1960,6 +1977,7 @@ int64_t timeout;
                 obj->owornmask = 0L;
             Strcpy(debug_buf_2, "burn_object2");
             obj_extract_self(obj);
+            Sprintf(priority_debug_buf_4, "burn_object2: %d", obj->otyp);
             obfree(obj, (struct obj *) 0);
         }
         obj = (struct obj *) 0;
@@ -2115,6 +2133,7 @@ int64_t timeout;
 
             if (carried(obj)) 
             {
+                Sprintf(priority_debug_buf_3, "burn_object2: %d", obj->otyp);
                 useupall(obj);
             }
             else
@@ -2125,6 +2144,7 @@ int64_t timeout;
                     obj->owornmask = 0L;
                 Strcpy(debug_buf_2, "burn_object3");
                 obj_extract_self(obj);
+                Sprintf(priority_debug_buf_4, "burn_object3: %d", obj->otyp);
                 obfree(obj, (struct obj*)0);
             }
             obj = (struct obj*)0;
@@ -2244,6 +2264,7 @@ int64_t timeout;
                 obj->owt = weight(obj);
             } else {
                 if (carried(obj)) {
+                    Sprintf(priority_debug_buf_3, "burn_object3: %d", obj->otyp);
                     useupall(obj);
                 } else {
                     /* clear migrating obj's destination code
@@ -2252,6 +2273,7 @@ int64_t timeout;
                         obj->owornmask = 0L;
                     Strcpy(debug_buf_2, "burn_object4");
                     obj_extract_self(obj);
+                    Sprintf(priority_debug_buf_4, "burn_object4: %d", obj->otyp);
                     obfree(obj, (struct obj *) 0);
                 }
                 obj = (struct obj *) 0;
@@ -2272,7 +2294,7 @@ int64_t timeout;
         break; /* case [otyp ==] candelabrum|tallow_candle|wax_candle */
 
     default:
-        impossible("burn_object: unexpeced obj %s", xname(obj));
+        impossible("burn_object: unexpected obj %s", xname(obj));
         break;
     }
     if (need_newsym)
@@ -2592,6 +2614,7 @@ int64_t timeout;
 
     //Destroy item
     if (carried(obj)) {
+        Sprintf(priority_debug_buf_3, "burn_object4: %d", obj->otyp);
         useupall(obj);
     }
     else {
@@ -2599,6 +2622,7 @@ int64_t timeout;
            so obfree won't think this item is worn */
         Strcpy(debug_buf_2, "unsummon_item");
         obj_extract_self(obj);
+        Sprintf(priority_debug_buf_4, "unsummon_item: %d", obj->otyp);
         obfree(obj, (struct obj*) 0);
     }
     obj = (struct obj*) 0;
@@ -2757,6 +2781,8 @@ do_storms()
             nomul(-3);
             multi_reason = "hiding from thunderstorm";
             nomovemsg = 0;
+            nomovemsg_attr = ATR_NONE;
+            nomovemsg_color = NO_COLOR;
         }
     } else
         You_hear("a rumbling noise.");
@@ -3029,6 +3055,9 @@ run_timers()
         if (curr->kind == TIMER_OBJECT)
         {
             (curr->arg.a_obj)->timed--;
+            Sprintf(priority_debug_buf_2, "run_timers: %d, %d", (curr->arg.a_obj)->otyp, (curr->arg.a_obj)->corpsenm);
+            Strcpy(priority_debug_buf_3, "run_timers");
+            Strcpy(priority_debug_buf_4, "run_timers");
         }
         else if (curr->kind == TIMER_MONSTER)
         {
@@ -4403,6 +4432,13 @@ boolean was_flying;
         {
             play_sfx_sound(SFX_PROTECTION_END_WARNING);
             Your_ex(ATR_NONE, CLR_MSG_ATTENTION, "skin feels less fiery than before.");
+        }
+        break;
+    case POLYMORPH_RESISTANCE:
+        if (!Polymorph_resistance)
+        {
+            play_sfx_sound(SFX_PROTECTION_END_WARNING);
+            You_feel_ex(ATR_NONE, CLR_MSG_ATTENTION, "more prone to change than before.");
         }
         break;
     default:

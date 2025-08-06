@@ -103,6 +103,8 @@ struct save_game_stats {
 #define SAVEFLAGS_NONE              0x00
 #define SAVEFLAGS_NON_SCORING       0x01
 #define SAVEFLAGS_TOURNAMENT_MODE   0x02
+#define SAVEFLAGS_FILETRACK_SUPPORT 0x04
+#define SAVEFLAGS_FILETRACK_ON      0x08
 
 struct save_game_data {
     char* playername;
@@ -113,5 +115,33 @@ struct save_game_data {
     struct save_game_stats gamestats;
 };
 
+/* Special view */
+enum special_view_types
+{
+    SPECIAL_VIEW_NONE = 0,
+    SPECIAL_VIEW_CHAT_MESSAGE,
+    SPECIAL_VIEW_SHOW_SPECIAL_EFFECT,
+    SPECIAL_VIEW_GUI_TIPS,
+    SPECIAL_VIEW_CRASH_DETECTED,
+    SPECIAL_VIEW_PANIC,
+    SPECIAL_VIEW_DEBUGLOG,
+    SPECIAL_VIEW_MESSAGE,
+    SPECIAL_VIEW_SELFIE,
+    SPECIAL_VIEW_HELP_DIR,
+    SPECIAL_VIEW_GUI_YN_CONFIRMATION_DEFAULT_N,
+    SPECIAL_VIEW_GUI_YN_CONFIRMATION_DEFAULT_Y,
+    SPECIAL_VIEW_SAVE_FILE_TRACKING_SAVE,
+    SPECIAL_VIEW_SAVE_FILE_TRACKING_LOAD,
+    MAX_SPECIAL_VIEW_TYPES
+};
+
+struct special_view_info {
+    enum special_view_types viewtype;
+    const char* text;
+    const char* title;
+    int attr;
+    int color;
+    int64_t time_stamp;
+};
 
 #endif /* LEV_H */

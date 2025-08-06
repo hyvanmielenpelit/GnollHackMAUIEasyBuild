@@ -63,7 +63,7 @@ const char* critical_strike_special_percentage_names[MAX_CRITICAL_STRIKE_SPECIAL
 };
 
 #define SCHAR_LIM 127
-#define NUMOBUF 12
+#define NUMOBUF 24
 
 STATIC_DCL char *FDECL(strprepend, (char *, const char *));
 STATIC_DCL short FDECL(rnd_otyp_by_wpnskill, (SCHAR_P));
@@ -129,6 +129,16 @@ nextobuf()
     return obufs[obufidx];
 }
 
+char*
+next_offset_init_obuf()
+{
+    char* buf = nextobuf() + PREFIXBUFSZ;
+    buf[0] = '\0';
+    buf[OBUFSZ - PREFIXBUFSZ - BUFSZ - 1] = '\0'; /* A zero in the middle of the buf to avoid overflows from strcat or eos() that accidently starts after intended zero at start */
+    buf[OBUFSZ - PREFIXBUFSZ - 1] = '\0'; /* Null termination fail-safe for strlen etc. */
+    return buf;
+}
+
 /* put the most recently allocated buffer back if possible */
 STATIC_OVL void
 releaseobuf(bufp)
@@ -148,7 +158,7 @@ char *
 obj_typename(otyp)
 register int otyp;
 {
-    char *buf = nextobuf() + PREFIXBUFSZ; /* Just in case */
+    char *buf = next_offset_init_obuf();
     struct objclass *ocl = &objects[otyp];
     const char *actualn = OBJ_NAME(*ocl);
     const char *dn = OBJ_DESCR(*ocl);
@@ -283,13 +293,26 @@ char *FDECL((*func), (OBJ_P));
     return str;
 }
 
+/* Just a copy of distant_name to differentiate in stack trace if obj is a fake object */
+char*
+distant_name2(obj, func)
+struct obj* obj;
+char* FDECL((*func), (OBJ_P));
+{
+    char* str;
+    ++distantname;
+    str = (*func)(obj);
+    --distantname;
+    return str;
+}
+
 /* convert player specified fruit name into corresponding fruit juice name
    ("slice of pizza" -> "pizza juice" rather than "slice of pizza juice") */
 char *
 fruitname(juice)
 boolean juice; /* whether or not to append " juice" to the name */
 {
-    char *buf = nextobuf() + PREFIXBUFSZ; /* Just in case */
+    char *buf = next_offset_init_obuf();
     const char *fruit_nam = strstri(pl_fruit, " of ");
 
     if (fruit_nam)
@@ -433,12 +456,19 @@ char*
 str_upper_start(str)
 const char* str;
 {
-    char* buf = nextobuf();
-    if(!str)
+    char* buf = 0;
+    if (!str)
+    {
+        buf = next_offset_init_obuf();
         Strcpy(buf, empty_string);
+    }
     else
-        Strcpy(buf, str);
-
+    {
+        char tempbuf[OBUFSZ]; /* Just in case str and buf happen to be randomly the same obuf */
+        Strcpy(tempbuf, str);
+        buf = next_offset_init_obuf();
+        Strcpy(buf, tempbuf);
+    }
     return upstart(buf);
 }
 
@@ -447,6 +477,13 @@ xname(obj)
 struct obj *obj;
 {
     return xname_flags(obj, CXN_NORMAL);
+}
+
+char*
+xname_bare(obj)
+struct obj* obj;
+{
+    return xname_flags(obj, CXN_BARE);
 }
 
 char *
@@ -458,7 +495,7 @@ unsigned cxn_flags; /* bitmask of CXN_xxx values */
 
     if (!obj)
     {
-        buf = nextobuf() + PREFIXBUFSZ;
+        buf = next_offset_init_obuf();
         Strcpy(buf, empty_string);
         return buf;
     }
@@ -482,8 +519,9 @@ unsigned cxn_flags; /* bitmask of CXN_xxx values */
     char anamebuf[OBUFSZ] = "";
     boolean makeThelower = FALSE;
     boolean hasnamed = FALSE;
+    boolean bare = (cxn_flags & CXN_BARE) != 0;
 
-    buf = nextobuf() + PREFIXBUFSZ; /* leave room for "17 -3 " */
+    buf = next_offset_init_obuf(); /* leave room for "17 -3 " */
 
     if (Role_if(PM_SAMURAI) && Japanese_item_name(typ))
         actualn = Japanese_item_name(typ);
@@ -519,8 +557,9 @@ unsigned cxn_flags; /* bitmask of CXN_xxx values */
             int len = (int)(p - actualn);
             if (len > 0 && (int)strlen(actualn) > len)
             {
-                Strncpy(actualn_startbuf, actualn, (size_t)len);
-                actualn_startbuf[len + 1] = '\0';
+                size_t copylen = min((size_t)len, sizeof(actualn_startbuf) - 1);
+                Strncpy(actualn_startbuf, actualn, (size_t)copylen);
+                actualn_startbuf[copylen] = '\0';
                 actualn += len;
             }
         }
@@ -554,14 +593,14 @@ unsigned cxn_flags; /* bitmask of CXN_xxx values */
             int len = (int)(p - dn);
             if (len > 0 && (int)strlen(dn) > len)
             {
-                Strncpy(dn_startbuf, dn, (size_t)len);
-                dn_startbuf[len + 1] = '\0';
+                size_t copylen = min((size_t)len, sizeof(dn_startbuf) - 1);
+                Strncpy(dn_startbuf, dn, copylen);
+                dn_startbuf[copylen] = '\0';
                 dn += len;
             }
         }
     }
 
-    buf[0] = '\0';
     /*
      * clean up known when it's tied to oc_name_known, eg after AD_DRIN
      * This is only required for unique objects since the article
@@ -648,6 +687,9 @@ unsigned cxn_flags; /* bitmask of CXN_xxx values */
 
     if (dknown && obj->oclass == POTION_CLASS && obj->odiluted)
         Strcat(buf, "diluted ");
+
+    if (dknown && (obj->otyp == SPE_NOVEL || obj->otyp == SPE_MANUAL) && obj->special_quality == -1)
+        Strcat(buf, "blank ");
 
     if (dknown && (obj->mythic_prefix || obj->mythic_suffix))
     {
@@ -770,7 +812,8 @@ unsigned cxn_flags; /* bitmask of CXN_xxx values */
                 Strcat(buf, dn_fullbuf);
         }
 
-        if (typ == FIGURINE && omndx != NON_PM) {
+        if (typ == FIGURINE && omndx != NON_PM && !bare)
+        {
             char anbuf[10]; /* [4] would be enough: 'a','n',' ','\0' */
 
             Sprintf(eos(buf), " of %s%s",
@@ -857,7 +900,7 @@ unsigned cxn_flags; /* bitmask of CXN_xxx values */
 
 
         //Strcpy(buf, actualn_fullbuf);
-        if (typ == TIN && known)
+        if (typ == TIN && known && !bare)
             tin_details(obj, omndx, buf);
         break;
     case COIN_CLASS:
@@ -900,7 +943,7 @@ unsigned cxn_flags; /* bitmask of CXN_xxx values */
         }
         break;
     case ROCK_CLASS:
-        if (typ == STATUE && omndx != NON_PM) 
+        if (typ == STATUE && omndx != NON_PM && !bare) 
         {
             char anbuf[10];
             char monbuf[BUFSZ * 2] = "";
@@ -1127,13 +1170,13 @@ struct obj *obj;
                         /* default is "on" for types which don't use it */
                         : !objects[otyp].oc_uses_known;
     bareobj.quan = 1L;         /* don't want plural */
-    bareobj.corpsenm = NON_PM; /* suppress statue and figurine details */
+    bareobj.corpsenm = obj->corpsenm; // NON_PM; /* suppress statue and figurine details */
     /* but suppressing fruit details leads to "bad fruit #0"
        [perhaps we should force "slime mold" rather than use xname?] */
     if (obj->otyp == SLIME_MOLD)
         bareobj.special_quality = obj->special_quality;
 
-    bufp = distant_name(&bareobj, xname); /* xname(&bareobj) */
+    bufp = distant_name(&bareobj, xname_bare); /* xname(&bareobj) */
     if (!strncmp(bufp, "uncursed ", 9))
         bufp += 9; /* Role_if(PM_PRIEST) */
 
@@ -1306,7 +1349,7 @@ char** attrs_ptr, ** colors_ptr;
     char tmpbuf[PREFIXBUFSZ + 1]; /* for when we have to add something at
                                 the start of prefix instead of the
                                 end (Strcat is used on the end) */
-    register char *bp = xname(obj);
+    char *bp = xname(obj);
 
     if (iflags.override_ID) {
         known = dknown = cknown = bknown = lknown = tknown = TRUE;
@@ -1789,7 +1832,8 @@ weapon_here:
                 Strcat(prefix, "unrotten ");
         }
 
-        if (obj->otyp == CORPSE) {
+        if (obj->otyp == CORPSE) 
+        {
             /* (quan == 1) => want corpse_xname() to supply article,
                (quan != 1) => already have count or "some" as prefix;
                "corpse" is already in the buffer returned by xname() */
@@ -1800,7 +1844,9 @@ weapon_here:
             Sprintf(prefix, "%s ", cxstr);
             /* avoid having doname(corpse) consume an extra obuf */
             releaseobuf(cxstr);
-        } else if (obj->otyp == EGG) {
+        }
+        else if (obj->otyp == EGG) 
+        {
 #if 0 /* corpses don't tell if they're stale either */
             if (known && stale_egg(obj))
                 Strcat(prefix, "stale ");
@@ -1825,6 +1871,14 @@ weapon_here:
     case GEM_CLASS:
         if (objects[obj->otyp].oc_enchantable && (obj->enchantment != 0 || obj->elemental_enchantment != 0 || obj->exceptionality != 0))
             goto weapon_here;
+        break;
+    case SPBOOK_CLASS:
+        if ((windowprocs.wincap2 & WC2_LIBRARY) != 0 && obj->otyp == SPE_MANUAL && iflags.found_manuals > 0 && obj->manualidx >= 0)
+        {
+            uint64_t bit = (uint64_t)1 << obj->manualidx;
+            if(iflags.found_manuals & bit)
+                Strcat(bp, " (already in your library)");
+        }
         break;
     }
 
@@ -2273,10 +2327,10 @@ struct obj *otmp;
 const char *adjective;
 unsigned cxn_flags; /* bitmask of CXN_xxx values */
 {
-    char *nambuf = nextobuf() + PREFIXBUFSZ;
+    char *nambuf = next_offset_init_obuf();
     int omndx = otmp->corpsenm;
     struct monst* mtmp = get_mtraits(otmp, FALSE);
-    boolean isfemale = (mtmp && mtmp->female) || is_female(&mons[omndx]);
+    boolean isfemale = (mtmp && mtmp->female) || (omndx > NON_PM && is_female(&mons[omndx]));
 
     boolean ignore_quan = (cxn_flags & CXN_SINGULAR) != 0,
             /* suppress "the" from "the unique monster corpse" */
@@ -2345,16 +2399,19 @@ unsigned cxn_flags; /* bitmask of CXN_xxx values */
     } 
     else 
     {
+        char adjectivebuf[OBUFSZ] = ""; /* Just in case adjective and buf happen to be randomly the same obuf */
+        Strcpy(adjectivebuf, adjective);
+
         /* adjective positioning depends upon format of monster name */
         if (possessive) /* Medusa's cursed partly eaten corpse */
-            Sprintf(eos(nambuf), "%s %s", mname, adjective);
+            Sprintf(eos(nambuf), "%s %s", mname, adjectivebuf);
         else /* cursed partly eaten troll corpse */
-            Sprintf(eos(nambuf), "%s %s", adjective, mname);
+            Sprintf(eos(nambuf), "%s %s", adjectivebuf, mname);
         /* in case adjective has a trailing space, squeeze it out */
         mungspaces(nambuf);
         /* doname() might include a count in the adjective argument;
            if so, don't prepend an article */
-        if (digit(*adjective))
+        if (digit(*adjectivebuf))
             any_prefix = FALSE;
     }
 
@@ -2401,8 +2458,11 @@ prepend_quan(quan, name)
 int64_t quan;
 const char* name; /* Should be already in plural */
 {
-    char* buf = nextobuf(); /* no prefix size addition needed here */
-    Sprintf(buf, "%lld %s", (long long)quan, name);
+    char namebuf[OBUFSZ] = ""; /* Just in case name and buf happen to be randomly the same obuf */
+    if (name)
+        Strcpy(namebuf, name);
+    char* buf = next_offset_init_obuf();
+    Sprintf(buf, "%lld %s", (long long)quan, namebuf);
     return buf;
 }
 
@@ -2414,6 +2474,89 @@ struct obj* obj;
         return obj->quan == 1 ? corpse_xname(obj, (const char*)0, CXN_ARTICLE) : prepend_quan(obj->quan, corpse_xname(obj, (const char*)0, CXN_NORMAL));
     return obj->oartifact && obj->aknown ? the(xname(obj)) : obj->quan != 1 ? prepend_quan(obj->quan, xname(obj)) : an(xname(obj));
 }
+
+/* Just a copy of aqcxname to differentiate in stack trace if obj is a fake object */
+char*
+aqcxname2(obj)
+struct obj* obj;
+{
+    if (obj->otyp == CORPSE)
+        return obj->quan == 1 ? corpse_xname(obj, (const char*)0, CXN_ARTICLE) : prepend_quan(obj->quan, corpse_xname(obj, (const char*)0, CXN_NORMAL));
+    return obj->oartifact && obj->aknown ? the(xname(obj)) : obj->quan != 1 ? prepend_quan(obj->quan, xname(obj)) : an(xname(obj));
+}
+
+char*
+aqcxname3(obj)
+struct obj* obj;
+{
+    if (obj->otyp == CORPSE)
+        return obj->quan == 1 ? corpse_xname(obj, (const char*)0, CXN_ARTICLE) : prepend_quan(obj->quan, corpse_xname(obj, (const char*)0, CXN_NORMAL));
+    return obj->oartifact && obj->aknown ? the(xname(obj)) : obj->quan != 1 ? prepend_quan(obj->quan, xname(obj)) : an(xname(obj));
+}
+
+char*
+aqcxname4(obj)
+struct obj* obj;
+{
+    if (obj->otyp == CORPSE)
+        return obj->quan == 1 ? corpse_xname(obj, (const char*)0, CXN_ARTICLE) : prepend_quan(obj->quan, corpse_xname(obj, (const char*)0, CXN_NORMAL));
+    return obj->oartifact && obj->aknown ? the(xname(obj)) : obj->quan != 1 ? prepend_quan(obj->quan, xname(obj)) : an(xname(obj));
+}
+
+char*
+aqcxname5(obj)
+struct obj* obj;
+{
+    if (obj->otyp == CORPSE)
+        return obj->quan == 1 ? corpse_xname(obj, (const char*)0, CXN_ARTICLE) : prepend_quan(obj->quan, corpse_xname(obj, (const char*)0, CXN_NORMAL));
+    return obj->oartifact && obj->aknown ? the(xname(obj)) : obj->quan != 1 ? prepend_quan(obj->quan, xname(obj)) : an(xname(obj));
+}
+
+char*
+aqcxname6(obj)
+struct obj* obj;
+{
+    if (obj->otyp == CORPSE)
+        return obj->quan == 1 ? corpse_xname(obj, (const char*)0, CXN_ARTICLE) : prepend_quan(obj->quan, corpse_xname(obj, (const char*)0, CXN_NORMAL));
+    return obj->oartifact && obj->aknown ? the(xname(obj)) : obj->quan != 1 ? prepend_quan(obj->quan, xname(obj)) : an(xname(obj));
+}
+
+char*
+aqcxname7(obj)
+struct obj* obj;
+{
+    if (obj->otyp == CORPSE)
+        return obj->quan == 1 ? corpse_xname(obj, (const char*)0, CXN_ARTICLE) : prepend_quan(obj->quan, corpse_xname(obj, (const char*)0, CXN_NORMAL));
+    return obj->oartifact && obj->aknown ? the(xname(obj)) : obj->quan != 1 ? prepend_quan(obj->quan, xname(obj)) : an(xname(obj));
+}
+
+char*
+aqcxname8(obj)
+struct obj* obj;
+{
+    if (obj->otyp == CORPSE)
+        return obj->quan == 1 ? corpse_xname(obj, (const char*)0, CXN_ARTICLE) : prepend_quan(obj->quan, corpse_xname(obj, (const char*)0, CXN_NORMAL));
+    return obj->oartifact && obj->aknown ? the(xname(obj)) : obj->quan != 1 ? prepend_quan(obj->quan, xname(obj)) : an(xname(obj));
+}
+
+char*
+aqcxname9(obj)
+struct obj* obj;
+{
+    if (obj->otyp == CORPSE)
+        return obj->quan == 1 ? corpse_xname(obj, (const char*)0, CXN_ARTICLE) : prepend_quan(obj->quan, corpse_xname(obj, (const char*)0, CXN_NORMAL));
+    return obj->oartifact && obj->aknown ? the(xname(obj)) : obj->quan != 1 ? prepend_quan(obj->quan, xname(obj)) : an(xname(obj));
+}
+
+char*
+aqcxname10(obj)
+struct obj* obj;
+{
+    if (obj->otyp == CORPSE)
+        return obj->quan == 1 ? corpse_xname(obj, (const char*)0, CXN_ARTICLE) : prepend_quan(obj->quan, corpse_xname(obj, (const char*)0, CXN_NORMAL));
+    return obj->oartifact && obj->aknown ? the(xname(obj)) : obj->quan != 1 ? prepend_quan(obj->quan, xname(obj)) : an(xname(obj));
+}
+
 
 char*
 thecxname(obj)
@@ -2453,7 +2596,7 @@ unsigned kxnflags;
 
     if (!obj)
     {
-        buf = nextobuf() + PREFIXBUFSZ; /* Just in case */
+        buf = next_offset_init_obuf();
         Strcpy(buf, empty_string);
         return buf;
     }
@@ -2494,17 +2637,17 @@ unsigned kxnflags;
 
     /* format the object */
     if (obj->otyp == CORPSE) {
-        buf = nextobuf() + PREFIXBUFSZ; /* Just in case */
+        buf = next_offset_init_obuf();
         Strcpy(buf, corpse_xname(obj, (const char *) 0, CXN_NORMAL));
     } else if (obj->otyp == SLIME_MOLD) {
         /* concession to "most unique deaths competition" in the annual
            devnull tournament, suppress player supplied fruit names because
            those can be used to fake other objects and dungeon features */
-        buf = nextobuf() + PREFIXBUFSZ; /* Just in case */
+        buf = next_offset_init_obuf();
         Sprintf(buf, "deadly slime mold%s", plur(obj->quan));
     } else if (obj->oclass == SPBOOK_CLASS && (kxnflags & KXNFLAGS_SPELL) != 0) {
         /* It is a spell rather than the book itself */
-        buf = nextobuf() + PREFIXBUFSZ; /* Just in case */
+        buf = next_offset_init_obuf();
         Sprintf(buf, "spell of %s", OBJ_NAME(objects[obj->otyp]));
     } else {
         buf = xname(obj);
@@ -2546,7 +2689,7 @@ size_t lenlimit;
         Strncpy(unamebuf, save_uname, sizeof unamebuf - 4);
         Strcpy(unamebuf + sizeof unamebuf - 4, "...");
         objects[obj->otyp].oc_uname = unamebuf;
-        releaseobuf(outbuf);
+        //releaseobuf(outbuf);
         outbuf = (*func)(obj);
         objects[obj->otyp].oc_uname = save_uname; /* restore called string */
         if (strlen(outbuf) <= lenlimit)
@@ -2559,7 +2702,7 @@ size_t lenlimit;
         Strncpy(onamebuf, save_oname, sizeof onamebuf - 4);
         Strcpy(onamebuf + sizeof onamebuf - 4, "...");
         ONAME(obj) = onamebuf;
-        releaseobuf(outbuf);
+        //releaseobuf(outbuf);
         outbuf = (*func)(obj);
         ONAME(obj) = save_oname; /* restore named string */
         if (strlen(outbuf) <= lenlimit)
@@ -2572,7 +2715,7 @@ size_t lenlimit;
         && strlen(save_oname) >= sizeof onamebuf) {
         objects[obj->otyp].oc_uname = unamebuf;
         ONAME(obj) = onamebuf;
-        releaseobuf(outbuf);
+        //releaseobuf(outbuf);
         outbuf = (*func)(obj);
         if (strlen(outbuf) <= lenlimit) {
             objects[obj->otyp].oc_uname = save_uname;
@@ -2586,12 +2729,12 @@ size_t lenlimit;
     save_obj = *obj;
     obj->bknown = obj->rknown = obj->greased = 0;
     obj->oeroded = obj->oeroded2 = 0;
-    releaseobuf(outbuf);
+    //releaseobuf(outbuf);
     outbuf = (*func)(obj);
     if (altfunc && strlen(outbuf) > lenlimit) {
         /* still long; use the alternate function (usually one of
            the jackets around minimal_xname()) */
-        releaseobuf(outbuf);
+        //releaseobuf(outbuf);
         outbuf = (*altfunc)(obj);
     }
     /* restore the object */
@@ -2659,14 +2802,17 @@ char *
 an(str)
 const char *str;
 {
-    char *buf = nextobuf() + PREFIXBUFSZ; /* Just in case */
-
-    if (!str || !*str) {
+    if (!str || !*str) 
+    {
         impossible("Alphabet soup: 'an(%s)'.", str ? "\"\"" : "<null>");
-        return strcpy(buf, "an []");
+        char* tbuf = next_offset_init_obuf();
+        return strcpy(tbuf, "an []");
     }
-    (void) just_an(buf, str);
-    return strcat(buf, str);
+    char strbuf[OBUFSZ]; /* Just in case str and buf happen to be randomly the same obuf */
+    Strcpy(strbuf, str);
+    char* buf = next_offset_init_obuf();
+    (void) just_an(buf, strbuf);
+    return strcat(buf, strbuf);
 }
 
 char *
@@ -2683,13 +2829,16 @@ char*
 an_prefix(str)
 const char* str;
 {
-    char* buf = nextobuf() + PREFIXBUFSZ; /* Just in case */
-
-    if (!str || !*str) {
+    if (!str || !*str) 
+    {
         impossible("Alphabet soup: 'an(%s)'.", str ? "\"\"" : "<null>");
-        return strcpy(buf, "an []");
+        char* tbuf = next_offset_init_obuf();
+        return strcpy(tbuf, "an []");
     }
-    return just_an(buf, str);
+    char strbuf[OBUFSZ]; /* Just in case str and buf happen to be randomly the same obuf */
+    Strcpy(strbuf, str);
+    char* buf = next_offset_init_obuf();
+    return just_an(buf, strbuf);
 }
 
 char*
@@ -2710,21 +2859,26 @@ char *
 the(str)
 const char *str;
 {
-    char *buf = nextobuf() + PREFIXBUFSZ; /* Just in case */
-    boolean insert_the = FALSE;
-
-    if (!str || !*str) {
+    if (!str || !*str) 
+    {
         impossible("Alphabet soup: 'the(%s)'.", str ? "\"\"" : "<null>");
-        return strcpy(buf, "the []");
+        char* tbuf = next_offset_init_obuf();
+        return strcpy(tbuf, "the []");
     }
-    if (!strncmpi(str, "the ", 4)) {
-        buf[0] = lowc(*str);
-        Strcpy(&buf[1], str + 1);
+
+    boolean insert_the = FALSE;
+    char strbuf[OBUFSZ]; /* Just in case str and buf happen to be randomly the same obuf */
+    Strcpy(strbuf, str);
+    char* buf = next_offset_init_obuf();
+
+    if (!strncmpi(strbuf, "the ", 4)) {
+        buf[0] = lowc(*strbuf);
+        Strcpy(&buf[1], strbuf + 1);
         return buf;
-    } else if (*str < 'A' || *str > 'Z'
+    } else if (*strbuf < 'A' || *strbuf > 'Z'
                /* treat named fruit as not a proper name, even if player
                   has assigned a capitalized proper name as his/her fruit */
-               || fruit_from_name(str, TRUE, (int *) 0)) {
+               || fruit_from_name(strbuf, TRUE, (int *) 0)) {
         /* not a proper name, needs an article */
         insert_the = TRUE;
     } else {
@@ -2733,16 +2887,16 @@ const char *str;
         size_t l;
 
         /* some objects have capitalized adjectives in their names */
-        if (((tmp = rindex(str, ' ')) != 0 || (tmp = rindex(str, '-')) != 0)
+        if (((tmp = rindex(strbuf, ' ')) != 0 || (tmp = rindex(strbuf, '-')) != 0)
             && (tmp[1] < 'A' || tmp[1] > 'Z')) {
             insert_the = TRUE;
-        } else if (tmp && index(str, ' ') < tmp) { /* has spaces */
+        } else if (tmp && index(strbuf, ' ') < tmp) { /* has spaces */
             /* it needs an article if the name contains "of" */
-            tmp = strstri(str, " of ");
-            named = strstri(str, " named ");
-            called = strstri(str, " called ");
-            entitled = strstri(str, " entitled ");
-            labeled = strstri(str, " labeled ");
+            tmp = strstri(strbuf, " of ");
+            named = strstri(strbuf, " named ");
+            called = strstri(strbuf, " called ");
+            entitled = strstri(strbuf, " entitled ");
+            labeled = strstri(strbuf, " labeled ");
             if (!named && entitled)
                 named = entitled;
             if (!named && labeled)
@@ -2753,8 +2907,8 @@ const char *str;
             if (tmp && (!named || tmp < named)) /* found an "of" */
                 insert_the = TRUE;
             /* stupid special case: lacks "of" but needs "the" */
-            else if (!named && (l = strlen(str)) >= 31
-                     && !strcmp(&str[l - 31],
+            else if (!named && (l = strlen(strbuf)) >= 31
+                     && !strcmp(&strbuf[l - 31],
                                 "Platinum Yendorian Express Card"))
                 insert_the = TRUE;
         }
@@ -2763,7 +2917,7 @@ const char *str;
         Strcpy(buf, "the ");
     else
         buf[0] = '\0';
-    Strcat(buf, str);
+    Strcat(buf, strbuf);
 
     return buf;
 }
@@ -2809,11 +2963,15 @@ const char *verb;
     /* leave off "your" for most of your artifacts, but prepend
      * "your" for unique objects and "foo of bar" quest artifacts */
     if (!carried(obj) || !obj_is_pname(obj)
-        || any_quest_artifact(obj)) {
-        char *outbuf = shk_your(nextobuf() + PREFIXBUFSZ, obj);
-        size_t space_left = OBUFSZ - 1 - strlen(outbuf);
-
-        s = strncat(outbuf, s, space_left);
+        || any_quest_artifact(obj))
+    {
+        char* buf = next_offset_init_obuf();
+        char *outbuf = shk_your(buf, obj);
+        int space_left = OBUFSZ - PREFIXBUFSZ - 1 - (int)strlen(outbuf);
+        if (space_left <= 0)
+            return s;
+        else
+            s = strncat(outbuf, s, (size_t)space_left);
     }
     return s;
 }
@@ -2868,10 +3026,13 @@ struct obj *obj;
     if (!carried(obj) || !obj_is_pname(obj)
         || any_quest_artifact(obj)) 
     {
-        char *outbuf = shk_your(nextobuf() + PREFIXBUFSZ, obj);
-        size_t space_left = OBUFSZ - 1 - strlen(outbuf);
-
-        s = strncat(outbuf, s, space_left);
+        char* buf = next_offset_init_obuf();
+        char *outbuf = shk_your(buf, obj);
+        int space_left = OBUFSZ - PREFIXBUFSZ - 1 - (int)strlen(outbuf);
+        if (space_left <= 0)
+            return s;
+        else
+            s = strncat(outbuf, s, (size_t)space_left);
     }
     else if (obj_is_pname(obj) || the_unique_obj(obj))
     {
@@ -2905,13 +3066,15 @@ char *
 ysimple_name(obj)
 struct obj *obj;
 {
-    char *outbuf = nextobuf() + PREFIXBUFSZ; /* Just in case */;
+    char* outbuf = next_offset_init_obuf();
     char *s = shk_your(outbuf, obj); /* assert( s == outbuf ); */
-    size_t space_left = OBUFSZ - PREFIXBUFSZ - 1 - strlen(s);
+    int space_left = OBUFSZ - PREFIXBUFSZ - 1 - (int)strlen(s);
 
     char* min_name = minimal_xname(obj);
-
-    return strncat(s, min_name, space_left);
+    if (space_left <= 0)
+        return min_name;
+    else
+        return strncat(s, min_name, (size_t)space_left);
 }
 
 /* capitalized variant of ysimple_name() */
@@ -2990,7 +3153,7 @@ struct obj *obj;
     char *outbuf;
 
     if (obj->oartifact) {
-        outbuf = nextobuf() + PREFIXBUFSZ; /* Just in case */;
+        outbuf = next_offset_init_obuf();
         Strcpy(outbuf, artiname(obj->oartifact));
         if (!strncmp(outbuf, "The ", 4))
             outbuf[0] = lowc(outbuf[0]);
@@ -3028,8 +3191,11 @@ const char *verb;
     if (!is_plural(otmp))
         return vtense((char *) 0, verb);
 
-    buf = nextobuf() + PREFIXBUFSZ; /* Just in case */;
-    Strcpy(buf, verb);
+    char verbbuf[OBUFSZ] = ""; /* Just in case verb and buf happen to be randomly the same obuf */
+    if (verb)
+        Strcpy(verbbuf, verb);
+    buf = next_offset_init_obuf();
+    Strcpy(buf, verbbuf);
     return buf;
 }
 
@@ -3052,7 +3218,10 @@ vtense(subj, verb)
 register const char *subj;
 register const char *verb;
 {
-    char *buf = nextobuf() + PREFIXBUFSZ, *bspot;
+    char verbbuf[OBUFSZ] = ""; /* Just in case str and buf happen to be randomly the same obuf */
+    if (verb)
+        Strcpy(verbbuf, verb);
+    char *buf = next_offset_init_obuf(), *bspot;
     size_t len, ltmp;
     const char *sp, *spot;
     const char *const *spec;
@@ -3107,18 +3276,18 @@ register const char *verb;
                     goto sing;
             }
 
-            return strcpy(buf, verb);
+            return strcpy(buf, verbbuf);
         }
         /*
          * 3rd person plural doesn't end in telltale 's';
          * 2nd person singular behaves as if plural.
          */
         if (!strcmpi(subj, "they") || !strcmpi(subj, "you"))
-            return strcpy(buf, verb);
+            return strcpy(buf, verbbuf);
     }
 
  sing:
-    Strcpy(buf, verb);
+    Strcpy(buf, verbbuf);
     len = (int) strlen(buf);
     bspot = buf + len - 1;
 
@@ -3321,20 +3490,24 @@ char *
 makeplural(oldstr)
 const char *oldstr;
 {
+    char oldbuf[OBUFSZ] = ""; /* Just in case oldstr and buf happen to be randomly the same obuf */
+    if (oldstr)
+        Strcpy(oldbuf, oldstr);
+    char* oldbufptr = oldbuf;
     register char *spot;
-    char lo_c, *str = nextobuf() + PREFIXBUFSZ; /* Just in case */;
+    char lo_c, *str = next_offset_init_obuf();
     const char *excess = (char *) 0;
     size_t len;
 
     if (oldstr)
-        while (*oldstr == ' ')
-            oldstr++;
-    if (!oldstr || !*oldstr) {
+        while (*oldbufptr == ' ')
+            oldbufptr++;
+    if (!oldstr || !*oldbufptr) {
         impossible("plural of null?");
         Strcpy(str, "s");
         return str;
     }
-    Strcpy(str, oldstr);
+    Strcpy(str, oldbufptr);
 
     /*
      * Skip changing "pair of" to "pairs of".  According to Webster, usual
@@ -3347,7 +3520,7 @@ const char *oldstr;
 
     /* look for "foo of bar" so that we can focus on "foo" */
     if ((spot = singplur_compound(str)) != 0) {
-        excess = oldstr + (int) (spot - str);
+        excess = oldbufptr + (int) (spot - str);
         *spot = '\0';
     } else
         spot = eos(str);
@@ -3486,24 +3659,28 @@ char *
 makesingular(oldstr)
 const char *oldstr;
 {
+    char oldbuf[OBUFSZ] = ""; /* Just in case oldstr and buf happen to be randomly the same obuf */
+    if (oldstr)
+        Strcpy(oldbuf, oldstr);
+    char* oldbufptr = oldbuf;
     register char *p, *bp;
     const char *excess = 0;
-    char *str = nextobuf() + PREFIXBUFSZ; /* Just in case */;
+    char *str = next_offset_init_obuf();
 
     if (oldstr)
-        while (*oldstr == ' ')
-            oldstr++;
-    if (!oldstr || !*oldstr) {
+        while (*oldbufptr == ' ')
+            oldbufptr++;
+    if (!oldstr || !*oldbufptr) {
         impossible("singular of null?");
         str[0] = '\0';
         return str;
     }
 
-    bp = strcpy(str, oldstr);
+    bp = strcpy(str, oldbufptr);
 
     /* check for "foo of bar" so that we can focus on "foo" */
     if ((p = singplur_compound(bp)) != 0) {
-        excess = oldstr + (int) (p - bp);
+        excess = oldbufptr + (int) (p - bp);
         *p = '\0';
     } else
         p = eos(bp);
@@ -3655,7 +3832,7 @@ boolean retry_inverted; /* optional extra "of" handling */
 {
     STATIC_VAR NEARDATA const char detect_SP[] = "detect ",
                                SP_detection[] = " detection";
-    char *p, buf[OBUFSZ];
+    char *p, buf[OBUFSZ] = "";
 
     /* ignore spaces & hyphens and upper/lower case when comparing */
     if (fuzzymatch(u_str, o_str, " -", TRUE))
@@ -4645,6 +4822,14 @@ boolean* removed_from_game_ptr;
         typ = SPE_BLANK_PAPER;
         goto typfnd;
     }
+    if (unlabeled && !BSTRCMPI(bp, p - 6, "manual")) {
+        typ = SPE_MANUAL;
+        goto typfnd;
+    }
+    if (unlabeled && !BSTRCMPI(bp, p - 5, "novel")) {
+        typ = SPE_NOVEL;
+        goto typfnd;
+    }
     /* specific food rather than color of gem/potion/spellbook[/scales] */
     if (!BSTRCMPI(bp, p - 6, "orange") && mntmp == NON_PM) {
         typ = ORANGE;
@@ -5029,7 +5214,7 @@ retry:
             int floorsubtype = IS_FLOOR(lev->typ) ? lev->subtyp : get_initial_location_subtype(ROOM);
             int floorvartype = IS_FLOOR(lev->typ) ? lev->vartyp : get_initial_location_vartype(ROOM, floorsubtype);
 
-            full_location_transform(x, y, FOUNTAIN, lsubtype, lvartype, lflags, 0, 0, 0, 0, 0, 0, 0, 0, floortype, floorsubtype, floorvartype, FALSE, lhorizontal, 0, 0, FALSE);
+            full_location_transform(x, y, FOUNTAIN, lsubtype, lvartype, lflags, lev->carpet_typ, lev->carpet_piece, lev->carpet_flags, 0, 0, 0, 0, 0, floortype, floorsubtype, floorvartype, FALSE, lhorizontal, 0, 0, FALSE);
 
             int ftyp = lev->subtyp; // (lev->fountainmask & FOUNTAIN_TYPE_MASK);
             pline("A %s.", ftyp == FOUNTAIN_MAGIC && lev->blessedftn ? "enchanted fountain" : fountain_type_text(ftyp));
@@ -5038,20 +5223,20 @@ retry:
         }
         if (!BSTRCMPI(bp, p - 6, "throne")) 
         {
-            create_simple_location(x, y, THRONE, 0, 0, 0, 0, IS_FLOOR(levl[x][y].typ) ? levl[x][y].typ : levl[x][y].floortyp, IS_FLOOR(levl[x][y].typ) ? levl[x][y].subtyp : levl[x][y].floorsubtyp, IS_FLOOR(levl[x][y].typ) ? levl[x][y].subtyp : levl[x][y].floorsubtyp, FALSE);
+            create_simple_location_with_carpet(x, y, THRONE, 0, 0, 0, levl[x][y].carpet_typ, levl[x][y].carpet_piece, levl[x][y].carpet_flags, 0, IS_FLOOR(levl[x][y].typ) ? levl[x][y].typ : levl[x][y].floortyp, IS_FLOOR(levl[x][y].typ) ? levl[x][y].subtyp : levl[x][y].floorsubtyp, IS_FLOOR(levl[x][y].typ) ? levl[x][y].subtyp : levl[x][y].floorsubtyp, FALSE);
             pline("A throne.");
             newsym(x, y);
             return (struct obj *) &zeroobj;
         }
         if (!BSTRCMPI(bp, p - 5, "anvil"))
         {
-            create_simple_location(x, y, ANVIL, 0, 0, 0, 0, IS_FLOOR(levl[x][y].typ) ? levl[x][y].typ : levl[x][y].floortyp, IS_FLOOR(levl[x][y].typ) ? levl[x][y].subtyp : levl[x][y].floorsubtyp, IS_FLOOR(levl[x][y].typ) ? levl[x][y].subtyp : levl[x][y].floorsubtyp, FALSE);
+            create_simple_location_with_carpet(x, y, ANVIL, 0, 0, 0, levl[x][y].carpet_typ, levl[x][y].carpet_piece, levl[x][y].carpet_flags, 0, IS_FLOOR(levl[x][y].typ) ? levl[x][y].typ : levl[x][y].floortyp, IS_FLOOR(levl[x][y].typ) ? levl[x][y].subtyp : levl[x][y].floorsubtyp, IS_FLOOR(levl[x][y].typ) ? levl[x][y].subtyp : levl[x][y].floorsubtyp, FALSE);
             pline("An anvil.");
             newsym(x, y);
             return (struct obj*)&zeroobj;
         }
         if (!BSTRCMPI(bp, p - 4, "sink")) {
-            create_simple_location(x, y, SINK, 0, 0, 0, 0, IS_FLOOR(levl[x][y].typ) ? levl[x][y].typ : levl[x][y].floortyp, IS_FLOOR(levl[x][y].typ) ? levl[x][y].subtyp : levl[x][y].floorsubtyp, IS_FLOOR(levl[x][y].typ) ? levl[x][y].subtyp : levl[x][y].floorsubtyp, FALSE);
+            create_simple_location_with_carpet(x, y, SINK, 0, 0, 0, levl[x][y].carpet_typ, levl[x][y].carpet_piece, levl[x][y].carpet_flags, 0, IS_FLOOR(levl[x][y].typ) ? levl[x][y].typ : levl[x][y].floortyp, IS_FLOOR(levl[x][y].typ) ? levl[x][y].subtyp : levl[x][y].floorsubtyp, IS_FLOOR(levl[x][y].typ) ? levl[x][y].subtyp : levl[x][y].floorsubtyp, FALSE);
             pline("A sink.");
             newsym(x, y);
             return (struct obj *) &zeroobj;
@@ -5090,7 +5275,7 @@ retry:
             else /* -1 - A_CHAOTIC, 0 - A_NEUTRAL, 1 - A_LAWFUL */
                 al = (!rn2(6)) ? A_NONE : rn2((int) A_LAWFUL + 2) - 1;
 
-            create_simple_location(x, y, ALTAR, 0, 0, Align2amask(al), 0, IS_FLOOR(levl[x][y].typ) ? levl[x][y].typ : levl[x][y].floortyp, IS_FLOOR(levl[x][y].typ) ? levl[x][y].subtyp : levl[x][y].floorsubtyp, IS_FLOOR(levl[x][y].typ) ? levl[x][y].subtyp : levl[x][y].floorsubtyp, FALSE);
+            create_simple_location_with_carpet(x, y, ALTAR, 0, 0, Align2amask(al), levl[x][y].carpet_typ, levl[x][y].carpet_piece, levl[x][y].carpet_flags, 0, IS_FLOOR(levl[x][y].typ) ? levl[x][y].typ : levl[x][y].floortyp, IS_FLOOR(levl[x][y].typ) ? levl[x][y].subtyp : levl[x][y].floorsubtyp, IS_FLOOR(levl[x][y].typ) ? levl[x][y].subtyp : levl[x][y].floorsubtyp, FALSE);
             pline("%s altar.", An(align_str(al)));
             newsym(x, y);
             return (struct obj *) &zeroobj;
@@ -5106,7 +5291,7 @@ retry:
         }
 
         if (!BSTRCMPI(bp, p - 7, "brazier")) {
-            create_simple_location(x, y, BRAZIER, 0, 0, 0, 0, IS_FLOOR(levl[x][y].typ) ? levl[x][y].typ : levl[x][y].floortyp, IS_FLOOR(levl[x][y].typ) ? levl[x][y].subtyp : levl[x][y].floorsubtyp, IS_FLOOR(levl[x][y].typ) ? levl[x][y].subtyp : levl[x][y].floorsubtyp, FALSE);
+            create_simple_location_with_carpet(x, y, BRAZIER, 0, 0, 0, levl[x][y].carpet_typ, levl[x][y].carpet_piece, levl[x][y].carpet_flags, 0, IS_FLOOR(levl[x][y].typ) ? levl[x][y].typ : levl[x][y].floortyp, IS_FLOOR(levl[x][y].typ) ? levl[x][y].subtyp : levl[x][y].floorsubtyp, IS_FLOOR(levl[x][y].typ) ? levl[x][y].subtyp : levl[x][y].floorsubtyp, FALSE);
             pline("%s.", IS_BRAZIER(lev->typ) ? "A brazier"
                 : "Can't place a brazier here");
             newsym(x, y);
@@ -5290,6 +5475,12 @@ retry:
     otmp = typ ? mksobj_with_flags(typ, TRUE, FALSE, MKOBJ_TYPE_WISHING, (struct monst*)0, MAT_NONE, 0L, 0L, mkflags) : mkobj(oclass, FALSE, MKOBJ_TYPE_WISHING);
     typ = otmp->otyp, oclass = otmp->oclass; /* what we actually got */
 
+    if (unlabeled && (typ == SPE_MANUAL || typ == SPE_NOVEL))
+    {
+        otmp->special_quality = -1;
+        otmp = oname(otmp, (const char*)0);
+    }
+
     if (islit && !otmp->lamplit && (is_lamp(otmp) || is_candle(otmp) || is_torch(otmp) || is_obj_candelabrum(otmp) || typ == POT_OIL))
     {
         place_object(otmp, u.ux, u.uy); /* make it viable light source */
@@ -5394,6 +5585,7 @@ retry:
         if (wetness)
             otmp->special_quality = wetness;
         break;
+    case MASTER_KEY:
     case SKELETON_KEY:
         break;
     case SLIME_MOLD:
@@ -5683,7 +5875,7 @@ retry:
             name = aname;
 
         /* 3.6 tribute - fix up novel */
-        if (objects[otmp->otyp].oc_class == SPBOOK_CLASS && objects[otmp->otyp].oc_subtyp == BOOKTYPE_NOVEL) {
+        if (objects[otmp->otyp].oc_class == SPBOOK_CLASS && objects[otmp->otyp].oc_subtyp == BOOKTYPE_NOVEL && otmp->novelidx >= 0) {
             const char *novelname;
 
             novelname = lookup_novel(name, &otmp->novelidx);
@@ -5692,7 +5884,7 @@ retry:
 
             otmp = oname(otmp, name);
         }
-        else if (objects[otmp->otyp].oc_class == SPBOOK_CLASS && objects[otmp->otyp].oc_subtyp == BOOKTYPE_MANUAL) {
+        else if (objects[otmp->otyp].oc_class == SPBOOK_CLASS && objects[otmp->otyp].oc_subtyp == BOOKTYPE_MANUAL && otmp->manualidx >= 0) {
             const char* manualname;
 
             manualname = lookup_manual(name, &otmp->manualidx);
@@ -5718,10 +5910,11 @@ retry:
 
     /* more wishing abuse: don't allow wishing for certain artifacts */
     /* and make them pay; charge them for the wish anyway! */
-    if ((is_quest_artifact(otmp)
-         || (otmp->oartifact && rn2(nartifact_exist()) > 1)) && !wiz_wishing)
+    int noartiexisting = nartifact_exist();
+    if ((is_quest_artifact(otmp) || (otmp->oartifact && noartiexisting > 2 && rn2(noartiexisting - 1) > 1)) && !wiz_wishing) /* noartiexisting - 1 now accounts for Gladstone at Mines' End in order to achieve similar probabilities as in NetHack */
     {
         artifact_exists(otmp, safe_oname(otmp), FALSE);
+        Sprintf(priority_debug_buf_4, "readobjnam: %d", otmp->otyp);
         obfree(otmp, (struct obj *) 0);
         otmp = (struct obj *) &zeroobj;
         pline("For a moment, you feel %s in your %s, but it disappears!",
@@ -5730,7 +5923,7 @@ retry:
     }
 
     if (halfeaten && otmp->oclass == FOOD_CLASS) {
-        if (otmp->otyp == CORPSE)
+        if (otmp->otyp == CORPSE && otmp->corpsenm >= LOW_PM)
             otmp->oeaten = mons[otmp->corpsenm].cnutrit;
         else
             otmp->oeaten = objects[otmp->otyp].oc_nutrition;
@@ -5995,7 +6188,7 @@ const char *lastR;
             Strcat(qbuf, bufp); /* formatted name fits */
         else
             Strcat(qbuf, lastR); /* use last resort */
-        releaseobuf(bufp);
+        //releaseobuf(bufp);
 
         if (qsuffix)
             Strcat(qbuf, qsuffix);
@@ -6082,7 +6275,7 @@ int otyp, sq;
 {
     int i;
     for (i = 0; key_special_descriptions[i].otyp > STRANGE_OBJECT; i++)
-        if (key_special_descriptions[i].otyp == otyp && key_special_descriptions[i].special_quality == sq)
+        if (key_special_descriptions[i].otyp == otyp && key_special_descriptions[i].special_quality == sq && key_special_descriptions[i].description)
             return key_special_descriptions[i].description;
 
     return "";
@@ -6114,7 +6307,7 @@ boolean normally_without_lock;
     {
         int i;
         for (i = 0; key_special_descriptions[i].otyp > STRANGE_OBJECT; i++)
-            if (key_special_descriptions[i].otyp == otyp && key_special_descriptions[i].special_quality == sq)
+            if (key_special_descriptions[i].otyp == otyp && key_special_descriptions[i].special_quality == sq && key_special_descriptions[i].lock_description)
                 return key_special_descriptions[i].lock_description;
 
         return "";
@@ -6473,6 +6666,24 @@ boolean use_symbols;
         attrs[len] = 0;
         colors[len] = 0;
     }
+}
+
+boolean
+is_obj_semi_transparent(otmp)
+struct obj* otmp;
+{
+    if (otmp && otmp->otyp == CORPSE)
+    {
+        if (has_omonst(otmp))
+        {
+            struct monst* mtmp = get_mtraits(otmp, FALSE);
+            if (mtmp && mtmp->data && (mtmp->data->mflags5 & M5_SEMI_TRANSPARENT) != 0)
+                return TRUE;
+        }
+        else if (otmp->corpsenm >= LOW_PM && (mons[otmp->corpsenm].mflags5 & M5_SEMI_TRANSPARENT) != 0)
+            return TRUE;
+    }
+    return FALSE;
 }
 
 /*objnam.c*/
