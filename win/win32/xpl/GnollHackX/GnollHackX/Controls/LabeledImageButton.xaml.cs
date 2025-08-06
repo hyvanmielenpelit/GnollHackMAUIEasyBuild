@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Globalization;
 using System.Linq;
 using System.Text;
+using System.Threading;
 using System.Threading.Tasks;
 #if GNH_MAUI
 using GnollHackX;
@@ -16,7 +17,7 @@ namespace GnollHackX.Controls
 #endif
 {
     [XamlCompilation(XamlCompilationOptions.Compile)]
-    public partial class LabeledImageButton : ContentView
+    public partial class LabeledImageButton : ContentView, IThreadSafeView
     {
         public static readonly BindableProperty LblTextProperty = BindableProperty.Create(nameof(LblText), typeof(string), typeof(LabeledImageButton), string.Empty);
         public static readonly BindableProperty LblFontSizeProperty = BindableProperty.Create(nameof(LblFontSize), typeof(double), typeof(LabeledImageButton), 9.0);
@@ -33,7 +34,7 @@ namespace GnollHackX.Controls
         public static readonly BindableProperty BtnMetaProperty = BindableProperty.Create(nameof(BtnMeta), typeof(bool), typeof(LabeledImageButton), false);
         public static readonly BindableProperty BtnCtrlProperty = BindableProperty.Create(nameof(BtnCtrl), typeof(bool), typeof(LabeledImageButton), false);
         public static readonly BindableProperty BtnCommandProperty = BindableProperty.Create(nameof(BtnCommand), typeof(int), typeof(LabeledImageButton), 0);
-
+        
         public event EventHandler<EventArgs> BtnClicked;
         public char BtnLetter
         {
@@ -126,9 +127,9 @@ namespace GnollHackX.Controls
         public int LandscapeButtonsInRow { get; set; } = 0;
         public int PortraitButtonsInRow { get; set; } = 0;
 
-        public void SetSideSize(double canvasViewWidth, double canvasViewHeight, bool usingDesktopButtons, bool usingSimpleCmdLayout, float inverseCanvasScale, float customScale)
+        public void SetSideSize(double canvasViewWidth, double canvasViewHeight, bool usingDesktopButtons, bool usingSimpleCmdLayout, int stoneButtonRows, float inverseCanvasScale, float customScale)
         {
-            double imgsidewidth = UIUtils.CalculateButtonSideWidth(canvasViewWidth, canvasViewHeight, usingDesktopButtons, usingSimpleCmdLayout, inverseCanvasScale, customScale, LandscapeButtonsInRow, PortraitButtonsInRow, false);
+            double imgsidewidth = UIUtils.CalculateButtonSideWidth(canvasViewWidth, canvasViewHeight, usingDesktopButtons, usingSimpleCmdLayout, stoneButtonRows, inverseCanvasScale, customScale, LandscapeButtonsInRow, PortraitButtonsInRow, false);
             double imgsideheight = imgsidewidth;
             double fontsize = 8.5 * imgsidewidth / 50.0;
             double fontsize_larger = 9.0 * imgsidewidth / 50.0;
@@ -145,6 +146,34 @@ namespace GnollHackX.Controls
             //    ViewImage.Source = ImageSource.FromResource(ImgSourcePath);
         }
 
+        private readonly object _propertyLock = new object();
+        private double _threadSafeWidth = 0;
+        private double _threadSafeHeight = 0;
+        private double _threadSafeX = 0;
+        private double _threadSafeY = 0;
+        private int _threadSafeIsVisible = 1;
+        private Thickness _threadSafeMargin = new Thickness();
+        WeakReference<IThreadSafeView> _threadSafeParent = null;
+
+        public double ThreadSafeWidth { get { return Interlocked.CompareExchange(ref _threadSafeWidth, 0.0, 0.0); } private set { Interlocked.Exchange(ref _threadSafeWidth, value); } }
+        public double ThreadSafeHeight { get { return Interlocked.CompareExchange(ref _threadSafeHeight, 0.0, 0.0); } private set { Interlocked.Exchange(ref _threadSafeHeight, value); } }
+        public double ThreadSafeX { get { return Interlocked.CompareExchange(ref _threadSafeX, 0.0, 0.0); } private set { Interlocked.Exchange(ref _threadSafeX, value); } }
+        public double ThreadSafeY { get { return Interlocked.CompareExchange(ref _threadSafeY, 0.0, 0.0); } private set { Interlocked.Exchange(ref _threadSafeY, value); } }
+        public bool ThreadSafeIsVisible { get { return Interlocked.CompareExchange(ref _threadSafeIsVisible, 0, 0) != 0; } private set { Interlocked.Exchange(ref _threadSafeIsVisible, value ? 1 : 0); } }
+        public Thickness ThreadSafeMargin { get { lock (_propertyLock) { return _threadSafeMargin; } } private set { lock (_propertyLock) { _threadSafeMargin = value; } } }
+        public WeakReference<IThreadSafeView> ThreadSafeParent { get { lock (_propertyLock) { return _threadSafeParent; } } private set { lock (_propertyLock) { _threadSafeParent = value; } } }
+
+        private void LabeledImageButton_SizeChanged(object sender, EventArgs e)
+        {
+            //lock (_propertyLock)
+            //{
+            //    _threadSafeWidth = Width;
+            //    _threadSafeHeight = Height;
+            //}
+            ThreadSafeWidth = Width;
+            ThreadSafeHeight = Height;
+        }
+
         public void SetButtonFocus()
         {
             ViewButton.Focus();
@@ -153,6 +182,21 @@ namespace GnollHackX.Controls
         public LabeledImageButton()
         {
             InitializeComponent();
+            SizeChanged += LabeledImageButton_SizeChanged;
+            PropertyChanged += LabeledImageButton_PropertyChanged;
+            lock (_propertyLock)
+            {
+                _threadSafeWidth = Width;
+                _threadSafeHeight = Height;
+                _threadSafeX = X;
+                _threadSafeY = Y;
+                _threadSafeIsVisible = IsVisible ? 1 : 0;
+                _threadSafeMargin = Margin;
+                if (Parent == null || !(Parent is IThreadSafeView))
+                    _threadSafeParent = null;
+                else
+                    _threadSafeParent = new WeakReference<IThreadSafeView>((IThreadSafeView)Parent);
+            }
             ViewButton.Clicked += ViewButton_Clicked;
 #if WINDOWS
             ViewButton.HandlerChanged += (s, e) =>
@@ -186,6 +230,46 @@ namespace GnollHackX.Controls
                 }
             };
 #endif
+        }
+
+        public void InvalidateSurface()
+        {
+            ViewImage.InvalidateSurface();
+        }
+
+        private void LabeledImageButton_PropertyChanged(object sender, System.ComponentModel.PropertyChangedEventArgs e)
+        {
+            if (e.PropertyName == nameof(IsVisible))
+            {
+                ThreadSafeIsVisible = IsVisible;
+            }
+            else if (e.PropertyName == nameof(Width))
+            {
+                ThreadSafeWidth = Width;
+            }
+            else if (e.PropertyName == nameof(Height))
+            {
+                ThreadSafeHeight = Height;
+            }
+            else if (e.PropertyName == nameof(X))
+            {
+                ThreadSafeX = X;
+            }
+            else if (e.PropertyName == nameof(Y))
+            {
+                ThreadSafeY = Y;
+            }
+            else if (e.PropertyName == nameof(Margin))
+            {
+                ThreadSafeMargin = Margin;
+            }
+            else if (e.PropertyName == nameof(Parent))
+            {
+                if (Parent == null || !(Parent is IThreadSafeView))
+                    ThreadSafeParent = null;
+                else
+                    ThreadSafeParent = new WeakReference<IThreadSafeView>((IThreadSafeView)Parent);
+            }
         }
 
 #if WINDOWS

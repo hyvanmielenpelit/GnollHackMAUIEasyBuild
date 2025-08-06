@@ -12,6 +12,7 @@ using Xamarin.Essentials;
 using System;
 using System.Collections.Generic;
 using System.Text;
+using System.Threading;
 
 #if GNH_MAUI
 namespace GnollHackM
@@ -26,7 +27,7 @@ namespace GnollHackX
         Fill = 2
     }
 
-    public class GHCachedImage : SKCanvasView
+    public class GHCachedImage : SKCanvasView, IThreadSafeView
     {
         public GHCachedImage() : base()
         {
@@ -35,6 +36,84 @@ namespace GnollHackX
                 InvalidateSurface();
             };
             PaintSurface += CustomCanvasView_PaintSurface;
+            SizeChanged += GHCachedImage_SizeChanged;
+            PropertyChanged += GHCachedImage_PropertyChanged;
+            lock (_propertyLock)
+            {
+                _threadSafeWidth = Width;
+                _threadSafeHeight = Height;
+                _threadSafeX = X;
+                _threadSafeY = Y;
+                _threadSafeIsVisible = IsVisible ? 1 : 0;
+                _threadSafeMargin = Margin;
+                if (Parent == null || !(Parent is IThreadSafeView))
+                    _threadSafeParent = null;
+                else
+                    _threadSafeParent = new WeakReference<IThreadSafeView>((IThreadSafeView)Parent);
+            }
+        }
+
+        private readonly object _propertyLock = new object();
+        private double _threadSafeWidth = 0;
+        private double _threadSafeHeight = 0;
+        private double _threadSafeX = 0;
+        private double _threadSafeY = 0;
+        private int _threadSafeIsVisible = 1;
+        private Thickness _threadSafeMargin = new Thickness();
+        WeakReference<IThreadSafeView> _threadSafeParent = null;
+
+        public double ThreadSafeWidth { get { return Interlocked.CompareExchange(ref _threadSafeWidth, 0.0, 0.0); } private set { Interlocked.Exchange(ref _threadSafeWidth, value); } }
+        public double ThreadSafeHeight { get { return Interlocked.CompareExchange(ref _threadSafeHeight, 0.0, 0.0); } private set { Interlocked.Exchange(ref _threadSafeHeight, value); } }
+        public double ThreadSafeX { get { return Interlocked.CompareExchange(ref _threadSafeX, 0.0, 0.0); } private set { Interlocked.Exchange(ref _threadSafeX, value); } }
+        public double ThreadSafeY { get { return Interlocked.CompareExchange(ref _threadSafeY, 0.0, 0.0); } private set { Interlocked.Exchange(ref _threadSafeY, value); } }
+        public bool ThreadSafeIsVisible { get { return Interlocked.CompareExchange(ref _threadSafeIsVisible, 0, 0) != 0; } private set { Interlocked.Exchange(ref _threadSafeIsVisible, value ? 1 : 0); } }
+        public Thickness ThreadSafeMargin { get { lock (_propertyLock) { return _threadSafeMargin; } } private set { lock (_propertyLock) { _threadSafeMargin = value; } } }
+        public WeakReference<IThreadSafeView> ThreadSafeParent { get { lock (_propertyLock) { return _threadSafeParent; } } private set { lock (_propertyLock) { _threadSafeParent = value; } } }
+
+        private void GHCachedImage_PropertyChanged(object sender, System.ComponentModel.PropertyChangedEventArgs e)
+        {
+            if (e.PropertyName == nameof(IsVisible))
+            {
+                ThreadSafeIsVisible = IsVisible;
+            }
+            else if (e.PropertyName == nameof(Width))
+            {
+                ThreadSafeWidth = Width;
+            }
+            else if (e.PropertyName == nameof(Height))
+            {
+                ThreadSafeHeight = Height;
+            }
+            else if (e.PropertyName == nameof(X))
+            {
+                ThreadSafeX = X;
+            }
+            else if (e.PropertyName == nameof(Y))
+            {
+                ThreadSafeY = Y;
+            }
+            else if (e.PropertyName == nameof(Margin))
+            {
+                ThreadSafeMargin = Margin;
+            }
+            else if (e.PropertyName == nameof(Parent))
+            {
+                if (Parent == null || !(Parent is IThreadSafeView))
+                    ThreadSafeParent = null;
+                else
+                    ThreadSafeParent = new WeakReference<IThreadSafeView>((IThreadSafeView)Parent);
+            }
+        }
+
+        private void GHCachedImage_SizeChanged(object sender, EventArgs e)
+        {
+            //lock (_propertyLock)
+            //{
+            //    _threadSafeWidth = Width;
+            //    _threadSafeHeight = Height;
+            //}
+            ThreadSafeWidth = Width;
+            ThreadSafeHeight = Height;
         }
 
         public bool CacheImage { get; set; } = true;
@@ -51,12 +130,12 @@ namespace GnollHackX
             string sourcePath = newValue as string;
             if (img != null)
             {
-                lock (img._sourceBitmapLock)
+                //lock (img._sourceBitmapLock)
                 {
                     if (sourcePath != null && sourcePath != "")
-                        img._sourceBitmap = GHApp.GetCachedImageSourceBitmap(sourcePath, img.CacheImage);
+                        img.SourceBitmap = GHApp.GetCachedImageSourceBitmap(sourcePath, img.CacheImage);
                     else
-                        img._sourceBitmap = null;
+                        img.SourceBitmap = null;
                 }
                 img.InvalidateSurface();
             }
@@ -90,13 +169,13 @@ namespace GnollHackX
             _StopAnimation = true;
         }
 
-        private readonly object _stopAnimationLock = new object();
-        private bool _stopAnimation = false;
-        private bool _StopAnimation { get { lock (_stopAnimationLock) { return _stopAnimation; } } set { lock (_stopAnimationLock) { _stopAnimation = value; } } }
+        //private readonly object _stopAnimationLock = new object();
+        private int _stopAnimation = 0;
+        private bool _StopAnimation { get { return Interlocked.CompareExchange(ref _stopAnimation, 0, 0) != 0; } set { Interlocked.Exchange(ref _stopAnimation, value ? 1 : 0); } }
 
-        private readonly object _timerOnLock = new object();
-        private bool _timerOn = false;
-        private bool _TimerOn { get { lock (_timerOnLock) { return _timerOn; } } set { lock (_timerOnLock) { _timerOn = value; } } }
+        //private readonly object _timerOnLock = new object();
+        private int _timerOn = 0;
+        private bool _TimerOn { get { return Interlocked.CompareExchange(ref _timerOn, 0, 0) != 0; } set { Interlocked.Exchange(ref _timerOn, value ? 1 : 0); } }
 
         public void CheckStartAnimation()
         {
@@ -118,7 +197,7 @@ namespace GnollHackX
                     anim = tile < GHApp.Tile2Animation.Length ? GHApp.Tile2Animation[tile] : (short)0;
                 //}
 
-                long _refreshFrequency = (long)Math.Min(60, UIUtils.GetAuxiliaryCanvasAnimationFrequency());
+                long _refreshFrequency = (long)Math.Min(60, UIUtils.GetGeneralAnimationFrequency());
                 if(anim > 0 &&  !_TimerOn)
                 {
                     _StopAnimation = false;
@@ -240,16 +319,18 @@ namespace GnollHackX
         }
 
 
-        private readonly object _sourceBitmapLock = new object();
+        //private readonly object _sourceBitmapLock = new object();
         private SKImage _sourceBitmap = null;
+        private SKImage SourceBitmap { get { return Interlocked.CompareExchange(ref _sourceBitmap, null, null); } set { Interlocked.Exchange(ref _sourceBitmap, value); } }
 
         private void CustomCanvasView_PaintSurface(object sender, SKPaintSurfaceEventArgs e)
         {
             SKSurface surface = e.Surface;
             SKCanvas canvas = surface.Canvas;
+            SKImageInfo info = e.Info;
             canvas.Clear();
-            float canvaswidth = CanvasSize.Width;
-            float canvasheight = CanvasSize.Height;
+            float canvaswidth = info.Width;
+            float canvasheight = info.Height;
             if (canvaswidth <= 0 || canvasheight <= 0)
                 return;
 
@@ -257,15 +338,15 @@ namespace GnollHackX
             {
                 ActiveGlyphImageSource.Width = (int)canvaswidth;
                 ActiveGlyphImageSource.Height = (int)canvasheight;
-                ActiveGlyphImageSource.DrawOnCanvas(canvas, false, false, false);
+                ActiveGlyphImageSource.DrawOnCanvas(canvas, false, false, false, GHApp.FixRects);
             }
             else
             {
-                SKImage targetBitmap = null;
-                lock (_sourceBitmapLock)
-                {
-                    targetBitmap = _sourceBitmap;
-                }
+                SKImage targetBitmap = SourceBitmap;
+                //lock (_sourceBitmapLock)
+                //{
+                //    targetBitmap = _sourceBitmap;
+                //}
                 if (targetBitmap == null)
                     return;
 

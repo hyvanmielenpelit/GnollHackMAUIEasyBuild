@@ -11,13 +11,8 @@ using GnollHackX;
 #if GNH_MAUI
 using SkiaSharp.Views.Maui;
 using SkiaSharp.Views.Maui.Controls;
-using Microsoft.Maui.Controls;
-using static System.Collections.Specialized.BitVector32;
-
-
 
 #if WINDOWS
-using Microsoft.UI.Xaml;
 using Microsoft.UI.Input;
 #endif
 
@@ -27,25 +22,32 @@ using Xamarin.Forms;
 using Xamarin.Forms.Xaml;
 using GnollHackX.Pages.Game;
 using SkiaSharp.Views.Forms;
+using Xamarin.Essentials;
+using System.Threading;
 
 namespace GnollHackX.Controls
 #endif
 {
     [XamlCompilation(XamlCompilationOptions.Compile)]
-    public partial class SwitchableCanvasView : ContentView
+    public partial class SwitchableCanvasView : ContentView, IThreadSafeView
     {
-        private object _glLock = new object();
-        private bool _useGL = false;
+        //private object _glLock = new object();
+        private int _useGL = 0;
         private SKGLView internalGLView = null;
 
         public bool UseGL 
-        {   get { lock (_glLock) { return _useGL; } }
+        {   get
+            {
+                //lock (_glLock) { return _useGL; }
+                return Interlocked.CompareExchange(ref _useGL, 0, 0) != 0;
+            }
             set
             {
-                lock(_glLock)
-                {
-                    _useGL = value;
-                }
+                Interlocked.Exchange(ref _useGL, value ? 1 : 0);
+                //lock(_glLock)
+                //{
+                //    _useGL = value;
+                //}
                 if(HasGL)
                 {
                     internalCanvasView.IsVisible = !value;
@@ -70,7 +72,8 @@ namespace GnollHackX.Controls
                     VerticalOptions = LayoutOptions.Fill,
                 };
                 internalGLView.PaintSurface += internalGLView_PaintSurface;
-                internalGLView.Touch += internalCanvasView_Touch;
+                internalGLView.Touch += internalGLView_Touch;
+                //internalGLView.PropertyChanged += internalGLView_PropertyChanged;
 #if WINDOWS
                 internalGLView.HandlerChanged += (s, e) =>
                 {
@@ -106,6 +109,128 @@ namespace GnollHackX.Controls
             {
                 RootGrid.Children.Add(internalGLView);
             }
+            lock (_propertyLock)
+            {
+                _threadSafeWidth = Width;
+                _threadSafeHeight = Height;
+                _threadSafeX = X;
+                _threadSafeY = Y;
+                _threadSafeIsVisible = IsVisible ? 1 : 0;
+                _threadSafeMargin = Margin;
+                if (Parent == null || !(Parent is IThreadSafeView))
+                    _threadSafeParent = null;
+                else
+                    _threadSafeParent = new WeakReference<IThreadSafeView>((IThreadSafeView)Parent);
+                //_threadSafeInternalCanvasSize = internalCanvasView.CanvasSize;
+                //if (HasGL)
+                //    _threadSafeInternalGLCanvasSize = internalGLView.CanvasSize;
+            }
+            SizeChanged += SwitchableCanvasView_SizeChanged;
+            PropertyChanged += SwitchableCanvasView_PropertyChanged;
+        }
+
+        private void SwitchableCanvasView_PropertyChanged(object sender, System.ComponentModel.PropertyChangedEventArgs e)
+        {
+            if (e.PropertyName == nameof(IsVisible))
+            {
+                ThreadSafeIsVisible = IsVisible;
+            }
+            else if (e.PropertyName == nameof(Width))
+            {
+                ThreadSafeWidth = Width;
+            }
+            else if (e.PropertyName == nameof(Height))
+            {
+                ThreadSafeHeight = Height;
+            }
+            else if (e.PropertyName == nameof(X))
+            {
+                ThreadSafeX = X;
+            }
+            else if (e.PropertyName == nameof(Y))
+            {
+                ThreadSafeY = Y;
+            }
+            else if (e.PropertyName == nameof(Margin))
+            {
+                ThreadSafeMargin = Margin;
+            }
+            else if (e.PropertyName == nameof(Parent))
+            {
+                if (Parent == null || !(Parent is IThreadSafeView))
+                    ThreadSafeParent = null;
+                else
+                    ThreadSafeParent = new WeakReference<IThreadSafeView>((IThreadSafeView)Parent);
+            }
+        }
+
+        //private void internalCanvasView_PropertyChanged(object sender, System.ComponentModel.PropertyChangedEventArgs e)
+        //{
+        //    if (!HasGL || !UseGL)
+        //    {
+        //        if (e.PropertyName == nameof(internalCanvasView.CanvasSize))
+        //        {
+        //            lock (_propertyLock)
+        //            {
+        //                _threadSafeInternalCanvasSize = internalCanvasView.CanvasSize;
+        //            }
+        //        }
+        //    }
+        //}
+
+        //private void internalGLView_PropertyChanged(object sender, System.ComponentModel.PropertyChangedEventArgs e)
+        //{
+        //    if (HasGL)
+        //    {
+        //        if (e.PropertyName == nameof(internalGLView.CanvasSize))
+        //        {
+        //            lock (_propertyLock)
+        //            {
+        //                _threadSafeInternalGLCanvasSize = internalGLView.CanvasSize;
+        //            }
+        //        }
+        //    }
+        //}
+
+        private readonly object _propertyLock = new object();
+        private double _threadSafeWidth = 0;
+        private double _threadSafeHeight = 0;
+        private double _threadSafeX = 0;
+        private double _threadSafeY = 0;
+        private int _threadSafeIsVisible = 1;
+        private Thickness _threadSafeMargin = new Thickness();
+        WeakReference<IThreadSafeView> _threadSafeParent = null;
+        //private SKSize _threadSafeInternalCanvasSize = new SKSize(0, 0);
+        //private SKSize _threadSafeInternalGLCanvasSize = new SKSize(0, 0);
+
+        public double ThreadSafeWidth { get { return Interlocked.CompareExchange(ref _threadSafeWidth, 0.0, 0.0); } private set { Interlocked.Exchange(ref _threadSafeWidth, value); } }
+        public double ThreadSafeHeight { get { return Interlocked.CompareExchange(ref _threadSafeHeight, 0.0, 0.0); } private set { Interlocked.Exchange(ref _threadSafeHeight, value); } }
+        public double ThreadSafeX { get { return Interlocked.CompareExchange(ref _threadSafeX, 0.0, 0.0); } private set { Interlocked.Exchange(ref _threadSafeX, value); } }
+        public double ThreadSafeY { get { return Interlocked.CompareExchange(ref _threadSafeY, 0.0, 0.0); } private set { Interlocked.Exchange(ref _threadSafeY, value); } }
+        public bool ThreadSafeIsVisible { get { return Interlocked.CompareExchange(ref _threadSafeIsVisible, 0, 0) != 0; } private set { Interlocked.Exchange(ref _threadSafeIsVisible, value ? 1 : 0); } }
+        public Thickness ThreadSafeMargin { get { lock (_propertyLock) { return _threadSafeMargin; } } private set { lock (_propertyLock) { _threadSafeMargin = value; } } }
+        public WeakReference<IThreadSafeView> ThreadSafeParent { get { lock (_propertyLock) { return _threadSafeParent; } } private set { lock (_propertyLock) { _threadSafeParent = value; } } }
+        
+        //public SKSize ThreadSafeCanvasSize { 
+        //    get 
+        //    { 
+        //        bool usingGL = UseGL && HasGL; 
+        //        lock (_propertyLock) 
+        //        { 
+        //            return usingGL ? _threadSafeInternalGLCanvasSize : _threadSafeInternalCanvasSize; 
+        //        } 
+        //    }  
+        //}
+
+        private void SwitchableCanvasView_SizeChanged(object sender, EventArgs e)
+        {
+            //lock (_propertyLock)
+            //{
+            //    _threadSafeWidth = Width;
+            //    _threadSafeHeight = Height;
+            //}
+            ThreadSafeWidth = Width;
+            ThreadSafeHeight = Height;
         }
 
         public SKSize CanvasSize { get { return UseGL && HasGL ? internalGLView.CanvasSize : internalCanvasView.CanvasSize; } }
@@ -138,7 +263,7 @@ namespace GnollHackX.Controls
         {
             if (UseGL && HasGL)
             {
-#if WINDOWS
+#if false
                 if(GHApp.WindowsXamlWindow != null)
                 {
                     GHApp.WindowsXamlWindow.DispatcherQueue?.TryEnqueue(Microsoft.UI.Dispatching.DispatcherQueuePriority.High, () => 
@@ -152,7 +277,7 @@ namespace GnollHackX.Controls
                         {
                             Debug.WriteLine(ex);    
                         }
-#if WINDOWS
+#if false
                     });
                 }
 #endif
@@ -192,9 +317,19 @@ namespace GnollHackX.Controls
             PaintSurface?.Invoke(sender, e);
         }
 
+        private bool _canvasTouchThreadChecked = false;
         private void internalCanvasView_Touch(object sender, SKTouchEventArgs e)
         {
-            Touch?.Invoke(sender, e);
+            bool isCanvasOnMainThread = MainThread.IsMainThread;
+            if (!_canvasTouchThreadChecked && !isCanvasOnMainThread)
+            {
+                _canvasTouchThreadChecked = true;
+                GHApp.MaybeWriteGHLog("internalCanvasView_Touch not on main thread!");
+            }
+            MainThread.BeginInvokeOnMainThread(() =>
+            {
+                Touch?.Invoke(sender, e);
+            });
         }
 
         private bool _firstDraw = true;
@@ -315,15 +450,32 @@ namespace GnollHackX.Controls
                     GHApp.CurrentGPUCacheSize = ResourceCacheLimit;
             }
 
+#if GNH_MAUI
+            SKPaintSurfaceEventArgs convargs = new SKPaintSurfaceEventArgs(e.Surface, e.Info);
+#else
             SKImageInfo info = new SKImageInfo();
             info.ColorType = e.ColorType;
+            info.Width = e.BackendRenderTarget?.Width ?? 0;
+            info.Height = e.BackendRenderTarget?.Height ?? 0;
             SKPaintSurfaceEventArgs convargs = new SKPaintSurfaceEventArgs(e.Surface, info);
+#endif
             PaintSurface?.Invoke(sender, convargs);
         }
 
+        private bool _glTouchThreadChecked = false;
+
         private void internalGLView_Touch(object sender, SKTouchEventArgs e)
         {
-            Touch?.Invoke(sender, e);
+            bool isCanvasOnMainThread = MainThread.IsMainThread;
+            if (!_glTouchThreadChecked && !isCanvasOnMainThread)
+            {
+                _glTouchThreadChecked = true;
+                GHApp.MaybeWriteGHLog("internalGLView_Touch not on main thread!");
+            }
+            MainThread.BeginInvokeOnMainThread(() =>
+            {
+                Touch?.Invoke(sender, e);
+            });
         }
 
         public GamePage _gamePage;
@@ -331,14 +483,14 @@ namespace GnollHackX.Controls
 
         public GHWindow GHWindow { get; set; }
         public ghmenu_styles MenuStyle { get; set; }
-        public readonly object MenuItemLock = new object();
+        //public readonly object MenuItemLock = new object();
 
         private ObservableCollection<GHMenuItem> _GHMenuItems = null;
-        public ObservableCollection<GHMenuItem> MenuItems { get { return _GHMenuItems; } set { _GHMenuItems = value; } }
+        public ObservableCollection<GHMenuItem> MenuItems { get { return Interlocked.CompareExchange(ref _GHMenuItems, null, null); } set { Interlocked.Exchange(ref _GHMenuItems, value); } }
 
-        public readonly object TextItemLock = new object();
+        //public readonly object TextItemLock = new object();
         private List<GHPutStrItem> _GHPutStrItems = null;
-        public List<GHPutStrItem> PutStrItems { get { return _GHPutStrItems; } set { _GHPutStrItems = value; } }
+        public List<GHPutStrItem> PutStrItems { get { return Interlocked.CompareExchange(ref _GHPutStrItems, null, null); } set { Interlocked.Exchange(ref _GHPutStrItems, value); } } //{ get { return _GHPutStrItems; } set { _GHPutStrItems = value; } }
 
         public SelectionMode SelectionHow { get; set; }
         public int SelectionIndex { get; set; }
@@ -441,54 +593,20 @@ namespace GnollHackX.Controls
             set { SetValue(GeneralAnimationCounterProperty, value); }
         }
 
-        private long _tickCounter = 0L;
+        //private long _tickCounter = 0L;
 
         protected override void OnPropertyChanged(string propertyName = null)
         {
             base.OnPropertyChanged(propertyName);
-            if (!IsVisible || (_parentGrid != null && !_parentGrid.IsVisible))
-                return;
-            if (_gamePage != null)
+
+            if (_gamePage != null && propertyName == nameof(GeneralAnimationCounter))
             {
-                _tickCounter++;
-                _tickCounter = _tickCounter % GHConstants.MaxRefreshRate;
-                int auxRefreshRate = UIUtils.GetAuxiliaryCanvasAnimationFrequency();
-                int mainfps = UIUtils.GetMainCanvasAnimationFrequency(_gamePage.MapRefreshRate);
-                int divisor = Math.Max(1, (int)Math.Round((double)auxRefreshRate / (double)mainfps, 0));
-                switch (CanvasType)
-                {
-                    case CanvasTypes.MainCanvas:
-                        {
-                            _gamePage.UpdateMainCanvas();
-                            break;
-                        }
-                    case CanvasTypes.CommandCanvas:
-                        {
-                            _gamePage.UpdateCommandCanvas();
-                            break;
-                        }
-                    case CanvasTypes.MenuCanvas:
-                        {
-                            if (_tickCounter % divisor == 0)
-                                _gamePage.IncrementCounters();
+                if (!IsVisible || (_parentGrid != null && !_parentGrid.IsVisible))
+                    return;
 
-                            _gamePage.UpdateMenuCanvas();
-                            break;
-                        }
-                    case CanvasTypes.TextCanvas:
-                        {
-                            if (_tickCounter % divisor == 0)
-                                _gamePage.IncrementCounters();
-
-                            _gamePage.UpdateTextCanvas();
-                            break;
-                        }
-                    default:
-                        break;
-                }
+                _gamePage.RenderCanvasByCanvasType(CanvasType);
             }
         }
-
 
 #if GNH_MAUI
         protected override void OnHandlerChanged()
@@ -530,9 +648,9 @@ namespace GnollHackX.Controls
 #if WINDOWS
         private void View_PointerWheelChanged(object sender, Microsoft.UI.Xaml.Input.PointerRoutedEventArgs e)
         {
-            if(sender is UIElement)
+            if(sender is Microsoft.UI.Xaml.UIElement)
             {
-                var delta = e.GetCurrentPoint((UIElement)sender).Properties.MouseWheelDelta;
+                var delta = e.GetCurrentPoint((Microsoft.UI.Xaml.UIElement)sender).Properties.MouseWheelDelta;
                 if (delta != 0)
                 {
                     MainThread.BeginInvokeOnMainThread(() =>
@@ -570,7 +688,7 @@ namespace GnollHackX.Controls
             {
                 PointerPoint point = e.GetCurrentPoint(element);
                 float canvasWidth = CanvasSize.Width;
-                float scale = canvasWidth / Math.Max(1.0f, (float)Width);
+                float scale = canvasWidth / Math.Max(1.0f, (float)ThreadSafeWidth);
                 SKPoint pointerPosition = point == null ? new SKPoint() : new SKPoint((float)point.Position.X * scale, (float)point.Position.Y * scale);
                 SKTouchEventArgs args = new SKTouchEventArgs(-1, action, pointerPosition, false);
                 if(MousePointer != null)

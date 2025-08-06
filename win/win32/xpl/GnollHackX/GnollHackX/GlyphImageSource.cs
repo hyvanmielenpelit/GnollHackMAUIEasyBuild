@@ -268,8 +268,10 @@ namespace GnollHackX
                     Height = 1;
                 }
                 var bitmaptmp = new SKBitmap(Width, Height, SKImageInfo.PlatformColorType, SKAlphaType.Premul);
-                var canvastmp = new SKCanvas(bitmaptmp);
-                canvastmp.Clear(SKColors.Transparent);
+                using (var canvastmp = new SKCanvas(bitmaptmp))
+                {
+                    canvastmp.Clear(SKColors.Transparent);
+                }
                 var skImagetmp = SKImage.FromBitmap(bitmaptmp);
                 var resulttmp = skImagetmp.Encode(SKEncodedImageFormat.Png, 100).AsStream();
                 return resulttmp;
@@ -280,10 +282,11 @@ namespace GnollHackX
             DoAutoSize();
 
             var bitmap = new SKBitmap(Width, Height, SKImageInfo.PlatformColorType, SKAlphaType.Premul);
-            var canvas = new SKCanvas(bitmap);
-            canvas.Clear(SKColors.Transparent);
-
-            DrawOnCanvas(canvas, false, false, false);
+            using (var canvas = new SKCanvas(bitmap))
+            {
+                canvas.Clear(SKColors.Transparent);
+                DrawOnCanvas(canvas, false, false, false, GHApp.FixRects);
+            }
 
             var skImage = SKImage.FromBitmap(bitmap);            
             var result = skImage.Encode(SKEncodedImageFormat.Png, 100).AsStream();
@@ -334,7 +337,7 @@ namespace GnollHackX
             }
         }
 
-        public void DrawOnCanvas(SKCanvas canvas, bool usingGL, bool isHighlighted, bool highFilterQuality)
+        public void DrawOnCanvas(SKCanvas canvas, bool usingGL, bool isHighlighted, bool highFilterQuality, bool fixRects)
         {
             int signed_glyph = Glyph;
             int abs_glyph = Math.Abs(signed_glyph);
@@ -350,17 +353,18 @@ namespace GnollHackX
                 int autodraw = GHApp.Tile2Autodraw[ntile];
                 int anim_frame_idx = 0, main_tile_idx = 0;
                 sbyte mapAnimated = 0;
-                long counter_value = 0;
                 int tile_animation_idx = GHApp.GnollHackService.GetTileAnimationIndexFromGlyph(abs_glyph);
+                
+                long counter_value;
                 if (refPage == null)
                 {
                     counter_value = 0;
                 }
                 else
                 {
-                    lock (refPage.AnimationTimerLock)
+                    //lock (refPage.AnimationTimerLock)
                     {
-                        counter_value = refPage.AnimationTimers.general_animation_counter;
+                        counter_value = Interlocked.CompareExchange(ref refPage.AnimationTimers.general_animation_counter, 0L, 0L);;
                     }
                 }
                 ntile = GHApp.GnollHackService.GetAnimatedTile(ntile, tile_animation_idx, (int)animation_play_types.ANIMATION_PLAY_TYPE_ALWAYS, counter_value, out anim_frame_idx, out main_tile_idx, out mapAnimated, ref autodraw);
@@ -381,7 +385,11 @@ namespace GnollHackX
                     else if (isHighlighted)
                         paint.ColorFilter = UIUtils.HighlightColorFilter;
 
-                    paint.Color = paint.Color.WithAlpha((byte)(0xFF * Math.Min(1.0f, Math.Max(0.0f, Opacity))));
+                    float opaqueness = 1.0f;
+                    if (ObjData != null && ObjData.OtypData.semitransparent != 0)
+                        opaqueness = 0.5f;
+
+                    paint.Color = paint.Color.WithAlpha((byte)(0xFF * Math.Min(1.0f, Math.Max(0.0f, opaqueness * Opacity))));
 
                     if (enlargement_idx == 0)
                     {
@@ -427,7 +435,7 @@ namespace GnollHackX
                             scale = tileWidth / GHConstants.TileWidth;
                         }
 
-                        GHApp.MaybeFixRects(ref sourcerect, ref targetrect, scale, usingGL);
+                        GHApp.MaybeFixRects(ref sourcerect, ref targetrect, scale, usingGL, fixRects);
                         canvas.DrawImage(GHApp._tileMap[sheet_idx], sourcerect, targetrect,
 #if GNH_MAUI
                             new SKSamplingOptions(highFilterQuality ? SKFilterMode.Linear : SKFilterMode.Nearest),
@@ -439,7 +447,7 @@ namespace GnollHackX
                                 (int)layer_types.LAYER_OBJECT, 0, 0,
                                 tileflag_halfsize, false, tileflag_fullsizeditem,
                                 0, 0, tileWidth, tileHeight,
-                                1, scale, xpadding, ypadding, scaled_tile_height, true, drawwallends, usingGL, highFilterQuality);
+                                1, scale, xpadding, ypadding, scaled_tile_height, true, drawwallends, usingGL, highFilterQuality, fixRects);
                     }
                     else
                     {
@@ -471,7 +479,7 @@ namespace GnollHackX
                             canvas.Scale(flip_tile ? -1 : 1, 1, 0, 0);
                             SKRect sourcerect = new SKRect(tile_x, tile_y, tile_x + GHConstants.TileWidth, tile_y + GHConstants.TileHeight);
                             SKRect targetrect = new SKRect(0, 0, tileWidth, tileHeight);
-                            GHApp.MaybeFixRects(ref sourcerect, ref targetrect, scale, usingGL);
+                            GHApp.MaybeFixRects(ref sourcerect, ref targetrect, scale, usingGL, fixRects);
                             canvas.DrawImage(GHApp._tileMap[sheet_idx], sourcerect, targetrect,
 #if GNH_MAUI
                             new SKSamplingOptions(highFilterQuality ? SKFilterMode.Linear : SKFilterMode.Nearest),
@@ -482,7 +490,7 @@ namespace GnollHackX
                                     (int)layer_types.LAYER_OBJECT, 0, 0,
                                     tileflag_halfsize, false, true,
                                     0, 0, tileWidth, tileHeight,
-                                    1, scale, 0, 0, tileHeight, true, drawwallends, usingGL, highFilterQuality);
+                                    1, scale, 0, 0, tileHeight, true, drawwallends, usingGL, highFilterQuality, fixRects);
 
                         }
 
@@ -546,7 +554,7 @@ namespace GnollHackX
                                     canvas.Scale(flip_tile ? -1 : 1, 1, 0, 0);
                                     SKRect sourcerect = new SKRect(etile_x, etile_y, etile_x + GHConstants.TileWidth, etile_y + GHConstants.TileHeight);
                                     SKRect targetrect = new SKRect(0, 0, tileWidth, tileHeight);
-                                    GHApp.MaybeFixRects(ref sourcerect, ref targetrect, scale, usingGL);
+                                    GHApp.MaybeFixRects(ref sourcerect, ref targetrect, scale, usingGL, fixRects);
                                     canvas.DrawImage(GHApp._tileMap[e_sheet_idx], sourcerect, targetrect,
 #if GNH_MAUI
                                         new SKSamplingOptions(highFilterQuality ? SKFilterMode.Linear : SKFilterMode.Nearest),
@@ -557,7 +565,7 @@ namespace GnollHackX
                                             (int)layer_types.LAYER_OBJECT, 0, 0,
                                             tileflag_halfsize, false, true,
                                             0, 0, tileWidth, tileHeight,
-                                            1, scale, 0, 0, tileHeight, true, drawwallends, usingGL, highFilterQuality);
+                                            1, scale, 0, 0, tileHeight, true, drawwallends, usingGL, highFilterQuality, fixRects);
                                 }
                             }
                         }

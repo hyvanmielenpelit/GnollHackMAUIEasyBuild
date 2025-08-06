@@ -31,21 +31,21 @@ public class MainActivity : MauiAppCompatActivity
             HideOsNavigationBar();
     }
 
-    public override bool OnKeyUp([GeneratedEnum] Keycode keyCode, KeyEvent e)
+    public override bool OnKeyDown([GeneratedEnum] Keycode keyCode, KeyEvent e)
     {
-        bool wasHandled = PlatformService.HandleOnKeyUp(keyCode, e);
+        bool wasHandled = PlatformService.HandleOnKeyDown(keyCode, e);
         if (!wasHandled)
-            return base.OnKeyUp(keyCode, e);
+            return base.OnKeyDown(keyCode, e);
         else
             return true;
     }
 
-    private static readonly object _activityLock = new object();
-    private static bool _isHardKeyboardConnected = false;
+    //private static readonly object _activityLock = new object();
+    private static int _isHardKeyboardConnected = 0;
     public static bool IsHardKeyboardConnected
     {
-        get { lock (_activityLock) { return _isHardKeyboardConnected; } }
-        set { lock (_activityLock) { _isHardKeyboardConnected = value; } }
+        get { return Interlocked.CompareExchange(ref _isHardKeyboardConnected, 0, 0) != 0; }
+        set { Interlocked.Exchange(ref _isHardKeyboardConnected, value ? 1 : 0); }
     }
 
     public override void OnConfigurationChanged(Configuration newConfig)

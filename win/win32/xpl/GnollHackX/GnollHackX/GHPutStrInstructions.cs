@@ -4,12 +4,11 @@ using System.Text;
 
 namespace GnollHackX
 {
-    public class GHPutStrInstructions
+    public sealed class GHPutStrInstructions
     {
-        public int Attributes { get; set; }
-        public int Color { get; set; }
-        public int PrintLength { get; set; }
-
+        public readonly int Attributes;
+        public readonly int Color;
+        public readonly int PrintLength;
         public GHPutStrInstructions(int attr, int color, int len)
         {
             Attributes = attr;

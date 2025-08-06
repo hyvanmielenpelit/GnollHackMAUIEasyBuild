@@ -15,7 +15,7 @@ using System.Linq;
 
 namespace GnollHackX
 {
-    public class GHMenuItem : IEquatable<GHMenuItem>, INotifyPropertyChanged
+    public sealed class GHMenuItem : IEquatable<GHMenuItem>, INotifyPropertyChanged
     {
         GHMenuInfo _menuInfo;
         private GamePage _gamePage;
@@ -252,6 +252,7 @@ namespace GnollHackX
                         res = 1;
                         break;
                     case ghmenu_styles.GHMENU_STYLE_CHAT_CHOOSE_ITEM:
+                        res = 1;
                         break;
                     case ghmenu_styles.GHMENU_STYLE_CHOOSE_SIMPLE:
                         break;

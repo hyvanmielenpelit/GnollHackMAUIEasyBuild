@@ -24,7 +24,7 @@ struct objclassdata
     int tile_height;
     short special_quality;
     short max_charges;
-    uchar nh_color;
+    uchar semitransparent;
 
     /* Temporary extra data */
     uchar lamplit;
@@ -43,6 +43,9 @@ struct objclassdata
     uchar is_uball;
     schar obj_loc_x;
     schar obj_loc_y;
+
+    uchar reserved_1;
+    uchar reserved_2;
 };
 
  /* General callback types */
@@ -115,7 +118,7 @@ typedef void(__callconv* StatusUpdateCallback)(int, char*, int64_t, int, int, in
 typedef uchar(__callconv* CanSuspendYesCallback)();
 typedef VoidVoidCallback StretchWindowCallback;
 typedef void(__callconv* SetAnimationTimerCallback)(uint64_t);
-typedef int(__callconv* OpenSpecialViewCallback)(int, const char*, const char*, int, int);
+typedef int(__callconv* OpenSpecialViewCallback)(int, const char*, const char*, int, int, int64_t);
 typedef int(__callconv* StopAllSoundsCallback)(unsigned int, unsigned int);
 typedef int(__callconv* PlayImmediateSoundCallback)(int, const char*, int, double, double, const char**, float*, int, int, int, uint32_t, uint32_t);
 typedef int(__callconv* PlayMusicCallback)(int, const char*, int, double, double);

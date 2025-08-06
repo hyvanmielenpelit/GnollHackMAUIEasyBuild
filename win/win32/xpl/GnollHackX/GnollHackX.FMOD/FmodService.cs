@@ -6,6 +6,7 @@ using FMOD;
 using FMOD.Studio;
 using System.Reflection;
 using System.IO;
+using System.Threading;
 using System.Threading.Tasks;
 
 #if GNH_MAUI
@@ -168,18 +169,41 @@ namespace GnollHackX.Unknown
             if (res != RESULT.OK)
                 return;
 
+            _coresystem.getSoftwareFormat(out int systemSampleRate, out _, out _);
+            _coresystem.getDSPBufferSize(out uint systemDSPBufferLength, out _);
+            SetAudioSessionSettings(systemSampleRate, systemDSPBufferLength);
             res = _system.initialize(GHConstants.MaxChannels, FMOD.Studio.INITFLAGS.NORMAL, FMOD.INITFLAGS.NORMAL, IntPtr.Zero);
             if (res != RESULT.OK)
                 return;
 
-#if __IOS__ 
-            AVAudioSession si = AVAudioSession.SharedInstance();
-            if(si != null)
-                si.SetCategory(AVAudioSessionCategory.Ambient);
-#endif
             _initialized = true;
             GHApp.MaybeWriteGHLog("FMOD initialized successfully.");
         }
+
+        private void SetAudioSessionSettings(double rate, double blockSize)
+        {
+#if __IOS__ || (GNH_MAUI && IOS)
+            AVAudioSession si = AVAudioSession.SharedInstance();
+            if (si != null)
+            {
+                GHApp.MaybeWriteGHLog("SetAudioSessionSettings: rate is " + rate + ", blockSize is " + blockSize);
+                try
+                {
+                    NSError audioSessionError;
+                    double bufferDuration = blockSize / rate;
+                    si.SetPreferredIOBufferDuration(bufferDuration, out audioSessionError);
+                    si.SetPreferredSampleRate(rate, out audioSessionError);
+                    si.SetCategory(AVAudioSessionCategory.Ambient);
+                    si.SetActive(true);
+                }
+                catch (Exception ex)
+                {
+                    GHApp.MaybeWriteGHLog("Exception occurred with AVAudioSession: " + ex.Message);
+                }
+            }
+#endif
+        }
+
 
         private bool FMODup()
         {
@@ -1492,12 +1516,12 @@ namespace GnollHackX.Unknown
         private const int _maxModeFadeCounter = 10;
         private float ModeVolume
         {
-            get { return (_quieterMode ? _quietModeMultiplier : 1.0f) + (_quieterMode ? 1.0f : -1.0f) * (1.0f - _quietModeMultiplier) * (float)(_maxModeFadeCounter - _modeFadeCounter) / _maxModeFadeCounter; }
+            get { return (_quieterMode ? _quietModeMultiplier : 1.0f) + (_quieterMode ? 1.0f : -1.0f) * (1.0f - _quietModeMultiplier) * (float)(_maxModeFadeCounter - ModeFadeCounter) / _maxModeFadeCounter; }
         }
 
-        private object _modeFadeLock = new object();
+        //private readonly object _modeFadeLock = new object();
         private int _modeFadeCounter = _maxModeFadeCounter;
-        private int ModeFadeCounter { get { lock (_modeFadeLock) { return _modeFadeCounter; } } set { lock (_modeFadeLock) { _modeFadeCounter = value; } } }
+        private int ModeFadeCounter { get { return Interlocked.CompareExchange(ref _modeFadeCounter, 0, 0); } set { Interlocked.Exchange(ref _modeFadeCounter, value); } }
 
         public int SetQuieterMode(bool state)
         {
@@ -1509,15 +1533,15 @@ namespace GnollHackX.Unknown
             Task.Run(() => {
                 for (int i = 0; i < _maxModeFadeCounter; i++)
                 {
-                    lock (_modeFadeLock)
+                    //lock (_modeFadeLock)
                     {
-                        if (_modeFadeCounter >= _maxModeFadeCounter)
+                        if (ModeFadeCounter >= _maxModeFadeCounter)
                         {
-                            _modeFadeCounter = _maxModeFadeCounter;
+                            ModeFadeCounter = _maxModeFadeCounter;
                             break;
                         }
                     }
-                    ModeFadeCounter++;
+                    Interlocked.Increment(ref _modeFadeCounter);
                     AdjustMusicAndAmbientVolumes();
                     System.Threading.Thread.Sleep(25);
                 }

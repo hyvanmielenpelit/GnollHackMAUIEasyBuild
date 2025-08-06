@@ -1,9 +1,12 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.Linq;
 using System.Reflection;
 using System.Text;
 using System.Threading.Tasks;
+using System.Globalization;
+
 
 #if GNH_MAUI
 using GnollHackX;
@@ -24,7 +27,7 @@ namespace GnollHackX.Pages.MainScreen
 #endif
 {
     [XamlCompilation(XamlCompilationOptions.Compile)]
-    public partial class VersionPage : ContentPage
+    public partial class VersionPage : ContentPage, ICloseablePage
     {
         private GamePage _gamePage = null;
         public VersionPage(GamePage gamePage)
@@ -32,8 +35,8 @@ namespace GnollHackX.Pages.MainScreen
             InitializeComponent();
             On<iOS>().SetUseSafeArea(true);
             UIUtils.AdjustRootLayout(RootGrid);
-            GHApp.SetPageThemeOnHandler(this, GHApp.DarkMode);
-            GHApp.SetViewCursorOnHandler(RootGrid, GameCursorType.Normal);
+            UIUtils.SetPageThemeOnHandler(this, GHApp.DarkMode);
+            UIUtils.SetViewCursorOnHandler(RootGrid, GameCursorType.Normal);
 
             _gamePage = gamePage;
 
@@ -55,7 +58,7 @@ namespace GnollHackX.Pages.MainScreen
 
             string compatstr = GHApp.GHVersionCompatibilityString;
             string manufacturer = DeviceInfo.Manufacturer;
-            if (manufacturer.Length > 0)
+            if (manufacturer?.Length > 0)
                 manufacturer = manufacturer.Substring(0, 1).ToUpper() + manufacturer.Substring(1);
 
             ulong TotalMemInBytes = GHApp.PlatformService.GetDeviceMemoryInBytes();
@@ -190,6 +193,7 @@ namespace GnollHackX.Pages.MainScreen
             WinSDKLabel.Text = !string.IsNullOrEmpty(winSDKAssemblyVersion) ? winSDKAssemblyVersion : "?";
 
             string winAppSDKAssemblyVersion = typeof(Microsoft.Windows.ApplicationModel.DynamicDependency.Bootstrap)?.Assembly?.GetName()?.Version?.ToString();
+            //string winAppSDKAssemblyVersion = Microsoft.Windows.ApplicationModel.WindowsAppRuntime.ReleaseInfo.AsString;
             WinAppSDKLabel.Text = !string.IsNullOrEmpty(winAppSDKAssemblyVersion) ? winAppSDKAssemblyVersion : "?";
 
             if (GHApp.DeviceGPUs.Count > 1)
@@ -243,41 +247,28 @@ namespace GnollHackX.Pages.MainScreen
             ActiveGPURowDefinition.Height = 0;
 #endif
 
-#if GNH_MAUI
-            Version ver = AppInfo.Current.Version;
-            string portVersion = (ver?.Major.ToString() ?? "?") + "." + (ver?.Minor.ToString() ?? "?");
-            PortVersionLabel.Text = portVersion; // GetAssemblyInformationalVersion(Assembly.GetEntryAssembly()); //This can also be AppInfo.Current.VersionString, but it is longer and the build number
-#if WINDOWS
-            PortBuildLabel.Text = AppInfo.Current.Version.Build.ToString();
-#else
-            PortBuildLabel.Text = AppInfo.Current.BuildString;
-#endif
-#else
-            PortVersionLabel.Text = VersionTracking.CurrentVersion;
-            PortBuildLabel.Text = VersionTracking.CurrentBuild;
-#endif
+            PortVersionLabel.Text = GHApp.GetPortVersionString();
+            PortBuildLabel.Text = GHApp.GetPortBuildString();
             PortVersionTitleLabel.Text = GHApp.RuntimePlatform + " Port Version:";
             PortBuildTitleLabel.Text = GHApp.RuntimePlatform + " Port Build:";
             PortConfigurationTitleLabel.Text ="Port Configuration:";
-#if BETA
-            PortVersionLabel.Text += " (Beta)";
-#endif
+            if (GHApp.IsBeta && (!GHApp.IsSteam || GHApp.IsPlaytest))
+                PortVersionLabel.Text += " (Beta)";
+            if (GHApp.IsPlaytest)
+                PortBuildLabel.Text += " (Playtest)";
 
             GnollHackVersionLabel.Text = GHApp.GHVersionString;
             GnollHackConfigurationLabel.Text = GHApp.GHDebug ? "Debug" : "Release";
-            PortConfigurationLabel.Text =
-#if DEBUG
-                "Debug";
-#else
-                "Release";
-#endif
-
+            PortConfigurationLabel.Text = GHApp.IsDebug ? "Debug" : "Release";
             PackagingModelLabel.Text = GHApp.IsPackaged ? "Packaged" : "Unpackaged";
+            CultureLabel.Text = CultureInfo.CurrentCulture?.EnglishName; // + " / " + CultureInfo.InstalledUICulture.EnglishName + " / " + CultureInfo.CurrentUICulture.EnglishName;
 
             GnollHackCompatibilityLabel.Text = compatstr == "" ? "" : "From " + compatstr;
             FMODVersionLabel.Text = GHApp.FMODVersionString;
             SkiaVersionLabel.Text = GHApp.SkiaVersionString + " (# " + GHApp.SkiaSharpVersionString + ")";
             FrameworkVersionLabel.Text = GHApp.FrameworkVersionString;
+            UIFrameworkVersionLabel.Text = (GHApp.IsMaui ? ".NET MAUI " : "XF ") + GHApp.UIFrameworkVersionString;
+            CompilerLabel.Text = GHApp.IsLLVM ? "LLVM" : GHApp.IsiOS ? "Clang" : GHApp.IsWindows ? "Standard" : "Mono AOT";
             RuntimeVersionLabel.Text = GHApp.RuntimeVersionString;
             PlatformLabel.Text = DeviceInfo.Platform + " " + DeviceInfo.VersionString;
             DeviceLabel.Text = manufacturer + " " + DeviceInfo.Model;
@@ -291,9 +282,39 @@ namespace GnollHackX.Pages.MainScreen
 
         private async void CloseButton_Clicked(object sender, EventArgs e)
         {
+            await ClosePageAsync();
+        }
+
+        public void ClosePage()
+        {
+            try
+            {
+                MainThread.BeginInvokeOnMainThread(async () =>
+                {
+                    try
+                    {
+                        if (CloseButton.IsEnabled)
+                            await ClosePageAsync();
+                    }
+                    catch (Exception ex)
+                    {
+                        System.Diagnostics.Debug.WriteLine(ex);
+                    }
+
+                });
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine(ex);
+            }
+        }
+
+        private async Task ClosePageAsync()
+        {
             CloseButton.IsEnabled = false;
             GHApp.PlayButtonClickedSound();
-            await GHApp.Navigation.PopModalAsync();
+            var page = await GHApp.Navigation.PopModalAsync();
+            GHApp.DisconnectIViewHandlers(page);
         }
 
         private double _currentPageWidth = 0;

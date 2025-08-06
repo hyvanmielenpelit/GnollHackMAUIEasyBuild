@@ -17,6 +17,15 @@
 extern int FDECL(GnollHackMain, (int, char**));
 extern void FDECL(set_wincaps, (uint64_t, uint64_t));
 
+
+DLLEXPORT void LibInitializeTileData(VOID_ARGS)
+{
+    init_tiledata();
+#ifdef USE_TILES
+    process_tiledata(1, (const char*)0, glyph2tile, glyphtileflags);
+#endif
+}
+
 DLLEXPORT void GetGlyph2Tile(int** gl2ti_ptr, int* size_ptr)
 {
     if (!gl2ti_ptr || !size_ptr)
@@ -449,6 +458,19 @@ LibGetMaxManuals(VOID_ARGS)
 }
 
 DLLEXPORT int
+LibGetMaxMajorConsultations(gnhdir)
+const char* gnhdir;
+{
+    int res = chdir(gnhdir);
+    if (res != 0)
+    {
+        /* Failed to change to right directory */
+        return 0;
+    }
+    return get_number_of_oracle_major_consultations();
+}
+
+DLLEXPORT int
 LibGetFirstCatalogue()
 {
     return FIRST_CATALOGUE;
@@ -541,12 +563,8 @@ LibValidateSaveFile(const char* filename, char* output_str)
     windowprocs.win_raw_print = gnhapi_raw_print;
     windowprocs.win_issue_gui_command = gnhapi_issue_gui_command;
 
-    Strcpy(SAVEF, filename);
-#ifdef COMPRESS_EXTENSION
-    SAVEF[strlen(SAVEF) - strlen(COMPRESS_EXTENSION)] = '\0';
-#endif
-    nh_uncompress(SAVEF);
-    if ((fd = open_savefile()) >= 0) 
+    nh_uncompress(filename);
+    if ((fd = open_savefilepath(filename)) >= 0)
     {
         if (validate(fd, filename) == 0) 
         {
@@ -554,7 +572,7 @@ LibValidateSaveFile(const char* filename, char* output_str)
         }
         (void)nhclose(fd);
     }
-    nh_compress(SAVEF);
+    nh_compress(filename);
     windowprocs = oldprocs;
 
     if (output_str && *gnhapi_putstr_buffer)
@@ -611,6 +629,42 @@ DLLEXPORT int
 LibGetCharacterClickAction(VOID_ARGS)
 {
     return (int)flags.self_click_action;
+}
+
+DLLEXPORT void
+LibSetGetPositionArrows(int new_value)
+{
+    iflags.getpos_arrows = new_value != 0;
+}
+
+DLLEXPORT int
+LibGetGetPositionArrows(VOID_ARGS)
+{
+    return (int)iflags.getpos_arrows;
+}
+
+DLLEXPORT void
+LibSetDiceAsRanges(int new_value)
+{
+    iflags.show_dice_as_ranges = new_value != 0;
+}
+
+DLLEXPORT void
+LibSetAutoDig(int new_value)
+{
+    flags.autodig = new_value != 0;
+}
+
+DLLEXPORT void
+LibSetIgnoreStopping(int new_value)
+{
+    flags.ignore_stopping = new_value != 0;
+}
+
+DLLEXPORT int
+LibGetDiceAsRanges(VOID_ARGS)
+{
+    return (int)iflags.show_dice_as_ranges;
 }
 
 DLLEXPORT void
@@ -712,6 +766,7 @@ DLLEXPORT int RunGnollHack(
     char* preset_player_name,
     char* last_used_player_name,
     uint64_t runflags,
+    uint64_t foundmanuals,
     uint64_t wincap1,
     uint64_t wincap2,
     InitWindowsCallback callback_init_nhwindows,
@@ -883,14 +938,27 @@ DLLEXPORT int RunGnollHack(
 
     /* The following does the same as the default options file, but accessible easier from the GUI settings */
     memset(&initial_flags, 0, sizeof(initial_flags));
-    if (runflags & GHRUNFLAGS_CHARACTER_CLICK_ACTION)
-    {
-        initial_flags.click_action_set = TRUE;
-        initial_flags.click_action_value = TRUE;
-    }
-
+    initial_flags.click_action_set = TRUE;
+    initial_flags.click_action_value = (runflags & GHRUNFLAGS_CHARACTER_CLICK_ACTION) != 0;
+    initial_flags.getpos_arrows_set = TRUE;
+    initial_flags.getpos_arrows_value = (runflags & GHRUNFLAGS_GETPOS_ARROWS) != 0;
+    initial_flags.dice_as_ranges_set = TRUE;
+    initial_flags.dice_as_ranges_value = (runflags & GHRUNFLAGS_DICE_AS_RANGES) != 0;
+    initial_flags.autodig_set = TRUE;
+    initial_flags.autodig_value = (runflags & GHRUNFLAGS_AUTO_DIG) != 0;
+    initial_flags.ignore_stopping_set = TRUE;
+    initial_flags.ignore_stopping_value = (runflags & GHRUNFLAGS_IGNORE_STOPPING) != 0;
+    initial_flags.vi_keys_set = TRUE;
+    initial_flags.vi_keys_value = (runflags & GHRUNFLAGS_VI_KEYS) != 0;
+    initial_flags.save_file_tracking_supported_set = TRUE;
+    initial_flags.save_file_tracking_supported_value = (runflags & GHRUNFLAGS_SAVE_FILE_TRACKING_SUPPORTED) != 0;
+    initial_flags.save_file_tracking_needed_set = TRUE;
+    initial_flags.save_file_tracking_needed_value = (runflags & GHRUNFLAGS_SAVE_FILE_TRACKING_NEEDED) != 0;
+    initial_flags.save_file_tracking_on_set = TRUE;
+    initial_flags.save_file_tracking_on_value = (runflags & GHRUNFLAGS_SAVE_FILE_TRACKING_ON) != 0;
     initial_flags.right_click_action = (uchar)((runflags & GHRUNFLAGS_RIGHT_MOUSE_BIT_MASK) >> GHRUNFLAGS_RIGHT_MOUSE_BIT_INDEX);
     initial_flags.middle_click_action = (uchar)((runflags & GHRUNFLAGS_MIDDLE_MOUSE_BIT_MASK) >> GHRUNFLAGS_MIDDLE_MOUSE_BIT_INDEX);
+    initial_flags.found_manuals = foundmanuals;
 
     if (runflags & GHRUNFLAGS_NO_PET)
     {

@@ -6,11 +6,13 @@ using System.Diagnostics;
 
 #if GNH_MAUI
 using GnollHackM;
+using System.Runtime.InteropServices;
+using Microsoft.Maui.Controls;
 
 #if WINDOWS
 using GnollHackM.Platforms.Windows;
+using WinRT.Interop;
 #endif
-using Microsoft.Maui.Controls;
 #else
 using Xamarin.Forms;
 using Xamarin.Forms.PlatformConfiguration.AndroidSpecific;
@@ -20,10 +22,12 @@ namespace GnollHackX
 {
     public static class UIUtils
     {
+        private static readonly SKColor GHGray = new SKColor(128, 128, 128);
         private static readonly SKColor GHDarkGray = new SKColor(96, 96, 96);
         private static readonly SKColor GHVeryDarkGray = new SKColor(64, 64, 64);
+        private static readonly SKColor GHVeryVeryDarkGray = new SKColor(32, 32, 32);
         private static readonly SKColor GHTitleGold = new SKColor(0xD4, 0xA0, 0x17);
-        private static readonly SKColor GHRed = new SKColor(255, 32, 32);
+        private static readonly SKColor GHRed = new SKColor(255, 64, 64);
         private static readonly SKColor GHDarkRed = new SKColor(224, 0, 0);
         private static readonly SKColor GHGreen = new SKColor(0, 255, 0);
         private static readonly SKColor GHRevertedBrightGreen = new SKColor(0, 160, 0);
@@ -36,8 +40,15 @@ namespace GnollHackX
         private static readonly SKColor GHCyan = new SKColor(133, 224, 224);
         private static readonly SKColor GHBrightCyan = new SKColor(165, 255, 255);
         private static readonly SKColor GHBrightCyanReverted = new SKColor(190, 255, 255);
-        private static readonly SKColor GHDarkYellow = new SKColor(192, 192, 0);
+        private static readonly SKColor GHBrightYellow = new SKColor(255, 255, 64);
+        private static readonly SKColor GHDarkYellow = new SKColor(224, 224, 0);
+        private static readonly SKColor GHVeryDarkYellow = new SKColor(116, 116, 0);
+        private static readonly SKColor GHVeryVeryDarkYellow = new SKColor(96, 96, 0);
+        private static readonly SKColor GHDarkOrange = new SKColor(136, 96, 0);
+        private static readonly SKColor GHVeryDarkOrange = new SKColor(116, 76, 0);
 
+        public static readonly SKColorFilter MapHighlightColorFilter = SKColorFilter.CreateLighting(new SKColor(255, 255, 255), new SKColor(10, 10, 10));
+        public static readonly SKColorFilter LookHighlightColorFilter = SKColorFilter.CreateLighting(new SKColor(255, 245, 255), new SKColor(10, 0, 10));
         public static readonly SKColorFilter HighlightColorFilter = SKColorFilter.CreateLighting(new SKColor(255, 255, 255), new SKColor(20, 20, 20));
         public static readonly SKColorFilter GrayedColorFilter = SKColorFilter.CreateColorMatrix(new float[]
                             {
@@ -110,18 +121,28 @@ namespace GnollHackX
                         res = SKColors.Cyan;
                     break;
                 case NhColor.CLR_GRAY:
-                    if (isselected)
-                        res = revertblackwhite ? GHVeryDarkGray : SKColors.Gray;
+                    if (usealtcolors)
+                    {
+                        if (isselected)
+                            res = revertblackwhite ? GHDarkGray : GHVeryDarkGray;
+                        else
+                            res = revertblackwhite ? GHGray : GHDarkGray;
+                    }
                     else
-                        res = revertblackwhite ? GHDarkGray : SKColors.LightGray;
+                    {
+                        if (isselected)
+                            res = revertblackwhite ? GHVeryDarkGray : SKColors.Gray;
+                        else
+                            res = revertblackwhite ? GHDarkGray : SKColors.LightGray;
+                    }
                     break;
                 case NhColor.NO_COLOR:
                     break;
                 case NhColor.CLR_ORANGE:
                     if (isselected)
-                        res = SKColors.DarkOrange;
+                        res = revertblackwhite ? GHVeryDarkOrange : SKColors.DarkOrange;
                     else
-                        res = SKColors.Orange;
+                        res = revertblackwhite ? GHDarkOrange : SKColors.Orange;
                     break;
                 case NhColor.CLR_BRIGHT_GREEN:
                     if (isselected)
@@ -131,9 +152,9 @@ namespace GnollHackX
                     break;
                 case NhColor.CLR_YELLOW:
                     if (isselected)
-                        res = GHDarkYellow;
+                        res = revertblackwhite ? GHVeryVeryDarkYellow : GHDarkYellow;
                     else
-                        res = SKColors.Yellow;
+                        res = revertblackwhite ? GHVeryDarkYellow : SKColors.Yellow;
                     break;
                 case NhColor.CLR_BRIGHT_BLUE:
                     if (isselected)
@@ -971,79 +992,120 @@ namespace GnollHackX
 
         public static uint GetMainCanvasAnimationInterval(MapRefreshRateStyle mapRefreshRate)
         {
-            if (GHApp.DisplayRefreshRate >= 120.0f && mapRefreshRate >= MapRefreshRateStyle.MapFPS120)
+            return GetMainCanvasAnimationInterval(mapRefreshRate, GHApp.DisplayRefreshRate);
+        }
+
+        public static uint GetMainCanvasAnimationInterval(MapRefreshRateStyle mapRefreshRate, float screenRefreshRate)
+        {
+            if (screenRefreshRate >= 144.0f && mapRefreshRate >= MapRefreshRateStyle.MapFPS144)
+                return 7;
+            else if (screenRefreshRate >= 120.0f && mapRefreshRate >= MapRefreshRateStyle.MapFPS120)
                 return 8;
-            else if (GHApp.DisplayRefreshRate >= 90.0f && mapRefreshRate >= MapRefreshRateStyle.MapFPS90)
+            else if (screenRefreshRate >= 90.0f && mapRefreshRate >= MapRefreshRateStyle.MapFPS90)
                 return 11;
-            else if (GHApp.DisplayRefreshRate >= 80.0f && mapRefreshRate >= MapRefreshRateStyle.MapFPS80)
+            else if (screenRefreshRate >= 80.0f && mapRefreshRate >= MapRefreshRateStyle.MapFPS80)
                 return 13;
-            else if (GHApp.DisplayRefreshRate >= 60.0f && mapRefreshRate >= MapRefreshRateStyle.MapFPS60)
+            else if (screenRefreshRate >= 72.0f && mapRefreshRate >= MapRefreshRateStyle.MapFPS72)
+                return 14;
+            else if (screenRefreshRate >= 60.0f && mapRefreshRate >= MapRefreshRateStyle.MapFPS60)
                 return 16;
-            else if (GHApp.DisplayRefreshRate >= 40.0f && mapRefreshRate >= MapRefreshRateStyle.MapFPS40)
+            else if (screenRefreshRate >= 40.0f && mapRefreshRate >= MapRefreshRateStyle.MapFPS40)
                 return 25;
-            else if (GHApp.DisplayRefreshRate >= 30.0f && mapRefreshRate >= MapRefreshRateStyle.MapFPS30)
+            else if (screenRefreshRate >= 30.0f && mapRefreshRate >= MapRefreshRateStyle.MapFPS30)
                 return 33;
-            else if (GHApp.DisplayRefreshRate >= 20.0f && mapRefreshRate >= MapRefreshRateStyle.MapFPS20)
+            else if (screenRefreshRate >= 20.0f && mapRefreshRate >= MapRefreshRateStyle.MapFPS20)
                 return 50;
             else
                 return 100;
 
             //return GHConstants.MainCanvasAnimationInterval;
         }
+
         public static int GetMainCanvasAnimationFrequency(MapRefreshRateStyle mapRefreshRate)
         {
-            if (GHApp.DisplayRefreshRate >= 120.0f && mapRefreshRate >= MapRefreshRateStyle.MapFPS120)
+            return GetMainCanvasAnimationFrequency(mapRefreshRate, GHApp.DisplayRefreshRate);
+        }
+
+        public static int GetMainCanvasAnimationFrequency(MapRefreshRateStyle mapRefreshRate, float screenRefreshRate)
+        {
+            if (screenRefreshRate >= 144.0f && mapRefreshRate >= MapRefreshRateStyle.MapFPS144)
+                return 144;
+            else if (screenRefreshRate >= 120.0f && mapRefreshRate >= MapRefreshRateStyle.MapFPS120)
                 return 120;
-            else if (GHApp.DisplayRefreshRate >= 90.0f && mapRefreshRate >= MapRefreshRateStyle.MapFPS90)
+            else if (screenRefreshRate >= 90.0f && mapRefreshRate >= MapRefreshRateStyle.MapFPS90)
                 return 90;
-            else if (GHApp.DisplayRefreshRate >= 80.0f && mapRefreshRate >= MapRefreshRateStyle.MapFPS80)
+            else if (screenRefreshRate >= 80.0f && mapRefreshRate >= MapRefreshRateStyle.MapFPS80)
                 return 80;
-            else if (GHApp.DisplayRefreshRate >= 60.0f && mapRefreshRate >= MapRefreshRateStyle.MapFPS60)
+            else if (screenRefreshRate >= 72.0f && mapRefreshRate >= MapRefreshRateStyle.MapFPS72)
+                return 72;
+            else if (screenRefreshRate >= 60.0f && mapRefreshRate >= MapRefreshRateStyle.MapFPS60)
                 return 60;
-            else if (GHApp.DisplayRefreshRate >= 40.0f && mapRefreshRate >= MapRefreshRateStyle.MapFPS40)
+            else if (screenRefreshRate >= 40.0f && mapRefreshRate >= MapRefreshRateStyle.MapFPS40)
                 return 40;
-            else if (GHApp.DisplayRefreshRate >= 30.0f && mapRefreshRate >= MapRefreshRateStyle.MapFPS30)
+            else if (screenRefreshRate >= 30.0f && mapRefreshRate >= MapRefreshRateStyle.MapFPS30)
                 return 30;
-            else if (GHApp.DisplayRefreshRate >= 20.0f && mapRefreshRate >= MapRefreshRateStyle.MapFPS20)
+            else if (screenRefreshRate >= 20.0f && mapRefreshRate >= MapRefreshRateStyle.MapFPS20)
                 return 20;
             else
-                return 40;
+                return 10;
         }
 
         public static MapRefreshRateStyle GetDefaultMapFPS()
         {
-            if (GHApp.DisplayRefreshRate >= 60f)
+            float screenRefreshRate = GHApp.DisplayRefreshRate;
+            bool platformLoop = GHApp.UsePlatformRenderLoop;
+            return GetDefaultMapFPS(screenRefreshRate, platformLoop);
+        }
+        public static MapRefreshRateStyle GetDefaultMapFPS(float screenRefreshRate, bool platformLoop)
+        {
+            if (platformLoop && screenRefreshRate >= 80f && screenRefreshRate % 80 == 0)
+                return MapRefreshRateStyle.MapFPS80;
+            else if (platformLoop && screenRefreshRate >= 72f && screenRefreshRate % 72 == 0)
+                return MapRefreshRateStyle.MapFPS72;
+            else if (screenRefreshRate >= 60f)
                 return MapRefreshRateStyle.MapFPS60;
-            else if (GHApp.DisplayRefreshRate >= 40f)
+            else if (screenRefreshRate >= 40f)
                 return MapRefreshRateStyle.MapFPS40;
             else
                 return MapRefreshRateStyle.MapFPS30;
         }
 
-        public static uint GetAuxiliaryCanvasAnimationInterval()
+        public static uint GetAuxiliaryCanvasAnimationInterval(MapRefreshRateStyle mapRefreshRateStyle)
         {
-            if (GHApp.BatterySavingMode)
-                return 16;
+            uint mainInterval = GetMainCanvasAnimationInterval(mapRefreshRateStyle);
+            return Math.Min(16, mainInterval); /* SkiaSharp may not support much better values */
 
-            if (GHApp.DisplayRefreshRate >= 120.0f)
-                return 8;
-            else if (GHApp.DisplayRefreshRate >= 90.0f)
-                return 11;
-            else
-                return 16;
+            //if (GHApp.BatterySavingMode)
+            //    return 16;
+
+            //if (GHApp.DisplayRefreshRate >= 120.0f)
+            //    return 8;
+            //else if (GHApp.DisplayRefreshRate >= 90.0f)
+            //    return 11;
+            //else
+            //    return 16;
         }
 
-        public static int GetAuxiliaryCanvasAnimationFrequency()
+        public static int GetAuxiliaryCanvasAnimationFrequency(MapRefreshRateStyle mapRefreshRateStyle, float screenRefreshRate)
         {
-            if (GHApp.BatterySavingMode)
-                return 60;
+            int mainInterval = GetMainCanvasAnimationFrequency(mapRefreshRateStyle, screenRefreshRate);
+            return Math.Max(60, mainInterval);
+        }
 
-            if (GHApp.DisplayRefreshRate >= 120.0f)
-                return 120;
-            else if (GHApp.DisplayRefreshRate >= 90.0f)
-                return 90;
-            else
-                return 60;
+        public static int GetAuxiliaryCanvasAnimationFrequency(MapRefreshRateStyle mapRefreshRateStyle)
+        {
+            int mainInterval = GetMainCanvasAnimationFrequency(mapRefreshRateStyle);
+            return Math.Max(60, mainInterval);
+        }
+
+        public static uint GetGeneralAnimationInterval()
+        {
+            return 16; /* SkiaSharp may not support much better values */
+        }
+
+        public static int GetGeneralAnimationFrequency()
+        {
+            return 60; /* SkiaSharp may not support much better values */
         }
 
         public static double GetWindowHideSecs()
@@ -1181,21 +1243,27 @@ namespace GnollHackX
         {
 #if WINDOWS
             Microsoft.UI.Input.InputCursor usedCursor = cursorType == GameCursorType.Normal ? GHApp.WindowsCursor : GHApp.WindowsInfoCursor;
-            if (usedCursor == null || layout == null || layout.Handler == null)
+            if (usedCursor == null || layout == null)
                 return;
 
-            if (layout.Handler.PlatformView is Microsoft.UI.Xaml.UIElement)
+            MainThread.BeginInvokeOnMainThread(() => 
             {
-                try
+                if (layout.Handler == null)
+                    return;
+
+                if (layout.Handler.PlatformView is Microsoft.UI.Xaml.UIElement)
                 {
-                    Microsoft.UI.Xaml.UIElement element = (Microsoft.UI.Xaml.UIElement)layout.Handler.PlatformView;
-                    element.ChangeCursor(usedCursor);
+                    try
+                    {
+                        Microsoft.UI.Xaml.UIElement element = (Microsoft.UI.Xaml.UIElement)layout.Handler.PlatformView;
+                        element.ChangeCursor(usedCursor);
+                    }
+                    catch (Exception ex)
+                    {
+                        Debug.WriteLine(ex.Message);
+                    }
                 }
-                catch (Exception ex)
-                {
-                    Debug.WriteLine(ex.Message);
-                }
-            }
+            });
 #endif
         }
 
@@ -1253,12 +1321,12 @@ namespace GnollHackX
             return false;
         }
 
-        public static double CalculateButtonSideWidth(double canvasViewWidth, double canvasViewHeight, bool usingDesktopButtons, bool usingSimpleCmdLayout, float inverseCanvasScale, float customScale, int noOfLandscapeButtonsInRow, int noOfPortraitButtonsInRow, bool isSmaller)
+        public static double CalculateButtonSideWidth(double canvasViewWidth, double canvasViewHeight, bool usingDesktopButtons, bool usingSimpleCmdLayout, int stoneButtonRows, float inverseCanvasScale, float customScale, int noOfLandscapeButtonsInRow, int noOfPortraitButtonsInRow, bool isSmaller)
         {
             double tmpSideWidth = UIUtils.CalculatePreliminaryButtonSideWidth(canvasViewWidth, canvasViewHeight, usingDesktopButtons, usingSimpleCmdLayout, inverseCanvasScale, customScale, noOfLandscapeButtonsInRow, noOfPortraitButtonsInRow, isSmaller);
             if (noOfLandscapeButtonsInRow > 0 && noOfPortraitButtonsInRow > 0) /* Yes/no buttons are not limited by height */
                 return tmpSideWidth;
-            double tmpSideHeight = UIUtils.CalculatePreliminaryButtonSideHeight(canvasViewWidth, canvasViewHeight, usingDesktopButtons, usingSimpleCmdLayout, inverseCanvasScale, customScale, noOfLandscapeButtonsInRow, noOfPortraitButtonsInRow, isSmaller);
+            double tmpSideHeight = UIUtils.CalculatePreliminaryButtonSideHeight(canvasViewWidth, canvasViewHeight, usingDesktopButtons, usingSimpleCmdLayout, stoneButtonRows, inverseCanvasScale, customScale, noOfLandscapeButtonsInRow, noOfPortraitButtonsInRow, isSmaller);
             return Math.Min(tmpSideWidth, tmpSideHeight);
         }
 
@@ -1272,24 +1340,25 @@ namespace GnollHackX
             return tmpsidewidth;
         }
 
-        public static double CalculatePreliminaryButtonSideHeight(double canvasViewWidth, double canvasViewHeight, bool usingDesktopButtons, bool usingSimpleCmdLayout, float inverseCanvasScale, float customScale, int noOfLandscapeButtonsInRow, int noOfPortraitButtonsInRow, bool isSmaller)
+        public static double CalculatePreliminaryButtonSideHeight(double canvasViewWidth, double canvasViewHeight, bool usingDesktopButtons, bool usingSimpleCmdLayout, int stoneButtonRows, float inverseCanvasScale, float customScale, int noOfLandscapeButtonsInRow, int noOfPortraitButtonsInRow, bool isSmaller)
         {
             if(inverseCanvasScale == 0.0f)
                 inverseCanvasScale = 1.0f;
             bool isLandscape = canvasViewWidth > canvasViewHeight;
+            //bool isWideLandscape = canvasViewWidth > GHConstants.WideLandscapeThreshold * canvasViewHeight;
             int bigRowNoOfButtons = noOfLandscapeButtonsInRow > 0 ? noOfLandscapeButtonsInRow : LandscapeButtonsInRow(usingDesktopButtons, usingSimpleCmdLayout);
             bool tooWide = customScale * 40.0 * bigRowNoOfButtons + (bigRowNoOfButtons - 1) * 6 > canvasViewWidth;
             int minNoOfContextButtonRows = 2;
             int noOfCommandRows = usingSimpleCmdLayout ? 1 : isLandscape && !tooWide ? 1 : 2;
             //float statusBarRowSizeRelativeToButtonWidth = 2 * (GHConstants.StatusBarBaseFontSize / 50.0f * inverseCanvasScale);
             float minNoOfLabeledButtonRows = minNoOfContextButtonRows + noOfCommandRows;
-            int noOfVerticalSmallerButtons = usingSimpleCmdLayout ? (isLandscape ? 3 : 4) : (isLandscape ? 3 : 5);
+            int noOfVerticalSmallerButtons = stoneButtonRows; // usingSimpleCmdLayout ? (isWideLandscape ? 2 : isLandscape ? 3 : 4) : (isWideLandscape ? 2 : isLandscape ? 3 : 5);
             float labeledButtonFontSizeRelativeToButtonSize = GHConstants.ContextButtonBaseFontSize / 50f;
             double noOfButtonWidthsNeededForHeight = minNoOfLabeledButtonRows * (1.0f + labeledButtonFontSizeRelativeToButtonSize)
                 //+ statusBarRowSizeRelativeToButtonWidth
                 + noOfVerticalSmallerButtons * 75f / 80f;
             double statusBarSize = CalculateStatusBarSkiaHeight(inverseCanvasScale, customScale, canvasViewWidth, canvasViewHeight) / inverseCanvasScale;
-            double verticalMargins =
+            double verticalMargins = 6 + /* Extra 6 just in case */
                 /* Upper UI buttons */  (noOfVerticalSmallerButtons - 1) * 6 + 2 * 6 /* Bottom and top margins just in case */
                 /* Bottom UI buttons */ + (noOfCommandRows - 1) * 6 + 2 * 6 /* Bottom and top margins just in case */
                 /* Context button margins */ + (minNoOfContextButtonRows - 1) * GHConstants.ContextButtonSpacing
@@ -1365,6 +1434,129 @@ namespace GnollHackX
 
             return Math.Max(1.0f, Math.Min(possibleScaling, Math.Min(GHConstants.WindowMessageFontSizeMaxMultiplier, (float)relevantScale)));
         }
+
+        public static void SetPageTheme(Page page, bool isDarkTheme)
+        {
+#if WINDOWS
+            if (page != null)
+            {
+                var handler = page.Handler;
+                if (handler != null && handler.PlatformView is Microsoft.UI.Xaml.FrameworkElement)
+                    ((Microsoft.UI.Xaml.FrameworkElement)handler.PlatformView).RequestedTheme = isDarkTheme ? Microsoft.UI.Xaml.ElementTheme.Dark : Microsoft.UI.Xaml.ElementTheme.Light;
+            }
+#endif
+        }
+
+        public static void SetPageThemeOnHandler(Page page, bool isDarkTheme)
+        {
+#if WINDOWS
+            if (page != null)
+            {
+                page.HandlerChanged += (sender, e) =>
+                {
+                    if (sender != null && sender is Page)
+                    {
+                        SetPageTheme((Page)sender, isDarkTheme);
+                        if (!(page is MainPage))
+                        {
+                            Microsoft.UI.Xaml.Controls.Panel p = page?.Handler?.PlatformView as Microsoft.UI.Xaml.Controls.Panel;
+                            if (p != null)
+                            {
+                                p.Transitions = new Microsoft.UI.Xaml.Media.Animation.TransitionCollection()
+                                {
+                                    new Microsoft.UI.Xaml.Media.Animation.EntranceThemeTransition()
+                                };
+                            }
+                        }
+                    }
+                };
+            }
+#endif
+        }
+
+        public static void SetViewCursorOnHandler(View layout, GameCursorType cursorType)
+        {
+#if WINDOWS
+            if (layout != null)
+            {
+                layout.HandlerChanged += (sender, e) =>
+                {
+                    UIUtils.ChangeElementCursor(layout, cursorType);
+                };
+            }
+#endif
+        }
+
+        public static void SetCreateGHWindow(GHWindow ghwin)
+        {
+            if(ghwin == null)
+                return;
+            ghwin.Typeface = GHApp.LatoRegular;
+            ghwin.TextColor = SKColors.White;
+            ghwin.TextSize = GHConstants.WindowBaseFontSize;
+            ghwin.BackgroundColor = SKColors.Transparent;
+            switch (ghwin.WindowType)
+            {
+                case GHWinType.None:
+                    break;
+                case GHWinType.Message:
+                    ghwin.TextSize = GHConstants.WindowMessageFontSize;
+                    ghwin.Typeface = GHApp.DejaVuSansMonoTypeface;
+                    ghwin.StrokeWidth = ghwin.TextSize / 4.0f;
+                    ghwin.AutoPlacement = true;
+                    break;
+                case GHWinType.Status:
+                    ghwin.TextSize = GHConstants.WindowStatusBarFontSize;
+                    ghwin.Typeface = GHApp.LatoRegular;
+                    ghwin.StrokeWidth = ghwin.TextSize / 4.0f;
+                    ghwin.HasShadow = true;
+                    ghwin.Left = 0;
+                    ghwin.Top = 0;
+                    break;
+                case GHWinType.Map:
+                    ghwin.TextSize = GHConstants.WindowStatusBarFontSize;
+                    ghwin.Typeface = GHApp.LatoRegular;
+                    ghwin.Left = 0;
+                    ghwin.Top = 120;
+                    break;
+                case GHWinType.Menu:
+                    ghwin.TextSize = GHConstants.WindowMenuFontSize;
+                    ghwin.Typeface = GHApp.UnderwoodTypeface;
+                    ghwin.Left = 0;
+                    ghwin.Top = 150;
+                    ghwin.CenterHorizontally = true;
+                    break;
+                case GHWinType.Text:
+                    ghwin.TextSize = GHConstants.WindowMenuFontSize;
+                    ghwin.Typeface = GHApp.UnderwoodTypeface;
+                    ghwin.Left = 0;
+                    ghwin.Top = 150;
+                    ghwin.CenterHorizontally = true;
+                    break;
+                case GHWinType.Base:
+                    break;
+                case GHWinType.Here:
+                    ghwin.TextSize = GHConstants.WindowMessageFontSize;
+                    ghwin.Typeface = GHApp.DejaVuSansMonoTypeface;
+                    ghwin.StrokeWidth = ghwin.TextSize / 4.0f;
+                    ghwin.AutoPlacement = true;
+                    break;
+                case GHWinType.Inventory:
+                    break;
+                case GHWinType.Reserved_1:
+                case GHWinType.Reserved_2:
+                case GHWinType.Reserved_3:
+                    break;
+                case GHWinType.RIP:
+                    break;
+                case GHWinType.Keypad:
+                    break;
+                case GHWinType.Overview:
+                    break;
+                case GHWinType.Worn:
+                    break;
+            }
+        }
     }
 
     public class TouchEntry
@@ -1404,4 +1596,185 @@ namespace GnollHackX
             TimeStamp = time;
         }
     }
+
+#if WINDOWS
+
+    public static class DisplaySettingsHelper
+    {
+        private const int ENUM_CURRENT_SETTINGS = -1;
+        private const int CDS_UPDATEREGISTRY = 0x01;
+        private const int CDS_TEST = 0x02;
+        private const int DISP_CHANGE_SUCCESSFUL = 0;
+
+        [StructLayout(LayoutKind.Sequential, CharSet = CharSet.Ansi)]
+        public struct DEVMODE
+        {
+            private const int CCHDEVICENAME = 32;
+            private const int CCHFORMNAME = 32;
+
+            [MarshalAs(UnmanagedType.ByValTStr, SizeConst = CCHDEVICENAME)]
+            public string dmDeviceName;
+
+            public ushort dmSpecVersion;
+            public ushort dmDriverVersion;
+            public ushort dmSize;
+            public ushort dmDriverExtra;
+            public uint dmFields;
+
+            public int dmPositionX;
+            public int dmPositionY;
+            public uint dmDisplayOrientation;
+            public uint dmDisplayFixedOutput;
+
+            public short dmColor;
+            public short dmDuplex;
+            public short dmYResolution;
+            public short dmTTOption;
+            public short dmCollate;
+
+            [MarshalAs(UnmanagedType.ByValTStr, SizeConst = CCHFORMNAME)]
+            public string dmFormName;
+
+            public ushort dmLogPixels;
+            public uint dmBitsPerPel;
+            public uint dmPelsWidth;
+            public uint dmPelsHeight;
+            public uint dmDisplayFlags;
+            public uint dmDisplayFrequency;
+            public uint dmICMMethod;
+            public uint dmICMIntent;
+            public uint dmMediaType;
+            public uint dmDitherType;
+            public uint dmReserved1;
+            public uint dmReserved2;
+            public uint dmPanningWidth;
+            public uint dmPanningHeight;
+        }
+
+        [DllImport("user32.dll")]
+        private static extern int ChangeDisplaySettings(ref DEVMODE devMode, int flags);
+
+        [DllImport("user32.dll")]
+        private static extern bool EnumDisplaySettings(string lpszDeviceName, int iModeNum, ref DEVMODE lpDevMode);
+
+        private static DEVMODE originalMode;
+
+        public static void SaveOriginalResolution()
+        {
+            originalMode = GetDevMode(); // Store original mode to restore later
+        }
+
+        public static ScreenResolutionItem GetCurrentResolution()
+        {
+            return GetScreenResolution("Current", GetDevMode());
+        }
+
+        public static ScreenResolutionItem GetOriginalResolution()
+        {
+            return GetScreenResolution("Original", originalMode);
+        }
+
+        private static ScreenResolutionItem GetScreenResolution(string name, DEVMODE dm)
+        {
+            return new ScreenResolutionItem(name, dm.dmPelsWidth, dm.dmPelsHeight, dm.dmDisplayFrequency, 0);
+        }
+
+        public static void ChangeResolution(uint width, uint height, uint refreshRate)
+        {
+            DEVMODE dm = GetDevMode();
+
+            dm.dmPelsWidth = width;
+            dm.dmPelsHeight = height;
+            dm.dmDisplayFrequency = refreshRate;
+            dm.dmFields = 0x00080000 | 0x00100000 | 0x400000; // DM_PELSWIDTH | DM_PELSHEIGHT | DM_DISPLAYFREQUENCY
+
+            int result = ChangeDisplaySettings(ref dm, CDS_UPDATEREGISTRY);
+            if (result == DISP_CHANGE_SUCCESSFUL)
+            {
+                GHApp.CurrentScreenResolution = GetScreenResolution("Current", dm);
+            }
+            else
+            {
+                GHApp.MaybeWriteGHLog("Failed to change resolution");
+            }
+        }
+
+        public static void RestoreResolution()
+        {
+            DEVMODE dm = originalMode;
+            dm.dmFields = 0x00080000 | 0x00100000 | 0x400000; // DM_PELSWIDTH | DM_PELSHEIGHT | DM_DISPLAYFREQUENCY
+            int result = ChangeDisplaySettings(ref dm, CDS_UPDATEREGISTRY);
+            if (result == DISP_CHANGE_SUCCESSFUL)
+            {
+                GHApp.CurrentScreenResolution = GetScreenResolution("Current", dm);
+            }
+            else
+            {
+                GHApp.MaybeWriteGHLog("Failed to revert screen resolution");
+            }
+        }
+
+        public static List<ScreenResolutionItem> GetSupportedScreenResolutions()
+        {
+            var resolutions = new List<ScreenResolutionItem>();
+            var devMode = new DEVMODE();
+            devMode.dmSize = (ushort)Marshal.SizeOf(typeof(DEVMODE));
+            int i = 0;
+            HashSet<string> seen = new HashSet<string>();
+
+            try
+            {
+                while (EnumDisplaySettings(null, i, ref devMode))
+                {
+                    string displayName = $"{devMode.dmPelsWidth}x{devMode.dmPelsHeight} @ {devMode.dmDisplayFrequency}Hz";
+                    string uniqueKey = $"{devMode.dmPelsWidth}x{devMode.dmPelsHeight}@{devMode.dmDisplayFrequency}";
+
+                    // Avoid duplicate entries (some drivers report duplicates)
+                    if (!seen.Contains(uniqueKey))
+                    {
+                        resolutions.Add(new ScreenResolutionItem(displayName, devMode.dmPelsWidth, devMode.dmPelsHeight, devMode.dmDisplayFrequency, 0));
+                        seen.Add(uniqueKey);
+                    }
+
+                    i++;
+                }
+            }
+            catch(Exception ex)
+            {
+                GHApp.MaybeWriteGHLog(ex.Message);
+            }
+
+            return resolutions;
+        }
+
+        private static DEVMODE GetDevMode()
+        {
+            DEVMODE dm = new DEVMODE();
+            dm.dmSize = (ushort)Marshal.SizeOf(typeof(DEVMODE));
+            if (!EnumDisplaySettings(null, ENUM_CURRENT_SETTINGS, ref dm))
+                throw new InvalidOperationException("Cannot get display settings");
+            return dm;
+        }
+
+    }
+
+    public static class WindowFocusHelper
+    {
+        [DllImport("user32.dll")]
+        static extern IntPtr GetForegroundWindow();
+
+        public static bool IsAppWindowFocused(Microsoft.Maui.Controls.Window mauiWindow)
+        {
+            var nativeWindow = mauiWindow?.Handler?.PlatformView as Microsoft.UI.Xaml.Window;
+            if (nativeWindow == null)
+                return false;
+
+            var hwnd = WindowNative.GetWindowHandle(nativeWindow);
+            var foregroundHwnd = GetForegroundWindow();
+
+            return hwnd == foregroundHwnd;
+        }
+    }
+#endif
+
 }

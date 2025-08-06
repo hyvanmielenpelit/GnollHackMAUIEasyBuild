@@ -5,10 +5,9 @@ using GnollHackM;
 
 namespace GnollHackX
 {
-    public class GHPetDataItem
+    public sealed class GHPetDataItem
     {
-        public monst_info Data { get; set; }
-        public SKRect Rect { get; set; }
+        public readonly monst_info Data;
 
         public GHPetDataItem(monst_info data)
         {

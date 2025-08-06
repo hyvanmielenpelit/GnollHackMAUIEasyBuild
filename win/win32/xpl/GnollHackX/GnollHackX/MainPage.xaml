@@ -43,8 +43,8 @@
             </Grid>
 
             <StackLayout Spacing="6" AbsoluteLayout.LayoutBounds="0.99, 0.99, AutoSize, AutoSize" AbsoluteLayout.LayoutFlags="PositionProportional">
-                <Label x:Name="DownloadLabel" TextColor="White" FontSize="6" FontFamily="Lato" />
-                <!--<Label x:Name="VersionLabel" TextColor="White" FontSize="6" FontFamily="Lato" />-->
+                <Label x:Name="DownloadLabel" TextColor="White" FontSize="6" FontFamily="LatoRegular" />
+                <!--<Label x:Name="VersionLabel" TextColor="White" FontSize="6" FontFamily="LatoRegular" />-->
             </StackLayout>
             <Grid x:Name="UpperButtonGrid" IsVisible="false" WidthRequest="130" Opacity="0" HorizontalOptions="End" VerticalOptions="Start" Margin="10,10,10,5" AbsoluteLayout.LayoutBounds="1,0,AutoSize,AutoSize" AbsoluteLayout.LayoutFlags="PositionProportional">
                 <StackLayout Spacing="4">
@@ -115,10 +115,10 @@
                         </local:CustomLabel.GestureRecognizers>
                     </local:CustomLabel>
                 </Grid>
-                <Grid x:Name="StartLocalGrid" WidthRequest="300" HeightRequest="70" HorizontalOptions="CenterAndExpand" VerticalOptions="CenterAndExpand">
+                <Grid x:Name="StartLocalGrid" WidthRequest="300" HeightRequest="70" HorizontalOptions="Center" VerticalOptions="Center">
                     <controls:CustomImageButton Text="Play Game" x:Name="StartLocalGameButton" Clicked="StartLocalGameButton_Clicked" 
                         FontFamily="Diablo" FontSize="24" TextColor="White" BackgroundColor="Transparent"  
-                        HorizontalOptions="FillAndExpand" VerticalOptions="FillAndExpand" />
+                        HorizontalOptions="Fill" VerticalOptions="Fill" />
                 </Grid>
             </StackLayout>
 
@@ -141,7 +141,7 @@
                                     </Label.GestureRecognizers>
                                 </Label>
                             </StackLayout>
-                            <controls:CustomImageButton x:Name="PopupOkButton" Text="OK" FontSize="19" WidthRequest="170" Margin="0,10,0,0" FontFamily="Diablo" HorizontalOptions="Center" BackgroundColor="Transparent" TextColor="White"
+                            <controls:CustomImageButton x:Name="PopupOkButton" Text="OK" FontSize="19" WidthRequest="170" HeightRequest="55" Margin="0,10,0,0" FontFamily="Diablo" HorizontalOptions="Center" BackgroundColor="Transparent" TextColor="White"
                                         Clicked="PopupOkButton_Clicked" />
                             <Grid x:Name="PopupButtonGrid" IsVisible="False" ColumnSpacing="6" HorizontalOptions="Center" >
                                 <Grid.RowDefinitions>
@@ -151,9 +151,9 @@
                                     <ColumnDefinition Width="Auto" />
                                     <ColumnDefinition Width="Auto" />
                                 </Grid.ColumnDefinitions>
-                                <controls:CustomImageButton Grid.Column="0" x:Name="PopupViewButton" Text="View" FontSize="19" WidthRequest="170" FontFamily="Diablo" HorizontalOptions="End" BackgroundColor="Transparent" TextColor="White"
+                                <controls:CustomImageButton Grid.Column="0" x:Name="PopupViewButton" Text="View" FontSize="19" WidthRequest="170" HeightRequest="55" FontFamily="Diablo" HorizontalOptions="End" BackgroundColor="Transparent" TextColor="White"
                                         Clicked="PopupViewButton_Clicked" />
-                                <controls:CustomImageButton Grid.Column="1" x:Name="PopupOkButton2" Text="OK" FontSize="19" WidthRequest="170" FontFamily="Diablo" HorizontalOptions="Start" BackgroundColor="Transparent" TextColor="White"
+                                <controls:CustomImageButton Grid.Column="1" x:Name="PopupOkButton2" Text="OK" FontSize="19" WidthRequest="170" HeightRequest="55" FontFamily="Diablo" HorizontalOptions="Start" BackgroundColor="Transparent" TextColor="White"
                                         Clicked="PopupOkButton_Clicked" />
                             </Grid>
                         </StackLayout>
@@ -175,8 +175,40 @@
                                        VerticalTextAlignment="Center" HorizontalOptions="Center"  />
                             <Label Text="" x:Name="AlertLabel" FontFamily="Underwood" FontSize="16" TextColor="White"
                                        VerticalTextAlignment="Start" HorizontalOptions="Center" />
-                            <controls:CustomImageButton x:Name="AlertOkButton" Text="OK" FontSize="19" WidthRequest="170" Margin="0,10,0,0" FontFamily="Diablo" HorizontalOptions="Center" BackgroundColor="Transparent" TextColor="White"
+                            <controls:CustomImageButton x:Name="AlertOkButton" Text="OK" FontSize="19" WidthRequest="170" HeightRequest="55" Margin="0,10,0,0" FontFamily="Diablo" HorizontalOptions="Center" BackgroundColor="Transparent" TextColor="White"
                                         Clicked="AlertOkButton_Clicked" />
+                        </StackLayout>
+                    </Frame>
+                </Grid>
+                <Grid.GestureRecognizers>
+                    <TapGestureRecognizer />
+                </Grid.GestureRecognizers>
+            </Grid>
+
+            <Grid x:Name="EventGrid" HorizontalOptions="Fill" VerticalOptions="Fill" 
+              BackgroundColor="#66000000" AbsoluteLayout.LayoutBounds="0,0,1,1"
+              AbsoluteLayout.LayoutFlags="All"  IsVisible="False">
+                <Grid WidthRequest  ="600" Margin="5" HorizontalOptions  ="Center" VerticalOptions="Center">
+                    <Frame x:Name="EventFrame"  BackgroundColor="#99000000" BorderColor="Black" CornerRadius="10" HorizontalOptions="Center" VerticalOptions="Center">
+                        <StackLayout x:Name="EventLayout" Padding="5" Spacing="6"
+                                     HorizontalOptions="Center" VerticalOptions="Center">
+                            <Label Text="" x:Name="EventTitleLabel" FontFamily="Immortal" FontSize="20" TextColor="White"
+                                       VerticalTextAlignment="Center" HorizontalOptions="Center"  />
+                            <Label Text="" x:Name="EventLabel" FontFamily="Underwood" FontSize="16" TextColor="White"
+                                       VerticalTextAlignment="Start" HorizontalOptions="Center" />
+                            <Grid x:Name="EventButtonGrid" ColumnSpacing="6" Margin="0,10,0,0" HorizontalOptions="Center" VerticalOptions="End">
+                                <Grid.RowDefinitions>
+                                    <RowDefinition Height="Auto" />
+                                </Grid.RowDefinitions>
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="Auto" />
+                                    <ColumnDefinition Width="Auto" />
+                                </Grid.ColumnDefinitions>
+                                <controls:CustomImageButton Grid.Column="0" x:Name="EventOkButton" Text="Yes" FontSize="19" WidthRequest="170" HeightRequest="55" FontFamily="Diablo" HorizontalOptions="End" BackgroundColor="Transparent" TextColor="White"
+                                        Clicked="EventOkButton_Clicked" />
+                                <controls:CustomImageButton Grid.Column="1" x:Name="EventCancelButton" Text="No" FontSize="19" WidthRequest="170" HeightRequest="55" FontFamily="Diablo" HorizontalOptions="Start" BackgroundColor="Transparent" TextColor="White"
+                                        Clicked="EventCancelButton_Clicked" />
+                            </Grid>
                         </StackLayout>
                     </Frame>
                 </Grid>
@@ -198,7 +230,7 @@
                                        VerticalTextAlignment="Start" HorizontalOptions="Center"  />
                             <Label Text="Do you want to exit anyway?" x:Name="PendingTasksLabel2" FontFamily="Underwood" FontSize="16" TextColor="White"
                                        VerticalTextAlignment="Start" HorizontalOptions="Center"  />
-                            <Grid ColumnSpacing="6" Margin="0,10,0,0">
+                            <Grid ColumnSpacing="6" Margin="0,10,0,0" HorizontalOptions="Center">
                                 <Grid.RowDefinitions>
                                     <RowDefinition Height="Auto" />
                                 </Grid.RowDefinitions>
@@ -206,9 +238,9 @@
                                     <ColumnDefinition Width="Auto" />
                                     <ColumnDefinition Width="Auto" />
                                 </Grid.ColumnDefinitions>
-                                <controls:CustomImageButton Grid.Column="0" x:Name="PendingTasksOkButton" Text="Yes" FontSize="19" WidthRequest="170" FontFamily="Diablo" HorizontalOptions="End" BackgroundColor="Transparent" TextColor="White"
+                                <controls:CustomImageButton Grid.Column="0" x:Name="PendingTasksOkButton" Text="Yes" FontSize="19" WidthRequest="170" HeightRequest="55" FontFamily="Diablo" HorizontalOptions="End" BackgroundColor="Transparent" TextColor="White"
                                         Clicked="PendingTasksOkButton_Clicked" />
-                                <controls:CustomImageButton Grid.Column="1" x:Name="PendingTasksCancelButton" Text="No" FontSize="19" WidthRequest="170" FontFamily="Diablo" HorizontalOptions="Start" BackgroundColor="Transparent" TextColor="White"
+                                <controls:CustomImageButton Grid.Column="1" x:Name="PendingTasksCancelButton" Text="No" FontSize="19" WidthRequest="170" HeightRequest="55" FontFamily="Diablo" HorizontalOptions="Start" BackgroundColor="Transparent" TextColor="White"
                                         Clicked="PendingTasksCancelButton_Clicked" />
                             </Grid>
                         </StackLayout>

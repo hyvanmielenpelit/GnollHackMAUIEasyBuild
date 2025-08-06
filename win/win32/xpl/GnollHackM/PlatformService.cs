@@ -12,6 +12,11 @@ namespace GnollHackM
     {
         public event EventHandler<AssetPackStatusEventArgs> OnDemandPackStatusNotification;
 
+        public Task<Stream> GetPlatformAssetsStreamAsync(string directory, string fileName)
+        {
+            throw new NotImplementedException();
+        }
+
         public void CloseApplication()
         {
             throw new NotImplementedException();
@@ -82,6 +87,11 @@ namespace GnollHackM
             throw new NotImplementedException();
         }
 
+        public bool IsRunningOnDesktop()
+        {
+            throw new NotImplementedException();
+        }
+
         public float GetWindowAnimationScaleSetting()
         {
             throw new NotImplementedException();
@@ -102,7 +112,7 @@ namespace GnollHackM
             throw new NotImplementedException();
         }
 
-        public void RequestAppReview(ContentPage page)
+        public Task RequestAppReview(ContentPage page)
         {
             throw new NotImplementedException();
         }

@@ -5,6 +5,7 @@ using System.Linq;
 using System.Reflection;
 using System.Text;
 using System.Threading.Tasks;
+
 #if GNH_MAUI
 using GnollHackX;
 using Microsoft.Maui.Controls.PlatformConfiguration;
@@ -16,12 +17,13 @@ using Xamarin.Forms;
 using Xamarin.Forms.PlatformConfiguration;
 using Xamarin.Forms.PlatformConfiguration.iOSSpecific;
 using Xamarin.Forms.Xaml;
+using Xamarin.Essentials;
 
 namespace GnollHackX.Pages.MainScreen
 #endif
 {
     [XamlCompilation(XamlCompilationOptions.Compile)]
-    public partial class EditorPage : ContentPage
+    public partial class EditorPage : ContentPage, ICloseablePage
     {
         private string _fileName;
         private MainPage _mainPage;
@@ -33,8 +35,8 @@ namespace GnollHackX.Pages.MainScreen
             InitializeComponent();
             On<iOS>().SetUseSafeArea(true);
             UIUtils.AdjustRootLayout(RootGrid);
-            GHApp.SetPageThemeOnHandler(this, GHApp.DarkMode);
-            GHApp.SetViewCursorOnHandler(RootGrid, GameCursorType.Normal);
+            UIUtils.SetPageThemeOnHandler(this, GHApp.DarkMode);
+            UIUtils.SetViewCursorOnHandler(RootGrid, GameCursorType.Normal);
 
             _fileName = fileName;
             HeaderLabel.Text = header;
@@ -45,25 +47,18 @@ namespace GnollHackX.Pages.MainScreen
             }
         }
 
-        public bool ReadFile(out string errorMessage)
+        public void ReadFile()
         {
-            string res = "";
             TextEditor.Text = "(Reading file)";
-            try
-            {
-                TextEditor.Text = File.ReadAllText(_fileName, Encoding.UTF8);
-                TextEditor.IsEnabled = true;
-            }
-            catch (Exception e)
-            {
-                TextEditor.Text = "";
-                errorMessage = e.Message;
-                return false;
-            }
-            errorMessage = res;
+            string str = File.ReadAllText(_fileName, Encoding.UTF8);
+            TextEditor.Text = str; //Note that in UWP on Windows each Environment.NewLine gets here changed into \r only (!)
+            TextEditor.IsEnabled = true;
             _registerChanges = true;
- 
-            return true;
+        }
+
+        public void ClearTextEditor()
+        {
+            TextEditor.Text = "";
         }
 
         private async void OKButton_Clicked(object sender, EventArgs e)
@@ -72,12 +67,20 @@ namespace GnollHackX.Pages.MainScreen
             GHApp.PlayButtonClickedSound();
             if (_textChanged)
             {
-                bool answer = await DisplayAlert("Save Changes?", "Are you sure to save changes to the options file?", "Yes", "No");
+                bool answer = await GHApp.DisplayMessageBox(this, "Save Changes?", "Are you sure to save changes to the options file?", "Yes", "No");
                 if (answer)
                 {
                     try
                     {
-                        File.WriteAllText(_fileName, TextEditor.Text, Encoding.UTF8);
+#if WINDOWS
+                        // In UWP on Windows line endings are just \r so they need to be changed back to Environment.NewLine
+                        string str = TextEditor.Text.Replace("\r", Environment.NewLine);
+#else
+                        string str = TextEditor.Text;
+#endif
+                        byte[] data = Encoding.UTF8.GetBytes(str);
+                        File.WriteAllBytes(_fileName, data);
+                        //File.WriteAllText(_fileName, str4, Encoding.UTF8); //WriteAllText seems to add 3 bytes in the front of the file on Windows, so cannot be used
                     }
                     catch (Exception ex)
                     {
@@ -87,7 +90,8 @@ namespace GnollHackX.Pages.MainScreen
                     }
                     ErrorLabel.Text = "";
                     GHApp.CurrentMainPage?.InvalidateCarousel();
-                    await GHApp.Navigation.PopModalAsync();
+                    var page = await GHApp.Navigation.PopModalAsync();
+                    GHApp.DisconnectIViewHandlers(page);
                 }
                 else
                 {
@@ -98,24 +102,55 @@ namespace GnollHackX.Pages.MainScreen
             {
                 ErrorLabel.Text = "";
                 GHApp.CurrentMainPage?.InvalidateCarousel();
-                await GHApp.Navigation.PopModalAsync();
+                var page = await GHApp.Navigation.PopModalAsync();
+                GHApp.DisconnectIViewHandlers(page);
             }
         }
 
         private async void CancelButton_Clicked(object sender, EventArgs e)
         {
+            await CloseCore();
+        }
+
+        public void ClosePage()
+        {
+            try
+            {
+                MainThread.BeginInvokeOnMainThread(async () =>
+                {
+                    try
+                    {
+                        if (CancelButton.IsEnabled)
+                            await CloseCore();
+                    }
+                    catch (Exception ex)
+                    {
+                        System.Diagnostics.Debug.WriteLine(ex);
+                    }
+
+                });
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine(ex);
+            }
+        }
+
+        private async Task CloseCore()
+        {
             CancelButton.IsEnabled = false;
             GHApp.PlayButtonClickedSound();
             if (_textChanged)
             {
-                bool answer = await DisplayAlert("Close without Saving?", "Are you sure to close without saving changes?", "Yes", "No");
+                bool answer = await GHApp.DisplayMessageBox(this, "Close without Saving?", "Are you sure to close without saving changes?", "Yes", "No");
                 if (answer)
                 {
                     ErrorLabel.Text = "";
                     GHApp.CurrentMainPage?.InvalidateCarousel();
-                    await GHApp.Navigation.PopModalAsync();
+                    var page = await GHApp.Navigation.PopModalAsync();
+                    GHApp.DisconnectIViewHandlers(page);
                 }
-                else 
+                else
                 {
                     CancelButton.IsEnabled = true;
                 }
@@ -124,7 +159,8 @@ namespace GnollHackX.Pages.MainScreen
             {
                 ErrorLabel.Text = "";
                 GHApp.CurrentMainPage?.InvalidateCarousel();
-                await GHApp.Navigation.PopModalAsync();
+                var page = await GHApp.Navigation.PopModalAsync();
+                GHApp.DisconnectIViewHandlers(page);
             }
         }
 
@@ -132,13 +168,14 @@ namespace GnollHackX.Pages.MainScreen
         {
             ResetButton.IsEnabled = false;
             GHApp.PlayButtonClickedSound();
-            bool answer = await DisplayAlert("Reset Options File?", "Are you sure to reset the options file?", "Yes", "No");
+            bool answer = await GHApp.DisplayMessageBox(this, "Reset Options File?", "Are you sure to reset the options file?", "Yes", "No");
             if(answer)
             {
                 ErrorLabel.Text = "";
                 await GHApp.GnollHackService.ResetDefaultsFile();
                 GHApp.CurrentMainPage?.InvalidateCarousel();
-                await GHApp.Navigation.PopModalAsync();
+                var page = await GHApp.Navigation.PopModalAsync();
+                GHApp.DisconnectIViewHandlers(page);
             }
             else
             {

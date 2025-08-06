@@ -9,6 +9,7 @@ using GnollHackX;
 using System.Runtime.Intrinsics.Arm;
 using Windows.Services.Store;
 using Windows.System;
+using System.IO;
 
 namespace GnollHackM
 {
@@ -27,7 +28,7 @@ namespace GnollHackM
 
         public MEMORYSTATUSEX()
         {
-            dwLength = (uint)Marshal.SizeOf(typeof(MEMORYSTATUSEX));
+            dwLength = Convert.ToUInt32(Marshal.SizeOf(typeof(MEMORYSTATUSEX)));
         }
     }
 
@@ -60,6 +61,11 @@ namespace GnollHackM
         {
 
             return DeviceInfo.Current.VersionString;
+        }
+
+        public bool IsRunningOnDesktop()
+        {
+            return true;
         }
 
         public ulong GetDeviceMemoryInBytes()
@@ -109,6 +115,18 @@ namespace GnollHackM
             }
         }
 
+        public float GetPlatformScreenScale()
+        {
+            try
+            {
+                return 1.0f;
+            }
+            catch
+            {
+                return 1.0f;
+            }
+        }
+
         public void CloseApplication()
         {
             RevertAnimatorDuration(true);
@@ -120,6 +138,12 @@ namespace GnollHackM
             }
             Application.Current?.Quit();
             Environment.Exit(0);
+        }
+
+        public Task<Stream> GetPlatformAssetsStreamAsync(string directory, string fileName)
+        {
+            string relativePath = string.IsNullOrEmpty(directory) ? fileName : Path.Combine(directory, fileName);
+            return FileSystem.Current.OpenAppPackageFileAsync(relativePath);
         }
 
         public void SetStatusBarHidden(bool ishidden)
@@ -168,17 +192,20 @@ namespace GnollHackM
 
         }
 
-        public async void RequestAppReview(ContentPage page)
+        public async Task RequestAppReview(ContentPage page)
         {
-            try
+            if (GHApp.IsPackaged && !GHApp.IsSteam && !GHApp.IsNoStore) /* Microsoft Store */
             {
-                await PromptUserToRateApp(page);
+                try
+                {
+                    await PromptUserToRateApp(page);
+                }
+                catch (Exception ex)
+                {
+                    System.Diagnostics.Debug.WriteLine(ex.Message);
+                }
+                await System.Threading.Tasks.Task.Delay(50);
             }
-            catch (Exception ex)
-            {
-                System.Diagnostics.Debug.WriteLine(ex.Message);
-            }
-            await System.Threading.Tasks.Task.Delay(50);
         }
 
 
@@ -198,7 +225,7 @@ namespace GnollHackM
 
         private async Task PromptUserToRateApp(ContentPage page)
         {
-            if(_storeContext == null)
+            if (_storeContext == null)
                 InitializeStoreReview();
 
             if (_storeContext == null || GHApp.WindowsXamlWindow == null)
@@ -238,7 +265,7 @@ namespace GnollHackM
                         // Something else went wrong
                         case StoreRateAndReviewStatus.Error:
                         default:
-                            if(result.ExtendedError?.Message != null)
+                            if (result.ExtendedError?.Message != null)
                                 System.Diagnostics.Debug.WriteLine(result.ExtendedError.Message);
                             if (result.ExtendedJsonData != null)
                                 System.Diagnostics.Debug.WriteLine(result.ExtendedJsonData);

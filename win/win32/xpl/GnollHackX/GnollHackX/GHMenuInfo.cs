@@ -9,7 +9,7 @@ using Xamarin.Forms;
 
 namespace GnollHackX
 {
-    public class GHMenuInfo
+    public sealed class GHMenuInfo
     {
         public ghmenu_styles Style { get; set; }
         public List<GHMenuItem> MenuItems = new List<GHMenuItem>();
@@ -26,6 +26,12 @@ namespace GnollHackX
             if (_autoAccelerator == 'Z' + 1)
                 _autoAccelerator = 'a';
         }
+
+        public void SetAutoAccelerator(char res)
+        {
+            _autoAccelerator = res;
+        }
+
         public GHMenuInfo(ghmenu_styles style)
         {
             Style = style;
@@ -39,5 +45,15 @@ namespace GnollHackX
             }
         }
 
+        public GHMenuInfo Clone()
+        {
+            GHMenuInfo clone = new GHMenuInfo(Style);
+            clone.MenuItems.AddRange(MenuItems);
+            clone.Header = Header;
+            clone.Subtitle = Subtitle;
+            clone.SelectionHow = SelectionHow;
+            clone.SetAutoAccelerator(_autoAccelerator);
+            return clone;
+        }
     }
 }

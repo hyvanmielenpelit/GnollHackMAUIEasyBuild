@@ -1,2 +1,2 @@
 echo Downloading libgnollhackios.a Release ARM64 version
-pscp -pw Password username@192.168.1.1:/Users/username/vcremote/C/hmp/GnollHack/tools/Release/ARM64/libgnollhackios.a c:\mac-out
+pscp -pw Pepe123456! jannegustafsson@192.168.100.14:/Users/jannegustafsson/vcremote/C/hmp/GnollHack/tools/Release/ARM64/libgnollhackios.a c:\mac-out

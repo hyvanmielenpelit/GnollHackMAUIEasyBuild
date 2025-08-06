@@ -23,7 +23,7 @@ namespace GnollHackX.Pages.MainScreen
 #endif
 {
     [XamlCompilation(XamlCompilationOptions.Compile)]
-    public partial class TopScorePage : ContentPage
+    public partial class TopScorePage : ContentPage, ICloseablePage
     {
         private string _fileName;
         private ObservableCollection<GHTopScoreItem> _topScores = null;
@@ -33,8 +33,8 @@ namespace GnollHackX.Pages.MainScreen
             InitializeComponent();
             On<iOS>().SetUseSafeArea(true);
             UIUtils.AdjustRootLayout(RootGrid);
-            GHApp.SetPageThemeOnHandler(this, GHApp.DarkMode);
-            GHApp.SetViewCursorOnHandler(RootGrid, GameCursorType.Normal);
+            UIUtils.SetPageThemeOnHandler(this, GHApp.DarkMode);
+            UIUtils.SetViewCursorOnHandler(RootGrid, GameCursorType.Normal);
 
             _fileName = fileName;
             ScoresView.BindingContext = this;
@@ -64,8 +64,8 @@ namespace GnollHackX.Pages.MainScreen
             InitializeComponent();
             On<iOS>().SetUseSafeArea(true);
             UIUtils.AdjustRootLayout(RootGrid);
-            GHApp.SetPageThemeOnHandler(this, GHApp.DarkMode);
-            GHApp.SetViewCursorOnHandler(RootGrid, GameCursorType.Normal);
+            UIUtils.SetPageThemeOnHandler(this, GHApp.DarkMode);
+            UIUtils.SetViewCursorOnHandler(RootGrid, GameCursorType.Normal);
 
             _fileName = "";
             NoScoresLabel.IsVisible = true;
@@ -75,11 +75,40 @@ namespace GnollHackX.Pages.MainScreen
 
         private async void CloseButton_Clicked(object sender, EventArgs e)
         {
-            CloseButton.IsEnabled = false;
-            GHApp.PlayButtonClickedSound();
-            await GHApp.Navigation.PopModalAsync();
+            await ClosePageAsync();
         }
 
+        private async Task ClosePageAsync()
+        {
+            CloseButton.IsEnabled = false;
+            GHApp.PlayButtonClickedSound();
+            var page = await GHApp.Navigation.PopModalAsync();
+            GHApp.DisconnectIViewHandlers(page);
+        }
+
+        public void ClosePage()
+        {
+            try
+            {
+                MainThread.BeginInvokeOnMainThread(async () =>
+                {
+                    try
+                    {
+                        if (CloseButton.IsEnabled)
+                            await ClosePageAsync();
+                    }
+                    catch (Exception ex)
+                    {
+                        System.Diagnostics.Debug.WriteLine(ex);
+                    }
+
+                });
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine(ex);
+            }
+        }
         public bool ReadFile(out string errorMessage)
         {
             string res = "";
@@ -286,7 +315,7 @@ namespace GnollHackX.Pages.MainScreen
             }
             catch (Exception ex)
             {
-                await DisplayAlert("Cannot Open File", "GnollHack cannot open the file at " + fullPath + " in launcher. Error: " + ex.Message, "OK");
+                await GHApp.DisplayMessageBox(this, "Cannot Open File", "GnollHack cannot open the file at " + fullPath + " in launcher. Error: " + ex.Message, "OK");
                 return false;
             }
         }
@@ -316,7 +345,7 @@ namespace GnollHackX.Pages.MainScreen
                     {
                         bool openhtml = true;
                         if (dumplogexists && htmldumplogexists && !GHApp.UseSingleDumpLog)
-                            openhtml = await DisplayAlert("Open HTML DumpLog", "There are both text and HTML dumplogs available. Do you want to open the HTML dumplog?", "Yes", "No");
+                            openhtml = await GHApp.DisplayMessageBox(this, "Open HTML DumpLog", "There are both text and HTML dumplogs available. Do you want to open the HTML dumplog?", "Yes", "No");
                         if (openhtml)
                         {
                             //HTMLDumplogDisplayed = await OpenFileInLauncher(fullhtmltargetpath);
@@ -324,7 +353,7 @@ namespace GnollHackX.Pages.MainScreen
                             string errormsg = "";
                             if (!displFilePage.ReadFile(out errormsg))
                             {
-                                await DisplayAlert("Error Reading HTML Dumplog File", errormsg, "OK");
+                                await GHApp.DisplayMessageBox(this, "Error Reading HTML Dumplog File", errormsg, "OK");
                             }
                             else
                             {
@@ -336,7 +365,7 @@ namespace GnollHackX.Pages.MainScreen
                 }
                 catch (Exception ex)
                 {
-                    await DisplayAlert("Error Reading HTML Dumplog File", "An error occurred when reading HTML dumplog \'" + fullhtmltargetpath + "\' for " + tsi.Name + ": " + ex.Message, "OK");
+                    await GHApp.DisplayMessageBox(this, "Error Reading HTML Dumplog File", "An error occurred when reading HTML dumplog \'" + fullhtmltargetpath + "\' for " + tsi.Name + ": " + ex.Message, "OK");
                 }
 
                 try
@@ -349,7 +378,7 @@ namespace GnollHackX.Pages.MainScreen
                             string errormsg = "";
                             if (!displFilePage.ReadFile(out errormsg))
                             {
-                                await DisplayAlert("Error Reading Dumplog File", errormsg, "OK");
+                                await GHApp.DisplayMessageBox(this, "Error Reading Dumplog File", errormsg, "OK");
                             }
                             else
                             {
@@ -358,18 +387,18 @@ namespace GnollHackX.Pages.MainScreen
                         }
                         else
                         {
-                            await DisplayAlert("No Dumplog", "Dumplog \'" + fulltargetpath + "\' for " + tsi.Name + " does not exist.", "OK");
+                            await GHApp.DisplayMessageBox(this, "No Dumplog", "Dumplog \'" + fulltargetpath + "\' for " + tsi.Name + " does not exist.", "OK");
                         }
                     }
                 }
                 catch (Exception ex)
                 {
-                    await DisplayAlert("Error Reading Dumplog File", "An error occurred when reading dumplog \'" + fulltargetpath + "\' for " + tsi.Name + ": " + ex.Message, "OK");
+                    await GHApp.DisplayMessageBox(this, "Error Reading Dumplog File", "An error occurred when reading dumplog \'" + fulltargetpath + "\' for " + tsi.Name + ": " + ex.Message, "OK");
                 }
             }
             else
             {
-                await DisplayAlert("Top Score Info Missing", "Selected top score information does not exist.", "OK");
+                await GHApp.DisplayMessageBox(this, "Top Score Info Missing", "Selected top score information does not exist.", "OK");
             }
             ScoresView.IsEnabled = true;
         }
